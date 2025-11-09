@@ -70,10 +70,19 @@
 ## 🚧 待完成功能（v0.3.0）
 
 ### Learning层剩余功能
-- [ ] 主动问答（Proactive Q&A）
-  - [ ] 识别未完整回答的问题，主动追问
-  - [ ] 定期总结用户关心的话题
-  - [ ] 生成个性化建议
+- [x] 主动问答（Proactive Q&A）
+  - [x] `proactive_qa.py` - 主动问答分析器
+  - [x] `proactive_questions` 表结构（15字段）
+  - [x] 识别未完整回答的问题，主动追问
+  - [x] API端点：
+    - `/proactive/history` - 追问历史记录
+    - `/proactive/pending/{session_id}` - 待追问列表
+    - `/proactive/analyze/{session_id}` - 分析会话
+    - `/proactive/mark_asked/{question_id}` - 标记已追问
+  - [x] 前端"主动问答历史"展示（行为分析面板）
+  - [x] 集成到 `agent.py` 的 `chat()` 方法
+  - [x] 置信度评分系统（0-100）
+  - [x] 缺失信息识别（具体名称、操作方法、原因说明等）
 
 - [ ] 模式学习（Pattern Learning）
   - [ ] 高频词汇识别和同义词扩展
@@ -108,19 +117,20 @@ git commit -m "chore: 清理v0.3.0开发过程中的临时测试脚本
 ### 核心代码文件
 - `behavior_analytics.py`: ~316 行
 - `conflict_detector.py`: ~299 行
-- `main.py`: 新增 ~40 行（API端点）
-- `agent.py`: 新增 ~5 行（集成行为分析）
-- `static/index.html`: 新增 ~200 行（前端面板）
-- `db_setup.py`: 新增 ~15 行（UserBehavior表）
+- `proactive_qa.py`: ~360 行（新增）
+- `main.py`: 新增 ~80 行（API端点）
+- `agent.py`: 新增 ~50 行（集成）
+- `static/index.html`: 新增 ~290 行（前端面板）
+- `db_setup.py`: 新增 ~40 行（表结构）
 
-### 总新增代码：~875 行
+### 总新增代码：~1,435 行
 
 ## 🎯 v0.3.0 完成度
 
-**已完成**: 40%
+**已完成**: 60%
 - ✅ 行为分析（20%）
 - ✅ 冲突检测（20%）
-- ⏳ 主动问答（0%）
+- ✅ 主动问答（20%）
 - ⏳ 模式学习（0%）
 
 ---
