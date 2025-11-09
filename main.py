@@ -55,6 +55,13 @@ def memory_search(keywords: str, tag: str = None, limit: int = 10):
     return {"memories": memories}
 
 
+@app.get("/memory/semantic")
+def memory_semantic_search(query: str, tag: str = None, limit: int = 10):
+    """语义搜索记忆（理解查询意图）"""
+    memories = xiaole.memory.semantic_recall(query, tag, limit, min_score=0.1)
+    return {"memories": memories}
+
+
 @app.get("/memory/stats")
 def memory_stats():
     """获取记忆统计信息"""

@@ -4,6 +4,7 @@ from db_setup import Memory
 import os
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
+from semantic_search import SemanticSearchManager
 
 load_dotenv()
 
@@ -26,10 +27,21 @@ Session = sessionmaker(bind=engine)
 
 
 class MemoryManager:
-    def __init__(self, enable_vector_search=False):  # 默认禁用向量搜索
+    def __init__(self, enable_vector_search=True):  # 默认启用语义搜索
         self.session = Session()
-        self.enable_vector_search = False  # 暂时禁用，等待更简单的实现
-        self.vector_memory = None
+        self.enable_vector_search = enable_vector_search
+
+        # 初始化语义搜索管理器
+        if self.enable_vector_search:
+            try:
+                self.semantic_search = SemanticSearchManager()
+                print("✅ 语义搜索已启用")
+            except Exception as e:
+                print(f"⚠️ 语义搜索初始化失败: {e}，降级到关键词搜索")
+                self.enable_vector_search = False
+                self.semantic_search = None
+        else:
+            self.semantic_search = None
 
     def remember(self, content, tag="general"):
         mem = Memory(content=content, tag=tag)
@@ -126,54 +138,75 @@ class MemoryManager:
             "by_tag": {tag: count for tag, count in tag_stats}
         }
 
-    def semantic_recall(self, query, tag=None, limit=10, min_score=0.3):
+    def semantic_recall(self, query, tag=None, limit=10, min_score=0.15):
         """
-        语义搜索记忆（基于向量相似度）
+        语义搜索记忆（基于TF-IDF + 余弦相似度）
 
         Args:
-            query: 查询文本（例如："我几岁"）
+            query: 查询文本（例如："我几岁"、"运动爱好"）
             tag: 可选标签过滤
             limit: 返回数量限制
             min_score: 最低相似度阈值（0-1）
 
         Returns:
-            [content_strings] 按相似度排序
+            [{content, tag, timestamp}] 按相似度排序
         """
-        if not self.enable_vector_search or not self.vector_memory:
+        if not self.enable_vector_search or not self.semantic_search:
             # 降级到关键词搜索
-            print("⚠️  向量搜索不可用，使用关键词搜索")
-            return self.recall(tag=tag or "general", limit=limit)
+            print("⚠️ 语义搜索不可用，使用关键词搜索")
+            keywords = query.split()
+            return self.recall_by_keywords(keywords, tag=tag, limit=limit)
 
         try:
-            # 向量搜索
-            results = self.vector_memory.search(
-                query, top_k=limit*2, min_score=min_score)
+            # 查询所有记忆
+            query_obj = self.session.query(Memory)
+            if tag:
+                query_obj = query_obj.filter(Memory.tag == tag)
+
+            all_memories = query_obj.all()
+
+            if not all_memories:
+                return []
+
+            # 构建文档列表：(id, content)
+            documents = [(m.id, m.content) for m in all_memories]
+
+            # 执行语义搜索
+            results = self.semantic_search.search(
+                query=query,
+                documents=documents,
+                top_k=limit,
+                min_score=min_score
+            )
 
             if not results:
                 return []
 
-            # 如果指定了tag，需要过滤
-            if tag:
-                memory_ids = [mid for mid, _, _ in results]
-                filtered_memories = self.session.query(Memory).filter(
-                    Memory.id.in_(memory_ids),
-                    Memory.tag == tag
-                ).all()
+            # 获取匹配的记忆详情
+            result_ids = [mem_id for mem_id, _ in results]
+            id_to_score = {mem_id: score for mem_id, score in results}
 
-                # 按原始相似度排序
-                id_to_content = {m.id: m.content for m in filtered_memories}
-                id_to_score = {mid: score for mid, _, score in results}
+            matched_memories = self.session.query(Memory).filter(
+                Memory.id.in_(result_ids)
+            ).all()
 
-                sorted_contents = sorted(
-                    id_to_content.items(),
-                    key=lambda x: id_to_score.get(x[0], 0),
-                    reverse=True
-                )
-                return [content for _, content in sorted_contents[:limit]]
-            else:
-                # 直接返回向量搜索结果
-                return [text for _, text, _ in results[:limit]]
+            # 按相似度排序并返回
+            memories_with_scores = [
+                {
+                    'content': m.content,
+                    'tag': m.tag,
+                    'timestamp': m.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                    'score': id_to_score.get(m.id, 0)
+                }
+                for m in matched_memories
+            ]
+
+            # 按分数降序排序
+            memories_with_scores.sort(key=lambda x: x['score'], reverse=True)
+
+            return memories_with_scores
 
         except Exception as e:
-            print(f"⚠️  语义搜索失败: {e}，降级到关键词搜索")
-            return self.recall(tag=tag or "general", limit=limit)
+            print(f"⚠️ 语义搜索失败: {e}，降级到关键词搜索")
+            keywords = query.split()
+            return self.recall_by_keywords(keywords, tag=tag, limit=limit)

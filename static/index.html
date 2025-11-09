@@ -404,10 +404,11 @@
                 </div>
 
                 <div class="search-box">
-                    <input type="text" id="searchInput" placeholder="搜索关键词（多个用逗号分隔）..."
+                    <input type="text" id="searchInput" placeholder="搜索记忆（支持语义理解）..."
                         style="flex: 1; padding: 10px; border: 2px solid #ddd; border-radius: 10px;"
                         onkeypress="if(event.key==='Enter') searchMemories()">
-                    <button onclick="searchMemories()">🔍 搜索</button>
+                    <button onclick="searchMemories()">🔍 关键词</button>
+                    <button onclick="semanticSearch()">🧠 语义</button>
                     <button onclick="loadRecentMemories()">📋 全部</button>
                 </div>
 
@@ -608,7 +609,7 @@
             }
         }
 
-        // 搜索记忆
+        // 搜索记忆（关键词）
         async function searchMemories() {
             const keywords = document.getElementById('searchInput').value.trim();
             if (!keywords) {
@@ -617,7 +618,7 @@
             }
 
             const container = document.getElementById('memoryList');
-            container.innerHTML = '<div class="loading">搜索中...</div>';
+            container.innerHTML = '<div class="loading">关键词搜索中...</div>';
 
             try {
                 const response = await fetch(
@@ -632,6 +633,42 @@
                             <div class="memory-meta">
                                 <span>🏷️ ${mem.tag}</span>
                                 <span>🕐 ${mem.timestamp}</span>
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    container.innerHTML = '<div class="loading">没有找到相关记忆</div>';
+                }
+            } catch (error) {
+                container.innerHTML = `<div class="error">搜索失败: ${error.message}</div>`;
+            }
+        }
+
+        // 语义搜索记忆
+        async function semanticSearch() {
+            const query = document.getElementById('searchInput').value.trim();
+            if (!query) {
+                alert('请输入查询内容');
+                return;
+            }
+
+            const container = document.getElementById('memoryList');
+            container.innerHTML = '<div class="loading">🧠 语义搜索中...</div>';
+
+            try {
+                const response = await fetch(
+                    `${API_BASE}/memory/semantic?query=${encodeURIComponent(query)}&limit=20`
+                );
+                const data = await response.json();
+
+                if (data.memories && data.memories.length > 0) {
+                    container.innerHTML = data.memories.map(mem => `
+                        <div class="memory-item">
+                            <div class="memory-content">${mem.content}</div>
+                            <div class="memory-meta">
+                                <span>🏷️ ${mem.tag}</span>
+                                <span>🕐 ${mem.timestamp}</span>
+                                <span>📊 相似度: ${(mem.score * 100).toFixed(1)}%</span>
                             </div>
                         </div>
                     `).join('');
