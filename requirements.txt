@@ -10,3 +10,4 @@ psutil
 aiohttp
 apscheduler
 duckduckgo-search
+aiofiles

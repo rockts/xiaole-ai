@@ -49,7 +49,8 @@ class XiaoLeAgent:
         try:
             from tools import (
                 weather_tool, system_info_tool,
-                time_tool, calculator_tool, reminder_tool, search_tool
+                time_tool, calculator_tool, reminder_tool,
+                search_tool, file_tool
             )
 
             # 注册工具
@@ -59,6 +60,7 @@ class XiaoLeAgent:
             self.tool_registry.register(calculator_tool)
             self.tool_registry.register(reminder_tool)  # v0.5.0 提醒工具
             self.tool_registry.register(search_tool)  # v0.5.0 搜索工具
+            self.tool_registry.register(file_tool)  # v0.5.0 文件工具
 
             logger.info(
                 f"✅ 工具注册完成，共 "
@@ -504,7 +506,8 @@ class XiaoLeAgent:
 4. 如果用户请求数学计算 -> 使用 calculator 工具
 5. 如果用户请求创建提醒/定时提醒 -> 使用 reminder 工具
 6. 如果用户请求搜索信息/查询资料/百科知识 -> 使用 search 工具
-7. 如果只是普通对话 -> 不需要工具
+7. 如果用户请求文件操作（读取/写入/列表/搜索文件） -> 使用 file 工具
+8. 如果只是普通对话 -> 不需要工具
 
 **重要规则：**
 - 天气查询需要城市名称：
@@ -524,6 +527,13 @@ class XiaoLeAgent:
   - 如果用户询问实时信息、新闻、百科知识 -> 使用 search 工具
   - 如果用户说"搜索..."、"查一下..."、"帮我找..." -> 使用 search 工具
   - 提取搜索关键词
+- 文件操作识别规则：
+  - 如果用户说"读取文件"、"写入文件"、"列出文件"、"搜索文件" -> 使用 file 工具
+  - operation: read(读取)/write(写入)/list(列表)/search(搜索文件)
+  - path: 文件或目录路径（相对于/tmp/xiaole_files）
+  - content: 写入内容（仅write操作需要）
+  - pattern: 搜索模式（仅search操作需要，如*.txt）
+  - recursive: 是否递归（可选，默认false）
 
 请以JSON格式返回（不要markdown代码块）：
 {{
@@ -539,7 +549,9 @@ class XiaoLeAgent:
 - time工具参数: format(full/date/time/timestamp)
 - calculator工具参数: expression(数学表达式)
 - reminder工具参数: content(提醒内容), time_desc(时间描述，如"明天下午3点"、"2小时后"), title(可选，提醒标题)
-- search工具参数: query(搜索关键词), max_results(可选，默认5)"""
+- search工具参数: query(搜索关键词), max_results(可选，默认5)
+- file工具参数: operation(read/write/list/search), path(文件路径),
+  content(仅write需要), pattern(仅search需要), recursive(可选)"""
 
         try:
             if self.api_type == "deepseek":
