@@ -4,11 +4,12 @@ from fastapi.staticfiles import StaticFiles
 from agent import XiaoLeAgent
 from conflict_detector import ConflictDetector
 from proactive_qa import ProactiveQA  # v0.3.0 主动问答
+from reminder_manager import get_reminder_manager  # v0.5.0 主动提醒
 
 app = FastAPI(
     title="小乐AI管家",
-    version="0.4.0-dev",
-    description="支持工具调用的AI助手 - Action层开发中"
+    version="0.5.0-dev",
+    description="支持主动提醒的AI助手 - Active Perception层开发中"
 )
 
 # 配置CORS，允许网页访问API
@@ -26,6 +27,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 xiaole = XiaoLeAgent()
 conflict_detector = ConflictDetector()  # v0.3.0 冲突检测器
 proactive_qa = ProactiveQA()  # v0.3.0 主动问答分析器
+reminder_manager = get_reminder_manager()  # v0.5.0 提醒管理器
 
 
 @app.get("/")
@@ -305,3 +307,180 @@ def get_tool_history(
         }
     finally:
         db.close()
+
+
+# ============ v0.5.0 主动提醒系统 API ============
+
+@app.post("/api/reminders")
+async def create_reminder(
+    user_id: str = "default_user",
+    reminder_type: str = "time",
+    trigger_condition: dict = None,
+    content: str = "",
+    title: str = None,
+    priority: int = 3,
+    repeat: bool = False,
+    repeat_interval: int = None
+):
+    """创建新提醒"""
+    try:
+        reminder = await reminder_manager.create_reminder(
+            user_id=user_id,
+            reminder_type=reminder_type,
+            trigger_condition=trigger_condition or {},
+            content=content,
+            title=title,
+            priority=priority,
+            repeat=repeat,
+            repeat_interval=repeat_interval
+        )
+        return {
+            "success": True,
+            "reminder": reminder
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
+@app.get("/api/reminders")
+async def get_reminders(
+    user_id: str = "default_user",
+    enabled_only: bool = True,
+    reminder_type: str = None
+):
+    """获取用户提醒列表"""
+    reminders = await reminder_manager.get_user_reminders(
+        user_id=user_id,
+        enabled_only=enabled_only,
+        reminder_type=reminder_type
+    )
+    return {
+        "total": len(reminders),
+        "reminders": reminders
+    }
+
+
+@app.get("/api/reminders/{reminder_id}")
+async def get_reminder(reminder_id: int, user_id: str = "default_user"):
+    """获取单个提醒详情"""
+    reminders = await reminder_manager.get_user_reminders(user_id)
+    reminder = next((r for r in reminders if r['reminder_id'] == reminder_id), None)
+    
+    if not reminder:
+        return {"error": "Reminder not found"}, 404
+    
+    return reminder
+
+
+@app.put("/api/reminders/{reminder_id}")
+async def update_reminder(
+    reminder_id: int,
+    content: str = None,
+    title: str = None,
+    priority: int = None,
+    enabled: bool = None,
+    trigger_condition: dict = None
+):
+    """更新提醒"""
+    updates = {}
+    if content is not None:
+        updates['content'] = content
+    if title is not None:
+        updates['title'] = title
+    if priority is not None:
+        updates['priority'] = priority
+    if enabled is not None:
+        updates['enabled'] = enabled
+    if trigger_condition is not None:
+        import json
+        updates['trigger_condition'] = json.dumps(trigger_condition)
+    
+    success = await reminder_manager.update_reminder(reminder_id, **updates)
+    
+    return {
+        "success": success,
+        "message": "Reminder updated" if success else "Update failed"
+    }
+
+
+@app.delete("/api/reminders/{reminder_id}")
+async def delete_reminder(reminder_id: int):
+    """删除提醒"""
+    success = await reminder_manager.delete_reminder(reminder_id)
+    return {
+        "success": success,
+        "message": "Reminder deleted" if success else "Delete failed"
+    }
+
+
+@app.post("/api/reminders/{reminder_id}/toggle")
+async def toggle_reminder(reminder_id: int):
+    """启用/禁用提醒"""
+    # 先获取当前状态
+    reminders = await reminder_manager.get_user_reminders(
+        "default_user",
+        enabled_only=False
+    )
+    reminder = next((r for r in reminders if r['reminder_id'] == reminder_id), None)
+    
+    if not reminder:
+        return {"error": "Reminder not found"}, 404
+    
+    # 切换状态
+    new_enabled = not reminder.get('enabled', True)
+    success = await reminder_manager.update_reminder(
+        reminder_id,
+        enabled=new_enabled
+    )
+    
+    return {
+        "success": success,
+        "enabled": new_enabled,
+        "message": f"Reminder {'enabled' if new_enabled else 'disabled'}"
+    }
+
+
+@app.get("/api/reminders/history")
+async def get_reminder_history(
+    user_id: str = "default_user",
+    limit: int = 50
+):
+    """获取提醒历史"""
+    history = await reminder_manager.get_reminder_history(user_id, limit)
+    return {
+        "total": len(history),
+        "history": history
+    }
+
+
+@app.post("/api/reminders/check")
+async def check_reminders(user_id: str = "default_user"):
+    """手动检查并触发提醒"""
+    # 检查时间提醒
+    time_triggered = await reminder_manager.check_time_reminders(user_id)
+    
+    # 检查行为提醒
+    behavior_triggered = await reminder_manager.check_behavior_reminders(user_id)
+    
+    all_triggered = time_triggered + behavior_triggered
+    
+    # 触发所有需要触发的提醒
+    results = []
+    for reminder in all_triggered:
+        success = await reminder_manager.trigger_reminder(
+            reminder['reminder_id']
+        )
+        results.append({
+            "reminder_id": reminder['reminder_id'],
+            "title": reminder.get('title', 'Untitled'),
+            "content": reminder['content'],
+            "triggered": success
+        })
+    
+    return {
+        "total_checked": len(all_triggered),
+        "triggered": results
+    }
