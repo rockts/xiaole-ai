@@ -1,8 +1,8 @@
 # 小乐 AI 管家
 
-> v0.3.0 - Learning层完成 | v0.2.0 - 轻量级语义搜索版本
+> v0.4.0 - Action层开发中 | v0.3.0 - Learning层完成 | v0.2.0 - 语义搜索
 
-个人 AI 助手，支持长期记忆、对话上下文管理、智能语义搜索和用户行为学习。
+个人 AI 助手，支持长期记忆、对话管理、用户行为学习、**工具调用和任务执行**。
 
 ## 功能特性
 
@@ -36,6 +36,23 @@
   - 常见问题自动归类（6大类：天气查询、时间日期、个人信息、功能咨询、推荐建议、闲聊）
   - 用户偏好模型构建
   - 学习统计洞察
+
+✅ **Action层 - 工具调用与任务执行** (v0.4.0)
+- **工具调用框架**：
+  - 统一的工具接口和参数验证
+  - 工具注册中心和生命周期管理
+  - 自动执行追踪和性能统计
+- **系统工具**：
+  - 系统信息查询（CPU、内存、磁盘）
+  - 时间日期查询
+  - 数学计算器（支持基本运算和数学函数）
+- **天气工具**：
+  - 实时天气查询
+  - 3天/7天天气预报
+  - 和风天气API集成
+- **工具执行历史**：
+  - 完整的执行记录和结果追踪
+  - 性能指标统计
 
 ✅ **远程数据存储**
 - 使用 NAS PostgreSQL 存储数据
@@ -107,11 +124,16 @@ xiaole-ai/
 ├── conflict_detector.py    # 记忆冲突检测器
 ├── proactive_qa.py         # 主动问答分析器
 ├── pattern_learning.py     # 模式学习器
+├── tool_manager.py         # 工具调用管理器 (v0.4.0)
 ├── semantic_search.py      # 语义搜索引擎
 ├── error_handler.py        # 错误处理装饰器
 ├── db_setup.py             # 数据库模型定义
 ├── main.py                 # FastAPI 应用入口
 ├── requirements.txt        # Python 依赖
+├── tools/                  # 工具模块 (v0.4.0)
+│   ├── __init__.py
+│   ├── weather_tool.py     # 天气查询工具
+│   └── system_tool.py      # 系统操作工具
 ├── static/                 # 前端静态文件
 │   └── index.html          # Web 界面
 ├── docs/                   # 文档
@@ -197,6 +219,20 @@ GET /patterns/common_questions?user_id=default_user&limit=10
 GET /patterns/insights?user_id=default_user
 ```
 
+### 工具调用接口 (v0.4.0)
+
+```bash
+# 列出所有工具
+GET /tools/list?category=system&enabled_only=true
+
+# 执行工具
+POST /tools/execute?tool_name=time&user_id=default_user
+Body: {"format": "full"}
+
+# 工具执行历史
+GET /tools/history?user_id=default_user&limit=20
+```
+
 ## 配置说明
 
 ### 环境变量 (.env)
@@ -214,6 +250,9 @@ DEEPSEEK_API_KEY=your_deepseek_key
 # 或使用 Claude
 CLAUDE_API_KEY=your_claude_key
 USE_CLAUDE=false
+
+# 工具API配置 (v0.4.0)
+QWEATHER_API_KEY=your_qweather_key  # 和风天气API密钥（可选）
 ```
 
 ## 开发指南
@@ -310,8 +349,8 @@ git push origin main
 ## 已知限制
 
 - 语义搜索对短查询效果有限（可通过同义词词典改进）
-- 无法访问互联网获取实时信息
-- 不支持语音交互
+- 天气查询需配置和风天气API密钥
+- 部分工具功能需要相应的API权限
 
 ## 🗺️ 发展路线图
 
@@ -321,14 +360,24 @@ git push origin main
 - [x] 轻量级语义搜索（TF-IDF + jieba）
 - [x] 会话标题自动生成
 
-### 🚧 v0.3.0 - Learning层（开发中）
+### ✅ v0.3.0 - Learning层
 - [x] 用户行为分析（对话模式、话题偏好）
 - [x] 记忆冲突检测（自动识别矛盾信息）
 - [x] 行为分析可视化面板
-- [ ] 主动问答（识别未完整问题并追问）
-- [ ] 模式学习（高频词汇、同义词扩展）
+- [x] 主动问答（识别未完整问题并追问）
+- [x] 模式学习（高频词汇、常见问题分类）
 
-### 🔮 v0.4.0+ - Active Perception层
+### 🚧 v0.4.0 - Action层（开发中）
+- [x] 工具调用框架（统一接口、参数验证）
+- [x] 系统工具（CPU/内存/磁盘/时间/计算器）
+- [x] 天气工具（实时天气、预报查询）
+- [x] 工具执行历史追踪
+- [ ] 智能工具选择（Agent自动识别意图）
+- [ ] 网络搜索工具
+- [ ] 文件操作工具
+- [ ] 前端工具面板展示
+
+### 🔮 v0.5.0+ - Active Perception层
 - [ ] 语音交互（TTS/STT）
 - [ ] 多模态输入（图片、文件）
 - [ ] 主动提醒（基于记忆的智能提醒）
