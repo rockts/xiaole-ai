@@ -1,6 +1,8 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
+from typing import Optional, Dict, Any, List
 from agent import XiaoLeAgent
 from conflict_detector import ConflictDetector
 from proactive_qa import ProactiveQA  # v0.3.0 主动问答
@@ -25,6 +27,19 @@ app.add_middleware(
 # 挂载静态文件目录
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
+
+# Pydantic模型 - v0.5.0提醒系统
+class ReminderCreate(BaseModel):
+    user_id: str = "default_user"
+    reminder_type: str = "time"
+    trigger_condition: Dict[str, Any]
+    content: str
+    title: Optional[str] = None
+    priority: int = 3
+    repeat: bool = False
+    repeat_interval: Optional[int] = None
+
+
 xiaole = XiaoLeAgent()
 conflict_detector = ConflictDetector()  # v0.3.0 冲突检测器
 proactive_qa = ProactiveQA()  # v0.3.0 主动问答分析器
@@ -32,12 +47,54 @@ reminder_manager = get_reminder_manager()  # v0.5.0 提醒管理器
 scheduler = get_scheduler()  # v0.5.0 定时调度器
 
 
+# WebSocket连接管理器
+class ConnectionManager:
+    """管理WebSocket连接"""
+
+    def __init__(self):
+        self.active_connections: List[WebSocket] = []
+
+    async def connect(self, websocket: WebSocket):
+        """接受新连接"""
+        await websocket.accept()
+        self.active_connections.append(websocket)
+        print(f"✅ WebSocket客户端已连接，当前连接数: {len(self.active_connections)}")
+
+    def disconnect(self, websocket: WebSocket):
+        """断开连接"""
+        self.active_connections.remove(websocket)
+        print(f"👋 WebSocket客户端已断开，当前连接数: {len(self.active_connections)}")
+
+    async def broadcast(self, message: dict):
+        """广播消息给所有连接的客户端"""
+        disconnected = []
+        for connection in self.active_connections:
+            try:
+                await connection.send_json(message)
+            except Exception as e:
+                print(f"❌ 发送消息失败: {e}")
+                disconnected.append(connection)
+
+        # 清理断开的连接
+        for conn in disconnected:
+            if conn in self.active_connections:
+                self.active_connections.remove(conn)
+
+
+websocket_manager = ConnectionManager()
+
+
 @app.on_event("startup")
 async def startup_event():
     """应用启动时初始化"""
+    # 设置ReminderManager的WebSocket推送回调
+    global reminder_manager
+    reminder_manager = get_reminder_manager(websocket_manager.broadcast)
+
     # 启动提醒调度器
     scheduler.start()
     print("✅ 提醒调度器已启动")
+    print("✅ WebSocket推送已配置")
 
 
 @app.on_event("shutdown")
@@ -46,6 +103,24 @@ async def shutdown_event():
     # 停止提醒调度器
     scheduler.stop()
     print("👋 提醒调度器已停止")
+
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    """WebSocket端点，用于实时推送提醒"""
+    await websocket_manager.connect(websocket)
+    try:
+        while True:
+            # 保持连接，接收客户端消息（心跳等）
+            data = await websocket.receive_text()
+            # 可以处理客户端消息，如心跳响应
+            if data == "ping":
+                await websocket.send_json({"type": "pong"})
+    except WebSocketDisconnect:
+        websocket_manager.disconnect(websocket)
+    except Exception as e:
+        print(f"WebSocket错误: {e}")
+        websocket_manager.disconnect(websocket)
 
 
 @app.get("/")
@@ -330,31 +405,22 @@ def get_tool_history(
 # ============ v0.5.0 主动提醒系统 API ============
 
 @app.post("/api/reminders")
-async def create_reminder(
-    user_id: str = "default_user",
-    reminder_type: str = "time",
-    trigger_condition: dict = None,
-    content: str = "",
-    title: str = None,
-    priority: int = 3,
-    repeat: bool = False,
-    repeat_interval: int = None
-):
+async def create_reminder(reminder: ReminderCreate):
     """创建新提醒"""
     try:
-        reminder = await reminder_manager.create_reminder(
-            user_id=user_id,
-            reminder_type=reminder_type,
-            trigger_condition=trigger_condition or {},
-            content=content,
-            title=title,
-            priority=priority,
-            repeat=repeat,
-            repeat_interval=repeat_interval
+        result = await reminder_manager.create_reminder(
+            user_id=reminder.user_id,
+            reminder_type=reminder.reminder_type,
+            trigger_condition=reminder.trigger_condition,
+            content=reminder.content,
+            title=reminder.title,
+            priority=reminder.priority,
+            repeat=reminder.repeat,
+            repeat_interval=reminder.repeat_interval
         )
         return {
             "success": True,
-            "reminder": reminder
+            "reminder": result
         }
     except Exception as e:
         return {
@@ -385,11 +451,12 @@ async def get_reminders(
 async def get_reminder(reminder_id: int, user_id: str = "default_user"):
     """获取单个提醒详情"""
     reminders = await reminder_manager.get_user_reminders(user_id)
-    reminder = next((r for r in reminders if r['reminder_id'] == reminder_id), None)
-    
+    reminder = next(
+        (r for r in reminders if r['reminder_id'] == reminder_id), None)
+
     if not reminder:
         return {"error": "Reminder not found"}, 404
-    
+
     return reminder
 
 
@@ -415,9 +482,9 @@ async def update_reminder(
     if trigger_condition is not None:
         import json
         updates['trigger_condition'] = json.dumps(trigger_condition)
-    
+
     success = await reminder_manager.update_reminder(reminder_id, **updates)
-    
+
     return {
         "success": success,
         "message": "Reminder updated" if success else "Update failed"
@@ -435,25 +502,27 @@ async def delete_reminder(reminder_id: int):
 
 
 @app.post("/api/reminders/{reminder_id}/toggle")
-async def toggle_reminder(reminder_id: int):
+async def toggle_reminder(reminder_id: int, user_id: str = "default_user"):
     """启用/禁用提醒"""
     # 先获取当前状态
     reminders = await reminder_manager.get_user_reminders(
-        "default_user",
+        user_id,
         enabled_only=False
     )
-    reminder = next((r for r in reminders if r['reminder_id'] == reminder_id), None)
-    
+    reminder = next(
+        (r for r in reminders if r['reminder_id'] == reminder_id), None
+    )
+
     if not reminder:
-        return {"error": "Reminder not found"}, 404
-    
+        return {"error": "Reminder not found", "success": False}
+
     # 切换状态
     new_enabled = not reminder.get('enabled', True)
     success = await reminder_manager.update_reminder(
         reminder_id,
         enabled=new_enabled
     )
-    
+
     return {
         "success": success,
         "enabled": new_enabled,
@@ -461,9 +530,59 @@ async def toggle_reminder(reminder_id: int):
     }
 
 
-@app.get("/api/reminders/history")
+@app.post("/api/reminders/{reminder_id}/trigger")
+async def trigger_reminder_manually(reminder_id: int):
+    """手动触发提醒"""
+    success = await reminder_manager.trigger_reminder(reminder_id)
+    return {
+        "success": success,
+        "message": "Reminder triggered" if success else "Trigger failed"
+    }
+
+
+@app.post("/api/reminders/{reminder_id}/snooze")
+async def snooze_reminder(reminder_id: int, minutes: int = 5):
+    """延迟提醒（稍后提醒）"""
+    from datetime import datetime, timedelta
+    import json
+    
+    # 获取当前提醒
+    conn = await reminder_manager.get_connection()
+    reminder = await conn.fetchrow(
+        "SELECT * FROM reminders WHERE reminder_id = $1",
+        reminder_id
+    )
+    
+    if not reminder:
+        return {"success": False, "error": "Reminder not found"}
+    
+    # 计算新的触发时间（当前时间 + minutes分钟）
+    new_trigger_time = datetime.now() + timedelta(minutes=minutes)
+    
+    # 更新trigger_condition
+    trigger_condition = json.loads(reminder['trigger_condition'])
+    new_time_str = new_trigger_time.strftime('%Y-%m-%d %H:%M:%S')
+    trigger_condition['datetime'] = new_time_str
+    
+    success = await reminder_manager.update_reminder(
+        reminder_id,
+        trigger_condition=json.dumps(trigger_condition),
+        enabled=True  # 确保提醒是启用状态
+    )
+    
+    return {
+        "success": success,
+        "new_trigger_time": new_time_str,
+        "message": (
+            f"Reminder snoozed for {minutes} minutes"
+            if success else "Snooze failed"
+        )
+    }
+
+
+@app.get("/api/reminders/history/{user_id}")
 async def get_reminder_history(
-    user_id: str = "default_user",
+    user_id: str,
     limit: int = 50
 ):
     """获取提醒历史"""
@@ -479,12 +598,14 @@ async def check_reminders(user_id: str = "default_user"):
     """手动检查并触发提醒"""
     # 检查时间提醒
     time_triggered = await reminder_manager.check_time_reminders(user_id)
-    
+
     # 检查行为提醒
-    behavior_triggered = await reminder_manager.check_behavior_reminders(user_id)
-    
+    behavior_triggered = await reminder_manager.check_behavior_reminders(
+        user_id
+    )
+
     all_triggered = time_triggered + behavior_triggered
-    
+
     # 触发所有需要触发的提醒
     results = []
     for reminder in all_triggered:
@@ -497,7 +618,7 @@ async def check_reminders(user_id: str = "default_user"):
             "content": reminder['content'],
             "triggered": success
         })
-    
+
     return {
         "total_checked": len(all_triggered),
         "triggered": results
@@ -522,3 +643,8 @@ def stop_scheduler():
     """停止调度器"""
     scheduler.stop()
     return {"message": "Scheduler stopped", "status": scheduler.get_status()}
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)

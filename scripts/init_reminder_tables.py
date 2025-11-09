@@ -18,14 +18,14 @@ def init_reminder_tables():
         password=os.getenv('DB_PASS', 'Xiaole2025User'),
         client_encoding='UTF8'
     )
-    
+
     try:
         with conn.cursor() as cur:
             # 读取SQL文件
             sql_file = 'db_migrations/001_create_reminders_tables.sql'
             with open(sql_file, 'r', encoding='utf-8') as f:
                 sql = f.read()
-            
+
             # 分步执行SQL（每条语句单独执行）
             statements = sql.split(';')
             for stmt in statements:
@@ -43,9 +43,9 @@ def init_reminder_tables():
                             print(f"执行失败: {stmt[:50]}...")
                             print(f"错误: {e}")
                             conn.rollback()
-            
+
             print("✅ 提醒系统数据库表创建成功！")
-            
+
             # 检查表
             cur.execute("""
                 SELECT table_name 
@@ -57,12 +57,12 @@ def init_reminder_tables():
             print("\n📊 创建的表：")
             for table in tables:
                 print(f"   - {table[0]}")
-            
+
             # 检查示例数据
             cur.execute("SELECT COUNT(*) FROM reminders")
             count = cur.fetchone()[0]
             print(f"\n📝 提醒记录数: {count}")
-            
+
     except Exception as e:
         conn.rollback()
         print(f"❌ 创建失败: {e}")

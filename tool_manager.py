@@ -223,7 +223,9 @@ class ToolRegistry:
 
         # 执行工具
         try:
-            result = await tool.execute(**validated_params)
+            # 将 user_id 和 session_id 添加到执行参数中
+            exec_params = {**validated_params, "user_id": user_id, "session_id": session_id}
+            result = await tool.execute(**exec_params)
             execution_time = (datetime.now() - start_time).total_seconds()
 
             # 记录执行历史

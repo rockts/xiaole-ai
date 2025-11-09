@@ -366,6 +366,112 @@
             border-radius: 10px;
             margin: 10px;
         }
+
+        /* WebSocket提醒弹窗样式 */
+        .reminder-notification {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            width: 350px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+            z-index: 10000;
+            animation: slideIn 0.3s ease-out;
+            opacity: 1;
+            transition: opacity 0.3s;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .reminder-notification-content {
+            padding: 16px;
+        }
+
+        .reminder-notification-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .reminder-notification-icon {
+            font-size: 24px;
+        }
+
+        .reminder-notification-title {
+            flex: 1;
+            font-weight: bold;
+            font-size: 16px;
+            color: #333;
+        }
+
+        .reminder-notification-close {
+            background: none;
+            border: none;
+            font-size: 20px;
+            color: #999;
+            cursor: pointer;
+            padding: 0;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+        }
+
+        .reminder-notification-close:hover {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .reminder-notification-body {
+            color: #666;
+            font-size: 14px;
+            line-height: 1.5;
+            margin-bottom: 12px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        .reminder-notification-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+        }
+
+        .reminder-notification-actions button {
+            padding: 6px 16px;
+            border-radius: 6px;
+            border: 1px solid #ddd;
+            background: white;
+            color: #666;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .reminder-notification-actions button:first-child {
+            background: #4CAF50;
+            color: white;
+            border-color: #4CAF50;
+        }
+
+        .reminder-notification-actions button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
     </style>
     <!-- Markdown 解析库 -->
     <script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js"></script>
@@ -375,7 +481,7 @@
     <div class="container">
         <div class="header">
             🤖 小乐 AI 管家
-            <span style="font-size: 12px; opacity: 0.8; margin-left: 10px;">v0.4.0</span>
+            <span style="font-size: 12px; opacity: 0.8; margin-left: 10px;">v0.5.0</span>
         </div>
 
         <div class="tabs">
@@ -383,6 +489,7 @@
             <div class="tab" onclick="switchTab('sessions')">📋 会话</div>
             <div class="tab" onclick="switchTab('memory')">🧠 记忆</div>
             <div class="tab" onclick="switchTab('analytics')">📊 行为分析</div>
+            <div class="tab" onclick="switchTab('reminders')">🔔 提醒</div>
             <div class="tab" onclick="switchTab('tools')">🔧 工具管理</div>
         </div>
 
@@ -503,6 +610,50 @@
             </div>
         </div>
 
+        <!-- 提醒管理 v0.5.0 -->
+        <div id="reminders" class="tab-content">
+            <div class="memory-container">
+                <div class="stats-card">
+                    <h3>🔔 提醒管理 <span style="font-size: 12px; color: #667eea; font-weight: normal;">v0.5.0
+                            Active Perception层</span></h3>
+
+                    <div style="margin: 15px 0; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                        <button onclick="loadReminders()"
+                            style="padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 8px; cursor: pointer;">
+                            🔄 刷新
+                        </button>
+                        <button onclick="showCreateReminderDialog()"
+                            style="padding: 10px 20px; background: #10b981; color: white; border: none; border-radius: 8px; cursor: pointer;">
+                            ➕ 创建提醒
+                        </button>
+                        <button onclick="toggleExpiredReminders()"
+                            style="padding: 10px 20px; background: #f59e0b; color: white; border: none; border-radius: 8px; cursor: pointer;">
+                            <span id="toggleExpiredBtn">�️ 显示已过期</span>
+                        </button>
+                        <button onclick="checkReminders()"
+                            style="padding: 10px 20px; background: #8b5cf6; color: white; border: none; border-radius: 8px; cursor: pointer;">
+                            � 立即检查
+                        </button>
+                    </div>
+
+                    <!-- 统计信息 -->
+                    <div id="reminderStats" style="margin: 15px 0; display: flex; gap: 15px; font-size: 13px;">
+                        <span style="color: #10b981;">✅ 活跃: <strong id="activeCount">0</strong></span>
+                        <span style="color: #999;">⏸️ 已禁用: <strong id="disabledCount">0</strong></span>
+                        <span style="color: #f59e0b;">📜 已触发: <strong id="triggeredCount">0</strong></span>
+                    </div>
+
+                    <!-- 提醒列表（合并版） -->
+                    <div style="margin: 20px 0;">
+                        <div id="remindersList"
+                            style="background: #f8f9fa; padding: 15px; border-radius: 10px; min-height: 200px;">
+                            <div class="loading">点击"刷新"加载提醒</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- 工具管理 -->
         <div id="tools" class="tab-content">
             <div class="memory-container">
@@ -569,6 +720,11 @@
                 // 自动加载行为分析数据
                 loadBehaviorAnalytics();
             }
+            if (tabName === 'reminders') {
+                // 自动加载提醒列表
+                loadReminders();
+                loadReminderHistory();
+            }
             if (tabName === 'tools') {
                 // 自动加载工具列表
                 loadTools();
@@ -595,7 +751,16 @@
                     ? `${API_BASE}/chat?prompt=${encodeURIComponent(message)}&session_id=${currentSessionId}`
                     : `${API_BASE}/chat?prompt=${encodeURIComponent(message)}`;
 
-                const response = await fetch(url, { method: 'POST' });
+                // 设置60秒超时以处理复杂问题
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 60000);
+
+                const response = await fetch(url, {
+                    method: 'POST',
+                    signal: controller.signal
+                });
+                clearTimeout(timeoutId);
+
                 const data = await response.json();
 
                 if (response.ok) {
@@ -605,7 +770,11 @@
                     addMessage('assistant', '抱歉，出现错误：' + (data.detail || '未知错误'));
                 }
             } catch (error) {
-                addMessage('assistant', '网络错误：' + error.message);
+                if (error.name === 'AbortError') {
+                    addMessage('assistant', '请求超时，问题可能比较复杂，请稍后再试。');
+                } else {
+                    addMessage('assistant', '网络错误：' + error.message);
+                }
             } finally {
                 sendBtn.disabled = false;
                 input.contentEditable = 'true';
@@ -640,7 +809,16 @@
                     ? `${API_BASE}/chat?prompt=${encodeURIComponent(message)}&session_id=${currentSessionId}`
                     : `${API_BASE}/chat?prompt=${encodeURIComponent(message)}`;
 
-                const response = await fetch(url, { method: 'POST' });
+                // 设置60秒超时以处理复杂问题
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 60000);
+
+                const response = await fetch(url, {
+                    method: 'POST',
+                    signal: controller.signal
+                });
+                clearTimeout(timeoutId);
+
                 const data = await response.json();
 
                 if (response.ok) {
@@ -650,7 +828,11 @@
                     addMessage('assistant', '抱歉，出现错误：' + (data.detail || '未知错误'));
                 }
             } catch (error) {
-                addMessage('assistant', '网络错误：' + error.message);
+                if (error.name === 'AbortError') {
+                    addMessage('assistant', '请求超时，问题可能比较复杂，请稍后再试。');
+                } else {
+                    addMessage('assistant', '网络错误：' + error.message);
+                }
             } finally {
                 sendBtn.disabled = false;
                 input.disabled = false;
@@ -1417,6 +1599,620 @@
 
         // ============ 工具管理功能结束 ============
 
+        // ============ v0.5.0 提醒管理功能 ============
+
+        // 加载提醒列表
+        // 全局变量：控制是否显示已过期提醒
+        let showExpired = false;
+
+        async function loadReminders() {
+            const container = document.getElementById('remindersList');
+            container.innerHTML = '<div class="loading">加载中...</div>';
+
+            try {
+                const response = await fetch(`${API_BASE}/api/reminders?user_id=default_user&enabled_only=false`);
+                const data = await response.json();
+
+                if (!data.reminders || data.reminders.length === 0) {
+                    container.innerHTML = '<div style="color: #999; text-align: center; padding: 20px;">还没有提醒，点击"创建提醒"来添加！</div>';
+                    updateReminderStats(0, 0, 0);
+                    return;
+                }
+
+                // 统计数据
+                let activeCount = 0;
+                let disabledCount = 0;
+                let triggeredCount = 0;
+
+                data.reminders.forEach(r => {
+                    if (r.trigger_count > 0 || r.last_triggered) {
+                        triggeredCount++;
+                    } else if (r.enabled) {
+                        activeCount++;
+                    } else {
+                        disabledCount++;
+                    }
+                });
+
+                updateReminderStats(activeCount, disabledCount, triggeredCount);
+
+                // 过滤：根据showExpired决定是否显示已触发的提醒
+                let displayReminders;
+                if (showExpired) {
+                    displayReminders = data.reminders;
+                } else {
+                    // 只显示未触发的提醒（包括启用和禁用）
+                    displayReminders = data.reminders.filter(r => !r.trigger_count && !r.last_triggered);
+                }
+
+                if (displayReminders.length === 0) {
+                    if (showExpired) {
+                        container.innerHTML = '<div style="color: #999; text-align: center; padding: 20px;">没有提醒记录。</div>';
+                    } else {
+                        container.innerHTML = '<div style="color: #999; text-align: center; padding: 20px;">没有待触发的提醒。<br><br>点击"👁️ 显示已过期"查看已触发的提醒。</div>';
+                    }
+                    return;
+                }
+
+                let html = '<div style="display: grid; gap: 15px;">';
+
+                displayReminders.forEach(reminder => {
+                    const priorityColors = {
+                        1: { color: '#ef4444', emoji: '🔴', label: '最高' },
+                        2: { color: '#f59e0b', emoji: '🟠', label: '高' },
+                        3: { color: '#eab308', emoji: '🟡', label: '中' },
+                        4: { color: '#10b981', emoji: '🟢', label: '低' },
+                        5: { color: '#6b7280', emoji: '⚪', label: '最低' }
+                    };
+
+                    const priority = priorityColors[reminder.priority] || priorityColors[3];
+                    
+                    // 判断是否已触发
+                    const isTriggered = reminder.trigger_count > 0 || reminder.last_triggered;
+                    const statusColor = isTriggered ? '#9ca3af' : (reminder.enabled ? '#10b981' : '#9ca3af');
+                    const statusText = isTriggered ? '已触发' : (reminder.enabled ? '启用' : '禁用');
+                    
+                    // 已触发的提醒用灰色背景
+                    const cardBg = isTriggered ? '#f3f4f6' : 'white';
+                    const cardOpacity = isTriggered ? 'opacity: 0.8;' : '';
+
+                    const typeEmoji = {
+                        'time': '⏰',
+                        'weather': '🌤️',
+                        'behavior': '👤',
+                        'habit': '🎯'
+                    };
+
+                    html += `
+                        <div style="background: ${cardBg}; padding: 15px; border-radius: 10px; border-left: 4px solid ${priority.color}; ${cardOpacity}">
+                            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
+                                <div style="flex: 1;">
+                                    <div style="font-size: 16px; font-weight: bold; color: #333; margin-bottom: 5px;">
+                                        ${priority.emoji} ${reminder.title || '无标题'}
+                                        ${isTriggered ? '<span style="font-size: 12px; color: #9ca3af; margin-left: 8px;">📜 已触发</span>' : ''}
+                                    </div>
+                                    <div style="font-size: 14px; color: #666; margin-bottom: 8px;">
+                                        ${reminder.content}
+                                    </div>
+                                    <div style="display: flex; gap: 10px; flex-wrap: wrap; font-size: 12px;">
+                                        <span style="background: #e0e7ff; color: #4f46e5; padding: 3px 8px; border-radius: 4px;">
+                                            ${typeEmoji[reminder.reminder_type] || '📌'} ${reminder.reminder_type}
+                                        </span>
+                                        <span style="background: ${statusColor}20; color: ${statusColor}; padding: 3px 8px; border-radius: 4px;">
+                                            ● ${statusText}
+                                        </span>
+                                        <span style="background: ${priority.color}20; color: ${priority.color}; padding: 3px 8px; border-radius: 4px;">
+                                            优先级: ${priority.label}
+                                        </span>
+                                        ${reminder.repeat ? '<span style="background: #fef3c7; color: #d97706; padding: 3px 8px; border-radius: 4px;">🔄 重复</span>' : ''}
+                                    </div>
+                                </div>
+                                <div style="display: flex; gap: 5px; margin-left: 10px;">
+                                    ${!isTriggered ? `
+                                        <button onclick="toggleReminder(${reminder.reminder_id})" 
+                                            style="padding: 6px 12px; background: ${reminder.enabled ? '#ef4444' : '#10b981'}; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 12px;">
+                                            ${reminder.enabled ? '禁用' : '启用'}
+                                        </button>
+                                    ` : ''}
+                                    <button onclick="deleteReminder(${reminder.reminder_id})" 
+                                        style="padding: 6px 12px; background: #dc2626; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 12px;">
+                                        删除
+                                    </button>
+                                </div>
+                            </div>
+                            ${reminder.last_triggered ? `
+                                <div style="font-size: 11px; color: #999; margin-top: 5px;">
+                                    上次触发: ${new Date(reminder.last_triggered).toLocaleString('zh-CN')}
+                                    ${reminder.trigger_count ? ` | 触发次数: ${reminder.trigger_count}` : ''}
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+                });
+
+                html += '</div>';
+                container.innerHTML = html;
+
+            } catch (error) {
+                container.innerHTML = `<div class="error">加载失败: ${error.message}</div>`;
+            }
+        }
+
+        // 更新统计数据
+        function updateReminderStats(activeCount, disabledCount, triggeredCount) {
+            document.getElementById('activeCount').textContent = activeCount;
+            document.getElementById('disabledCount').textContent = disabledCount;
+            document.getElementById('triggeredCount').textContent = triggeredCount;
+        }
+
+        // 切换是否显示已过期提醒
+        function toggleExpiredReminders() {
+            showExpired = !showExpired;
+            const btn = document.getElementById('toggleExpiredBtn');
+            btn.textContent = showExpired ? '🚫 隐藏已过期' : '👁️ 显示已过期';
+            loadReminders();
+        }
+
+        // 加载提醒历史
+        async function loadReminderHistory() {
+            const container = document.getElementById('reminderHistory');
+            container.innerHTML = '<div class="loading">加载中...</div>';
+
+            try {
+                const response = await fetch(`${API_BASE}/api/reminders/history/default_user?limit=20`);
+                const data = await response.json();
+
+                if (!data.history || data.history.length === 0) {
+                    container.innerHTML = '<div style="color: #999; text-align: center;">暂无历史记录</div>';
+                    return;
+                }
+
+                let html = '<div style="display: grid; gap: 10px;">';
+
+                data.history.forEach(record => {
+                    const typeEmoji = {
+                        'time': '⏰',
+                        'weather': '🌤️',
+                        'behavior': '👤',
+                        'habit': '🎯'
+                    };
+
+                    html += `
+                        <div style="background: white; padding: 12px; border-radius: 8px; border-left: 3px solid #667eea;">
+                            <div style="font-weight: bold; color: #333; margin-bottom: 5px;">
+                                ${typeEmoji[record.reminder_type] || '📌'} ${record.title || '无标题'}
+                            </div>
+                            <div style="font-size: 13px; color: #666; margin-bottom: 5px;">
+                                ${record.content}
+                            </div>
+                            <div style="font-size: 11px; color: #999;">
+                                触发时间: ${new Date(record.triggered_at).toLocaleString('zh-CN')}
+                            </div>
+                        </div>
+                    `;
+                });
+
+                html += '</div>';
+                container.innerHTML = html;
+
+            } catch (error) {
+                container.innerHTML = `<div class="error">加载失败: ${error.message}</div>`;
+            }
+        }
+
+        // 创建提醒对话框
+        function showCreateReminderDialog() {
+            const dialog = `
+                <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 1000;" id="reminderDialog">
+                    <div style="background: white; padding: 25px; border-radius: 15px; max-width: 500px; width: 90%;">
+                        <h3 style="margin: 0 0 20px 0; color: #667eea;">➕ 创建新提醒</h3>
+                        
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: bold;">标题:</label>
+                            <input type="text" id="reminderTitle" placeholder="例如：团队会议" 
+                                style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px;">
+                        </div>
+
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: bold;">内容:</label>
+                            <textarea id="reminderContent" placeholder="提醒的详细内容..." rows="3"
+                                style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px;"></textarea>
+                        </div>
+
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: bold;">触发时间:</label>
+                            <input type="datetime-local" id="reminderTime" 
+                                style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px;">
+                        </div>
+
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: bold;">优先级:</label>
+                            <select id="reminderPriority" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px;">
+                                <option value="1">🔴 最高</option>
+                                <option value="2">🟠 高</option>
+                                <option value="3" selected>🟡 中</option>
+                                <option value="4">🟢 低</option>
+                                <option value="5">⚪ 最低</option>
+                            </select>
+                        </div>
+
+                        <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+                            <button onclick="closeReminderDialog()" 
+                                style="padding: 10px 20px; background: #9ca3af; color: white; border: none; border-radius: 8px; cursor: pointer;">
+                                取消
+                            </button>
+                            <button onclick="createReminder()" 
+                                style="padding: 10px 20px; background: #10b981; color: white; border: none; border-radius: 8px; cursor: pointer;">
+                                创建
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.body.insertAdjacentHTML('beforeend', dialog);
+        }
+
+        function closeReminderDialog() {
+            const dialog = document.getElementById('reminderDialog');
+            if (dialog) dialog.remove();
+        }
+
+        // 创建提醒
+        async function createReminder() {
+            const title = document.getElementById('reminderTitle').value.trim();
+            const content = document.getElementById('reminderContent').value.trim();
+            const time = document.getElementById('reminderTime').value;
+            const priority = parseInt(document.getElementById('reminderPriority').value);
+
+            if (!content) {
+                alert('请输入提醒内容');
+                return;
+            }
+
+            if (!time) {
+                alert('请选择触发时间');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/api/reminders`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        user_id: 'default_user',
+                        reminder_type: 'time',
+                        trigger_condition: { datetime: time.replace('T', ' ') + ':00' },
+                        title: title || '新提醒',
+                        content: content,
+                        priority: priority,
+                        repeat: false
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    closeReminderDialog();
+                    loadReminders();
+                    alert('✅ 提醒创建成功！');
+                } else {
+                    alert('❌ 创建失败: ' + data.error);
+                }
+            } catch (error) {
+                alert('❌ 创建失败: ' + error.message);
+            }
+        }
+
+        // 切换提醒状态
+        async function toggleReminder(reminderId) {
+            try {
+                const response = await fetch(`${API_BASE}/api/reminders/${reminderId}/toggle`, {
+                    method: 'POST'
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    loadReminders();
+                } else {
+                    alert('操作失败');
+                }
+            } catch (error) {
+                alert('操作失败: ' + error.message);
+            }
+        }
+
+        // 删除提醒
+        async function deleteReminder(reminderId) {
+            if (!confirm('确定要删除这条提醒吗？')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/api/reminders/${reminderId}`, {
+                    method: 'DELETE'
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    loadReminders();
+                    alert('✅ 删除成功');
+                } else {
+                    alert('❌ 删除失败');
+                }
+            } catch (error) {
+                alert('❌ 删除失败: ' + error.message);
+            }
+        }
+
+        // 立即检查提醒
+        async function checkReminders() {
+            try {
+                const response = await fetch(`${API_BASE}/api/reminders/check`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: 'default_user' })
+                });
+
+                const data = await response.json();
+
+                if (data.triggered && data.triggered.length > 0) {
+                    alert(`✅ 检查完成！触发了 ${data.triggered.length} 条提醒`);
+                    loadReminderHistory();
+                } else {
+                    alert('✅ 检查完成！当前没有需要触发的提醒');
+                }
+            } catch (error) {
+                alert('❌ 检查失败: ' + error.message);
+            }
+        }
+
+        // ============ 提醒管理功能结束 ============
+
+        // ============ WebSocket实时推送 ============
+        let ws = null;
+        let wsReconnectTimer = null;
+        let unreadReminderCount = 0;
+
+        function connectWebSocket() {
+            try {
+                // 建立WebSocket连接
+                const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                const wsUrl = `${wsProtocol}//${window.location.host}/ws`;
+                ws = new WebSocket(wsUrl);
+
+                ws.onopen = () => {
+                    console.log('✅ WebSocket已连接');
+                    clearTimeout(wsReconnectTimer);
+
+                    // 发送心跳
+                    setInterval(() => {
+                        if (ws.readyState === WebSocket.OPEN) {
+                            ws.send('ping');
+                        }
+                    }, 30000); // 每30秒发送心跳
+                };
+
+                ws.onmessage = (event) => {
+                    try {
+                        const message = JSON.parse(event.data);
+
+                        if (message.type === 'reminder') {
+                            // 收到提醒推送
+                            handleReminderPush(message.data);
+                        } else if (message.type === 'pong') {
+                            // 心跳响应
+                            console.log('心跳响应');
+                        }
+                    } catch (error) {
+                        console.error('解析WebSocket消息失败:', error);
+                    }
+                };
+
+                ws.onerror = (error) => {
+                    console.error('WebSocket错误:', error);
+                };
+
+                ws.onclose = () => {
+                    console.log('❌ WebSocket已断开，5秒后重连...');
+                    wsReconnectTimer = setTimeout(connectWebSocket, 5000);
+                };
+
+            } catch (error) {
+                console.error('WebSocket连接失败:', error);
+                wsReconnectTimer = setTimeout(connectWebSocket, 5000);
+            }
+        }
+
+        function handleReminderPush(reminder) {
+            console.log('收到提醒推送:', reminder);
+
+            // 播放提示音
+            playReminderSound();
+
+            // 增加未读计数
+            unreadReminderCount++;
+            updateReminderBadge();
+
+            // 显示提醒弹窗
+            showReminderNotification(reminder);
+
+            // 如果页面不在前台，发送浏览器通知
+            if (document.hidden) {
+                sendBrowserNotification(reminder);
+            }
+
+            // 刷新提醒列表
+            if (document.getElementById('reminders').style.display !== 'none') {
+                loadReminders();
+            }
+        }
+
+        // 播放提醒声音
+        function playReminderSound() {
+            try {
+                // 创建音频上下文
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                
+                // 创建震荡器（生成声音）
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                // 连接节点
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                // 设置音调和音量
+                oscillator.type = 'sine'; // 正弦波，柔和的声音
+                oscillator.frequency.setValueAtTime(800, audioContext.currentTime); // 800Hz
+                
+                // 音量渐变效果（避免突兀）
+                gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+                gainNode.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + 0.1);
+                gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.5);
+                
+                // 播放声音
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.5);
+                
+                // 第二声（双响）
+                setTimeout(() => {
+                    const oscillator2 = audioContext.createOscillator();
+                    const gainNode2 = audioContext.createGain();
+                    
+                    oscillator2.connect(gainNode2);
+                    gainNode2.connect(audioContext.destination);
+                    
+                    oscillator2.type = 'sine';
+                    oscillator2.frequency.setValueAtTime(1000, audioContext.currentTime);
+                    
+                    gainNode2.gain.setValueAtTime(0, audioContext.currentTime);
+                    gainNode2.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + 0.1);
+                    gainNode2.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.5);
+                    
+                    oscillator2.start(audioContext.currentTime);
+                    oscillator2.stop(audioContext.currentTime + 0.5);
+                }, 200);
+                
+            } catch (error) {
+                console.error('播放提示音失败:', error);
+            }
+        }
+
+        function showReminderNotification(reminder) {
+            // 创建提醒弹窗
+            const notification = document.createElement('div');
+            notification.className = 'reminder-notification';
+
+            const priorityEmoji = { 1: '🔴', 2: '🟠', 3: '🟡', 4: '🟢', 5: '⚪' };
+            const emoji = priorityEmoji[reminder.priority] || '🔔';
+
+            notification.innerHTML = `
+                <div class="reminder-notification-content">
+                    <div class="reminder-notification-header">
+                        <span class="reminder-notification-icon">${emoji}</span>
+                        <span class="reminder-notification-title">${reminder.title || '提醒'}</span>
+                        <button class="reminder-notification-close" onclick="this.parentElement.parentElement.parentElement.remove()">✕</button>
+                    </div>
+                    <div class="reminder-notification-body">
+                        ${reminder.content}
+                    </div>
+                    <div class="reminder-notification-actions">
+                        <button onclick="markReminderAsRead(${reminder.reminder_id}); this.parentElement.parentElement.parentElement.remove();">
+                            已知道
+                        </button>
+                        <button onclick="snoozeReminder(${reminder.reminder_id}, 5); this.parentElement.parentElement.parentElement.remove();">
+                            稍后提醒
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(notification);
+
+            // 10秒后自动淡出
+            setTimeout(() => {
+                notification.style.opacity = '0';
+                setTimeout(() => notification.remove(), 300);
+            }, 10000);
+        }
+
+        function sendBrowserNotification(reminder) {
+            if ('Notification' in window && Notification.permission === 'granted') {
+                const notification = new Notification(reminder.title || '小乐提醒', {
+                    body: reminder.content,
+                    icon: '/static/favicon.ico',
+                    tag: `reminder-${reminder.reminder_id}`,
+                    requireInteraction: false
+                });
+
+                notification.onclick = () => {
+                    window.focus();
+                    notification.close();
+                };
+            }
+        }
+
+        function updateReminderBadge() {
+            // 更新提醒数量红点（后续实现）
+            console.log(`未读提醒: ${unreadReminderCount}`);
+        }
+
+        function markReminderAsRead(reminderId) {
+            // 标记提醒已读（后续可扩展）
+            unreadReminderCount = Math.max(0, unreadReminderCount - 1);
+            updateReminderBadge();
+        }
+
+        // 延迟提醒（稍后提醒）
+        async function snoozeReminder(reminderId, minutes = 5) {
+            try {
+                const response = await fetch(`${API_BASE}/api/reminders/${reminderId}/snooze?minutes=${minutes}`, {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    console.log(`✅ 提醒已延迟 ${minutes} 分钟，新触发时间: ${data.new_trigger_time}`);
+                    
+                    // 显示提示
+                    const toast = document.createElement('div');
+                    toast.style.cssText = 'position: fixed; top: 20px; right: 20px; background: #10b981; color: white; padding: 15px 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 10000;';
+                    toast.textContent = `⏰ 提醒已延迟 ${minutes} 分钟`;
+                    document.body.appendChild(toast);
+                    
+                    setTimeout(() => {
+                        toast.style.opacity = '0';
+                        toast.style.transition = 'opacity 0.3s';
+                        setTimeout(() => toast.remove(), 300);
+                    }, 2000);
+                    
+                    // 刷新提醒列表
+                    if (document.getElementById('reminders').style.display !== 'none') {
+                        loadReminders();
+                    }
+                } else {
+                    console.error('❌ 延迟提醒失败:', data.error);
+                }
+            } catch (error) {
+                console.error('❌ 延迟提醒失败:', error);
+            }
+        }
+
+        // 请求浏览器通知权限
+        function requestNotificationPermission() {
+            if ('Notification' in window && Notification.permission === 'default') {
+                Notification.requestPermission().then(permission => {
+                    console.log('通知权限:', permission);
+                });
+            }
+        }
+
+        // ============ WebSocket功能结束 ============
+
         // 页面加载时聚焦输入框
         window.onload = () => {
             const messageInput = document.getElementById('messageInput');
@@ -1440,6 +2236,12 @@
                     }
                 });
             }
+
+            // 建立WebSocket连接
+            connectWebSocket();
+
+            // 请求浏览器通知权限
+            requestNotificationPermission();
         };
     </script>
 </body>

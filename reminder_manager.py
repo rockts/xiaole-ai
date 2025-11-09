@@ -58,10 +58,11 @@ class ReminderManager:
     4. 记录提醒历史
     """
 
-    def __init__(self):
+    def __init__(self, websocket_broadcast_callback=None):
         self.reminders_cache: Dict[str, List[Dict]] = {}  # 用户提醒缓存
         self.last_cache_update = None
         self.cache_ttl = 300  # 缓存5分钟
+        self.websocket_broadcast = websocket_broadcast_callback  # WebSocket推送回调
 
     async def create_reminder(
         self,
@@ -388,6 +389,25 @@ class ReminderManager:
                     await self.update_reminder(reminder_id, enabled=False)
 
                 logger.info(f"Triggered reminder {reminder_id}")
+
+                # WebSocket实时推送提醒
+                if self.websocket_broadcast:
+                    try:
+                        await self.websocket_broadcast({
+                            "type": "reminder",
+                            "data": {
+                                "reminder_id": reminder_id,
+                                "title": reminder.get('title', '提醒'),
+                                "content": reminder['content'],
+                                "priority": reminder.get('priority', 3),
+                                "reminder_type": reminder.get('reminder_type'),
+                                "triggered_at": datetime.now().isoformat()
+                            }
+                        })
+                        logger.info(f"WebSocket推送提醒 {reminder_id}")
+                    except Exception as ws_error:
+                        logger.error(f"WebSocket推送失败: {ws_error}")
+
                 return True
 
         except Exception as e:
@@ -418,6 +438,38 @@ class ReminderManager:
 
         except Exception as e:
             logger.error(f"Failed to get reminder history: {e}")
+            return []
+        finally:
+            conn.close()
+
+    async def get_pending_reminders(self, user_id: str, limit: int = 5) -> List[Dict[str, Any]]:
+        """
+        获取用户未读的提醒（最近触发但未确认的）
+
+        Args:
+            user_id: 用户ID
+            limit: 返回数量限制
+
+        Returns:
+            未读提醒列表
+        """
+        conn = get_db_connection()
+        try:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                # 获取最近5分钟内触发的提醒
+                cur.execute("""
+                    SELECT h.*, r.title, r.reminder_type, r.priority
+                    FROM reminder_history h
+                    LEFT JOIN reminders r ON h.reminder_id = r.reminder_id
+                    WHERE h.user_id = %s
+                    AND h.triggered_at > NOW() - INTERVAL '5 minutes'
+                    ORDER BY r.priority ASC, h.triggered_at DESC
+                    LIMIT %s
+                """, (user_id, limit))
+                return [dict(row) for row in cur.fetchall()]
+
+        except Exception as e:
+            logger.error(f"Failed to get pending reminders: {e}")
             return []
         finally:
             conn.close()
@@ -459,9 +511,14 @@ class ReminderManager:
 _reminder_manager = None
 
 
-def get_reminder_manager() -> ReminderManager:
+def get_reminder_manager(
+    websocket_broadcast_callback=None
+) -> ReminderManager:
     """获取提醒管理器单例"""
     global _reminder_manager
     if _reminder_manager is None:
-        _reminder_manager = ReminderManager()
+        _reminder_manager = ReminderManager(websocket_broadcast_callback)
+    elif websocket_broadcast_callback is not None:
+        # 更新WebSocket回调
+        _reminder_manager.websocket_broadcast = websocket_broadcast_callback
     return _reminder_manager

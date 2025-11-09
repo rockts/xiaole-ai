@@ -49,7 +49,7 @@ class XiaoLeAgent:
         try:
             from tools import (
                 weather_tool, system_info_tool,
-                time_tool, calculator_tool
+                time_tool, calculator_tool, reminder_tool
             )
 
             # 注册工具
@@ -57,6 +57,7 @@ class XiaoLeAgent:
             self.tool_registry.register(system_info_tool)
             self.tool_registry.register(time_tool)
             self.tool_registry.register(calculator_tool)
+            self.tool_registry.register(reminder_tool)  # v0.5.0 提醒工具
 
             logger.info(
                 f"✅ 工具注册完成，共 "
@@ -197,7 +198,7 @@ class XiaoLeAgent:
             self.deepseek_url,
             headers=headers,
             json=data,
-            timeout=15
+            timeout=60  # 增加超时时间以处理复杂问题
         )
 
         response.raise_for_status()
@@ -323,6 +324,17 @@ class XiaoLeAgent:
                 title=prompt[:50] + "..." if len(prompt) > 50 else prompt
             )
 
+        # v0.5.0: 检查未读提醒
+        pending_reminders = []
+        try:
+            from reminder_manager import get_reminder_manager
+            reminder_mgr = get_reminder_manager()
+            pending_reminders = asyncio.run(
+                reminder_mgr.get_pending_reminders(user_id, limit=3)
+            )
+        except Exception as e:
+            logger.warning(f"检查提醒失败: {e}")
+
         # 获取对话历史
         history = self.conversation.get_history(session_id, limit=5)
 
@@ -335,6 +347,11 @@ class XiaoLeAgent:
 
         # 调用 AI 生成回复（带上下文和工具结果）
         reply = self._think_with_context(prompt, history, tool_result)
+
+        # v0.5.0: 如果有未读提醒，在回复前插入提醒
+        if pending_reminders:
+            reminder_text = self._format_reminders(pending_reminders)
+            reply = reminder_text + "\n\n" + reply
 
         # 保存用户消息和助手回复到会话表
         self.conversation.add_message(session_id, "user", prompt)
@@ -484,7 +501,8 @@ class XiaoLeAgent:
 2. 如果用户请求系统信息/CPU/内存/磁盘 -> 使用 system_info 工具
 3. 如果用户询问时间/日期 -> 使用 time 工具
 4. 如果用户请求数学计算 -> 使用 calculator 工具
-5. 如果只是普通对话 -> 不需要工具
+5. 如果用户请求创建提醒/定时提醒 -> 使用 reminder 工具
+6. 如果只是普通对话 -> 不需要工具
 
 **重要规则：**
 - 天气查询需要城市名称：
@@ -496,6 +514,10 @@ class XiaoLeAgent:
   - 问"明天"/"后天" -> 使用3d
   - 问"未来几天"/"本周" -> 使用7d
   - 其他情况 -> 使用now
+- 提醒识别规则：
+  - 如果用户说"提醒我..."、"记得..."、"别忘了..."等 -> 使用 reminder 工具
+  - 提取时间描述（如：明天下午3点、2小时后）和提醒内容
+  - 可选：提取标题
 
 请以JSON格式返回（不要markdown代码块）：
 {{
@@ -509,7 +531,8 @@ class XiaoLeAgent:
 - weather工具参数: city(城市名，只要城市名，如"深圳"), query_type(now/3d/7d)
 - system_info工具参数: info_type(cpu/memory/disk/all)
 - time工具参数: format(full/date/time/timestamp)
-- calculator工具参数: expression(数学表达式)"""
+- calculator工具参数: expression(数学表达式)
+- reminder工具参数: content(提醒内容), time_desc(时间描述，如"明天下午3点"、"2小时后"), title(可选，提醒标题)"""
 
         try:
             if self.api_type == "deepseek":
@@ -666,7 +689,7 @@ class XiaoLeAgent:
             self.deepseek_url,
             headers=headers,
             json=data,
-            timeout=15
+            timeout=60  # 增加超时时间以处理复杂问题
         )
 
         response.raise_for_status()
@@ -674,6 +697,41 @@ class XiaoLeAgent:
         reply = result["choices"][0]["message"]["content"]
         logger.info(f"DeepSeek 多轮对话响应成功 - 回复长度: {len(reply)}")
         return reply
+
+    def _format_reminders(self, reminders: list) -> str:
+        """
+        格式化提醒消息
+
+        Args:
+            reminders: 提醒列表
+
+        Returns:
+            格式化后的提醒文本
+        """
+        if not reminders:
+            return ""
+
+        reminder_texts = []
+        for reminder in reminders:
+            priority_emoji = {
+                1: "🔴",  # 最高优先级
+                2: "🟠",
+                3: "🟡",
+                4: "🟢",
+                5: "⚪"   # 最低优先级
+            }.get(reminder.get('priority', 3), "🔔")
+
+            title = reminder.get('title', '提醒')
+            content = reminder.get('content', '')
+
+            reminder_texts.append(f"{priority_emoji} **{title}**：{content}")
+
+        if len(reminders) == 1:
+            header = "🔔 **提醒** "
+        else:
+            header = f"🔔 **你有 {len(reminders)} 条提醒** "
+
+        return header + "\n" + "\n".join(reminder_texts)
 
     @retry_with_backoff(
         max_retries=3,
