@@ -1,5 +1,5 @@
 from sqlalchemy import (
-    create_engine, Column, Integer, String, Text, DateTime, Boolean
+    create_engine, Column, Integer, String, Text, DateTime, Boolean, Float
 )
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
@@ -128,6 +128,28 @@ class LearnedPattern(Base):
     # 时间记录
     created_at = Column(DateTime, default=datetime.now)
     last_seen_at = Column(DateTime, default=datetime.now)  # 最后出现时间
+
+
+class ToolExecution(Base):
+    """工具执行记录表 - v0.4.0 Action层"""
+    __tablename__ = "tool_executions"
+
+    execution_id = Column(Integer, primary_key=True)
+    tool_name = Column(String(100), index=True)  # 工具名称
+    user_id = Column(String(50), default="default_user", index=True)
+    session_id = Column(String(100), index=True)  # 会话ID
+
+    # 执行参数和结果
+    parameters = Column(Text)  # JSON格式的参数
+    result = Column(Text)  # JSON格式的结果
+    success = Column(Boolean, default=True)  # 是否成功
+    error_message = Column(Text)  # 错误信息
+
+    # 性能指标
+    execution_time = Column(Float, default=0.0)  # 执行时间(秒)
+
+    # 时间记录
+    executed_at = Column(DateTime, default=datetime.now, index=True)
 
 
 Base.metadata.create_all(engine)

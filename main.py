@@ -7,8 +7,8 @@ from proactive_qa import ProactiveQA  # v0.3.0 主动问答
 
 app = FastAPI(
     title="小乐AI管家",
-    version="0.2.0",
-    description="支持语义搜索的轻量级AI助手"
+    version="0.4.0-dev",
+    description="支持工具调用的AI助手 - Action层开发中"
 )
 
 # 配置CORS，允许网页访问API
@@ -237,3 +237,72 @@ def analyze_session(session_id: str, user_id: str = "default_user"):
     """分析会话，返回需要追问的问题"""
     analysis = proactive_qa.analyze_conversation(session_id, user_id)
     return analysis
+
+
+# v0.4.0 工具调用 API
+@app.get("/tools/list")
+def list_tools(category: str = None, enabled_only: bool = True):
+    """列出所有可用工具"""
+    tools = xiaole.tool_registry.list_tools(category, enabled_only)
+    return {
+        "total": len(tools),
+        "tools": tools
+    }
+
+
+@app.post("/tools/execute")
+async def execute_tool(
+    tool_name: str,
+    params: dict,
+    user_id: str = "default_user",
+    session_id: str = None
+):
+    """执行指定工具"""
+    result = await xiaole.tool_registry.execute(
+        tool_name=tool_name,
+        params=params,
+        user_id=user_id,
+        session_id=session_id
+    )
+    return result
+
+
+@app.get("/tools/history")
+def get_tool_history(
+    user_id: str = "default_user",
+    session_id: str = None,
+    limit: int = 20
+):
+    """获取工具执行历史"""
+    from db_setup import SessionLocal, ToolExecution
+    
+    db = SessionLocal()
+    try:
+        query = db.query(ToolExecution).filter(
+            ToolExecution.user_id == user_id
+        )
+        
+        if session_id:
+            query = query.filter(ToolExecution.session_id == session_id)
+        
+        executions = query.order_by(
+            ToolExecution.executed_at.desc()
+        ).limit(limit).all()
+        
+        return {
+            "total": len(executions),
+            "history": [
+                {
+                    "execution_id": e.execution_id,
+                    "tool_name": e.tool_name,
+                    "success": e.success,
+                    "execution_time": e.execution_time,
+                    "executed_at": e.executed_at.isoformat(),
+                    "error_message": e.error_message
+                }
+                for e in executions
+            ]
+        }
+    finally:
+        db.close()
+

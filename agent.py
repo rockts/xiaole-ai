@@ -3,6 +3,7 @@ from conversation import ConversationManager
 from behavior_analytics import BehaviorAnalyzer
 from proactive_qa import ProactiveQA  # v0.3.0 主动问答
 from pattern_learning import PatternLearner  # v0.3.0 模式学习
+from tool_manager import get_tool_registry  # v0.4.0 工具管理
 from error_handler import (
     retry_with_backoff, log_execution, handle_api_errors,
     APITimeoutError, APIRateLimitError, APIConnectionError,
@@ -24,6 +25,10 @@ class XiaoLeAgent:
         self.behavior_analyzer = BehaviorAnalyzer()  # v0.3.0 行为分析器
         self.proactive_qa = ProactiveQA()  # v0.3.0 主动问答分析器
         self.pattern_learner = PatternLearner()  # v0.3.0 模式学习器
+        self.tool_registry = get_tool_registry()  # v0.4.0 工具注册中心
+
+        # 注册工具
+        self._register_tools()
 
         # 支持多个AI平台
         self.api_type = os.getenv("AI_API_TYPE", "deepseek")
@@ -37,6 +42,27 @@ class XiaoLeAgent:
 
         self.model = self._get_model()
         self.client = self._init_client()
+    
+    def _register_tools(self):
+        """注册所有可用工具"""
+        try:
+            from tools import (
+                weather_tool, system_info_tool,
+                time_tool, calculator_tool
+            )
+            
+            # 注册工具
+            self.tool_registry.register(weather_tool)
+            self.tool_registry.register(system_info_tool)
+            self.tool_registry.register(time_tool)
+            self.tool_registry.register(calculator_tool)
+            
+            logger.info(
+                f"✅ 工具注册完成，共 "
+                f"{len(self.tool_registry.get_tool_names())} 个工具"
+            )
+        except Exception as e:
+            logger.error(f"工具注册失败: {e}", exc_info=True)
 
     def _get_model(self):
         """根据API类型获取模型名称"""
