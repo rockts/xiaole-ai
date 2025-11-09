@@ -148,4 +148,74 @@ git commit -m "chore: 清理v0.3.0开发过程中的临时测试脚本
 
 **v0.3.0开发完成！** 🎉
 
-下一步：v0.4.0规划（Action层 - 工具调用、外部API集成）
+---
+
+# v0.4.0 开发进度 - Action层
+
+## ✅ 已完成功能
+
+### 1. 工具调用框架（Tool Framework）
+- [x] `tool_manager.py` - 工具管理核心（~300行）
+  - Tool基类和ToolParameter参数定义
+  - ToolRegistry注册中心
+  - 统一的参数验证和错误处理
+  - 执行追踪和数据库记录
+- [x] `tool_executions` 表结构（ToolExecution模型）
+
+### 2. 系统工具（System Tools）
+- [x] `tools/system_tool.py` - 系统操作工具（~250行）
+  - SystemInfoTool: CPU、内存、磁盘信息查询
+  - TimeTool: 时间日期查询
+  - CalculatorTool: 数学计算（支持math模块函数）
+
+### 3. 天气工具（Weather Tool）
+- [x] `tools/weather_tool.py` - 天气查询工具（~280行）
+  - 集成和风天气API
+  - 实时天气查询（now）
+  - 天气预报查询（3天/7天）
+  - 自动城市Location ID获取
+
+### 4. Agent集成
+- [x] 修改`agent.py`，添加工具注册中心
+- [x] `_register_tools()` 方法自动注册所有工具
+
+### 5. API端点
+- [x] `/tools/list` - 列出所有可用工具
+- [x] `/tools/execute` - 执行指定工具
+- [x] `/tools/history` - 查询工具执行历史
+
+### 6. 测试脚本
+- [x] `test_tools.py` - 工具系统集成测试
+
+### 7. 依赖更新
+- [x] requirements.txt 添加 `psutil`, `aiohttp`
+
+## 📊 v0.4.0 代码统计
+
+### 核心代码文件
+- `tool_manager.py`: ~300行
+- `tools/weather_tool.py`: ~280行
+- `tools/system_tool.py`: ~250行
+- `test_tools.py`: ~170行
+- 新增API端点: ~70行
+- 总新增代码：**~1,140行**
+
+## 🎯 v0.4.0 完成度
+
+**已完成**: 60% 🔄
+- ✅ 工具调用框架（100%）
+- ✅ 系统工具（100%）
+- ✅ 天气工具（100%）
+- ✅ Agent集成（100%）
+- ✅ API端点（100%）
+- ⏸️ 搜索工具（0% - 延后）
+- ⏸️ 智能工具选择（0% - v0.4.1）
+- ⏸️ 前端展示（0% - v0.4.1）
+
+---
+
+**v0.4.0第一阶段完成！** 🎉
+
+下一步：v0.4.1 - 智能工具选择和前端展示
+
+````
