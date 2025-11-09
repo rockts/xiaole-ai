@@ -1,8 +1,8 @@
 # 小乐 AI 管家
 
-> v0.3.0-dev - Learning层开发中 | v0.2.0 - 轻量级语义搜索版本
+> v0.3.0 - Learning层完成 | v0.2.0 - 轻量级语义搜索版本
 
-个人 AI 助手，支持长期记忆、对话上下文管理和智能语义搜索，现已支持用户行为分析。
+个人 AI 助手，支持长期记忆、对话上下文管理、智能语义搜索和用户行为学习。
 
 ## 功能特性
 
@@ -10,18 +10,32 @@
 - 自动提取用户告知的关键事实
 - 区分事实记忆和闲聊内容
 - 支持关键词和标签搜索
-- 🆕 **语义搜索**：基于TF-IDF的轻量级语义理解
+- **语义搜索**：基于TF-IDF的轻量级语义理解
 
 ✅ **对话上下文管理**
 - 多会话支持，记录完整对话历史
 - 上下文感知，连贯的对话体验
-- 🆕 **会话标题显示**：快速识别对话内容
+- **会话标题显示**：快速识别对话内容
 
-🚧 **用户行为分析** (v0.3.0 Learning层)
-- 🆕 **活跃时间分析**：统计用户活跃时段和星期分布
-- 🆕 **话题偏好分析**：记录和分析用户关注的话题
-- 🆕 **对话统计**：会话数、消息数、平均长度等指标
-- 🆕 **记忆冲突检测**：自动识别矛盾的关键信息（姓名、年龄、生日等）
+✅ **Learning层 - 用户行为学习** (v0.3.0)
+- **行为分析**：
+  - 活跃时间分析（小时/星期分布）
+  - 话题偏好分析（关注的主题）
+  - 对话统计（会话数、消息数、平均长度）
+- **冲突检测**：
+  - 自动识别矛盾的关键信息（姓名、年龄、生日、性别、地址）
+  - 智能判断逻辑（昵称容忍、年龄±2岁）
+  - 详细冲突报告和摘要
+- **主动问答**：
+  - 识别未完整回答的问题
+  - 主动追问缺失信息
+  - 置信度评分系统（0-100）
+  - 追问历史记录
+- **模式学习**：
+  - 高频词汇识别（置信度分级）
+  - 常见问题自动归类（6大类：天气查询、时间日期、个人信息、功能咨询、推荐建议、闲聊）
+  - 用户偏好模型构建
+  - 学习统计洞察
 
 ✅ **远程数据存储**
 - 使用 NAS PostgreSQL 存储数据
@@ -36,7 +50,7 @@
 ✅ **Web 界面**
 - 支持 Markdown 渲染
 - 会话管理和记忆查看
-- 🆕 **行为分析面板**：可视化展示用户行为数据
+- **行为分析面板**：可视化展示用户行为数据、冲突检测、主动问答和学习模式
 - 实时对话体验
 
 ## 技术栈
@@ -86,19 +100,24 @@ uvicorn main:app --reload --host 0.0.0.0 --port 8000
 
 ```
 xiaole-ai/
-├── agent.py              # AI 代理核心逻辑
-├── memory.py             # 记忆管理器
-├── conversation.py       # 对话管理器
-├── error_handler.py      # 错误处理装饰器
-├── db_setup.py           # 数据库模型定义
-├── main.py               # FastAPI 应用入口
-├── requirements.txt      # Python 依赖
-├── static/               # 前端静态文件
-│   └── index.html        # Web 界面
-├── docs/                 # 文档
-├── tests/                # 测试文件
-├── scripts/              # 启动脚本
-└── logs/                 # 日志文件
+├── agent.py                # AI 代理核心逻辑
+├── memory.py               # 记忆管理器
+├── conversation.py         # 对话管理器
+├── behavior_analytics.py   # 用户行为分析器
+├── conflict_detector.py    # 记忆冲突检测器
+├── proactive_qa.py         # 主动问答分析器
+├── pattern_learning.py     # 模式学习器
+├── semantic_search.py      # 语义搜索引擎
+├── error_handler.py        # 错误处理装饰器
+├── db_setup.py             # 数据库模型定义
+├── main.py                 # FastAPI 应用入口
+├── requirements.txt        # Python 依赖
+├── static/                 # 前端静态文件
+│   └── index.html          # Web 界面
+├── docs/                   # 文档
+├── tests/                  # 测试文件
+├── scripts/                # 启动脚本
+└── logs/                   # 日志文件
 ```
 
 ## API 接口
@@ -133,6 +152,49 @@ GET /memory/recent?hours=24
 
 # 记忆统计
 GET /memory/stats
+```
+
+### 行为分析接口 (v0.3.0)
+
+```bash
+# 用户行为统计
+GET /analytics/behavior?user_id=default_user&days=30
+
+# 活跃时间分布
+GET /analytics/activity?user_id=default_user&days=30
+
+# 话题偏好
+GET /analytics/topics?user_id=default_user&days=30
+
+# 记忆冲突检测
+GET /memory/conflicts?tag=facts&limit=100
+
+# 冲突摘要
+GET /memory/conflicts/summary
+
+# 冲突详细报告
+GET /memory/conflicts/report
+
+# 主动问答历史
+GET /proactive/history?user_id=default_user&limit=10
+
+# 待追问列表
+GET /proactive/pending/{session_id}
+
+# 分析会话
+GET /proactive/analyze/{session_id}
+
+# 标记已追问
+POST /proactive/mark_asked/{question_id}
+
+# 高频词列表
+GET /patterns/frequent?user_id=default_user&limit=20
+
+# 常见问题分类
+GET /patterns/common_questions?user_id=default_user&limit=10
+
+# 学习统计洞察
+GET /patterns/insights?user_id=default_user
 ```
 
 ## 配置说明
