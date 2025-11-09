@@ -616,7 +616,7 @@ class XiaoLeAgent:
                     tool_info_text = str(display_data)
                 else:
                     tool_info_text = str(tool_data)
-                
+
                 tool_info = (
                     f"\n\n📊 工具执行结果：\n"
                     f"{tool_info_text}\n"
