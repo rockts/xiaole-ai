@@ -903,7 +903,8 @@
                     return;
                 }
 
-                const stats = data.stats || {};
+                // 修复：使用 conversation_stats 而不是 stats
+                const stats = data.conversation_stats || {};
                 let html = `
                     <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;">
                         <div style="text-align: center; padding: 10px; background: white; border-radius: 8px;">
