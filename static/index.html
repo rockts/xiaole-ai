@@ -80,6 +80,20 @@
             flex-direction: column;
         }
 
+        /* 会话信息栏 */
+        .session-info {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 20px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .session-title-display {
+            font-size: 14px;
+            font-weight: 500;
+            text-align: center;
+        }
+
         /* 聊天界面 */
         .chat-container {
             flex: 1;
@@ -360,6 +374,9 @@
 
         <!-- 聊天界面 -->
         <div id="chat" class="tab-content active">
+            <div id="sessionInfo" class="session-info" style="display: none;">
+                <div class="session-title-display">💬 <span id="currentSessionTitle"></span></div>
+            </div>
             <div class="chat-container" id="chatContainer"></div>
             <div class="input-container">
                 <input type="text" id="messageInput" placeholder="输入消息..."
@@ -387,9 +404,12 @@
                 </div>
 
                 <div class="search-box">
-                    <input type="text" id="searchInput" placeholder="搜索关键词..."
-                        style="flex: 1; padding: 10px; border: 2px solid #ddd; border-radius: 10px;">
-                    <button onclick="searchMemories()">🔍 搜索</button>
+                    <input type="text" id="searchInput" placeholder="搜索记忆（支持语义理解）..."
+                        style="flex: 1; padding: 10px; border: 2px solid #ddd; border-radius: 10px;"
+                        onkeypress="if(event.key==='Enter') searchMemories()">
+                    <button onclick="searchMemories()">🔍 关键词</button>
+                    <button onclick="semanticSearch()">🧠 语义</button>
+                    <button onclick="loadRecentMemories()">📋 全部</button>
                 </div>
 
                 <div id="memoryList"></div>
@@ -475,6 +495,7 @@
         function newChat() {
             currentSessionId = null;
             document.getElementById('chatContainer').innerHTML = '';
+            document.getElementById('sessionInfo').style.display = 'none';
             document.getElementById('messageInput').focus();
         }
 
@@ -514,6 +535,12 @@
                 currentSessionId = sessionId;
                 const container = document.getElementById('chatContainer');
                 container.innerHTML = '';
+
+                // 显示会话信息
+                const sessionInfo = document.getElementById('sessionInfo');
+                const titleSpan = document.getElementById('currentSessionTitle');
+                titleSpan.textContent = data.title;
+                sessionInfo.style.display = 'block';
 
                 data.history.forEach(msg => {
                     addMessage(msg.role, msg.content);
@@ -582,7 +609,7 @@
             }
         }
 
-        // 搜索记忆
+        // 搜索记忆（关键词）
         async function searchMemories() {
             const keywords = document.getElementById('searchInput').value.trim();
             if (!keywords) {
@@ -591,7 +618,7 @@
             }
 
             const container = document.getElementById('memoryList');
-            container.innerHTML = '<div class="loading">搜索中...</div>';
+            container.innerHTML = '<div class="loading">关键词搜索中...</div>';
 
             try {
                 const response = await fetch(
@@ -606,6 +633,42 @@
                             <div class="memory-meta">
                                 <span>🏷️ ${mem.tag}</span>
                                 <span>🕐 ${mem.timestamp}</span>
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    container.innerHTML = '<div class="loading">没有找到相关记忆</div>';
+                }
+            } catch (error) {
+                container.innerHTML = `<div class="error">搜索失败: ${error.message}</div>`;
+            }
+        }
+
+        // 语义搜索记忆
+        async function semanticSearch() {
+            const query = document.getElementById('searchInput').value.trim();
+            if (!query) {
+                alert('请输入查询内容');
+                return;
+            }
+
+            const container = document.getElementById('memoryList');
+            container.innerHTML = '<div class="loading">🧠 语义搜索中...</div>';
+
+            try {
+                const response = await fetch(
+                    `${API_BASE}/memory/semantic?query=${encodeURIComponent(query)}&limit=20`
+                );
+                const data = await response.json();
+
+                if (data.memories && data.memories.length > 0) {
+                    container.innerHTML = data.memories.map(mem => `
+                        <div class="memory-item">
+                            <div class="memory-content">${mem.content}</div>
+                            <div class="memory-meta">
+                                <span>🏷️ ${mem.tag}</span>
+                                <span>🕐 ${mem.timestamp}</span>
+                                <span>📊 相似度: ${(mem.score * 100).toFixed(1)}%</span>
                             </div>
                         </div>
                     `).join('');

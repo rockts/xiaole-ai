@@ -51,7 +51,15 @@ def memory_recent(hours: int = 24, tag: str = None, limit: int = 10):
 def memory_search(keywords: str, tag: str = None, limit: int = 10):
     """通过关键词搜索记忆（多个关键词用逗号分隔）"""
     kw_list = [kw.strip() for kw in keywords.split(',')]
-    return {"memory": xiaole.memory.recall_by_keywords(kw_list, tag, limit)}
+    memories = xiaole.memory.recall_by_keywords(kw_list, tag, limit)
+    return {"memories": memories}
+
+
+@app.get("/memory/semantic")
+def memory_semantic_search(query: str, tag: str = None, limit: int = 10):
+    """语义搜索记忆（理解查询意图）"""
+    memories = xiaole.memory.semantic_recall(query, tag, limit, min_score=0.1)
+    return {"memories": memories}
 
 
 @app.get("/memory/stats")
@@ -78,8 +86,16 @@ def get_session(session_id: str):
     """获取会话详情"""
     stats = xiaole.conversation.get_session_stats(session_id)
     history = xiaole.conversation.get_history(session_id, limit=50)
+
+    if not stats:
+        return {"error": "Session not found"}, 404
+
     return {
-        "stats": stats,
+        "session_id": stats["session_id"],
+        "title": stats["title"],
+        "message_count": stats["message_count"],
+        "created_at": stats["created_at"],
+        "updated_at": stats["updated_at"],
         "history": history
     }
 
