@@ -252,9 +252,33 @@ class ProactiveQA:
         confidence: int,
         followup_question: str
     ) -> int:
-        """保存主动问答记录，返回记录ID"""
+        """保存主动问答记录，返回记录ID（自动去重）"""
         session = SessionLocal()
         try:
+            # 检查是否已存在相同的未回答问题（基于user_id去重，避免跨会话重复）
+            # 只检查最近10分钟内的记录，避免误删旧记录
+            from datetime import datetime, timedelta
+            ten_minutes_ago = datetime.now() - timedelta(minutes=10)
+
+            existing = (
+                session.query(ProactiveQuestion)
+                .filter_by(
+                    user_id=user_id,
+                    original_question=original_question,
+                    followup_asked=False
+                )
+                .filter(ProactiveQuestion.created_at >= ten_minutes_ago)
+                .first()
+            )
+
+            if existing:
+                # 如果已存在，更新置信度（取较高值）并返回现有记录ID
+                if confidence > existing.confidence_score:
+                    existing.confidence_score = confidence
+                    session.commit()
+                return existing.id
+
+            # 不存在则创建新记录
             record = ProactiveQuestion(
                 user_id=user_id,
                 session_id=session_id,
