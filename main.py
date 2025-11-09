@@ -109,3 +109,34 @@ def delete_session(session_id: str):
     """删除会话"""
     xiaole.conversation.delete_session(session_id)
     return {"message": "Session deleted"}
+
+
+# v0.3.0 用户行为分析 API
+@app.get("/analytics/behavior")
+def get_behavior_analytics(
+    user_id: str = "default_user",
+    days: int = 30
+):
+    """获取用户行为分析报告"""
+    report = xiaole.behavior_analyzer.generate_behavior_report(user_id, days)
+    if not report or not report.get("conversation_stats"):
+        return {"error": "No data available"}, 404
+    return report
+
+
+@app.get("/analytics/activity")
+def get_activity_pattern(user_id: str = "default_user", days: int = 30):
+    """获取用户活跃时间模式"""
+    pattern = xiaole.behavior_analyzer.get_user_activity_pattern(user_id, days)
+    if not pattern:
+        return {"error": "No data available"}, 404
+    return pattern
+
+
+@app.get("/analytics/topics")
+def get_topic_preferences(user_id: str = "default_user", days: int = 30):
+    """获取用户话题偏好"""
+    topics = xiaole.behavior_analyzer.get_topic_preferences(user_id, days)
+    if not topics:
+        return {"error": "No data available"}, 404
+    return topics

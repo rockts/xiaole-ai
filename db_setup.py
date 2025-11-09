@@ -53,5 +53,25 @@ class Message(Base):
     created_at = Column(DateTime, default=datetime.now)
 
 
+class UserBehavior(Base):
+    """用户行为统计表 - v0.3.0 Learning层"""
+    __tablename__ = "user_behaviors"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(String(50), index=True)
+    session_id = Column(String(100), index=True)
+    # 对话统计
+    message_count = Column(Integer, default=0)  # 本次会话消息数
+    user_message_count = Column(Integer, default=0)  # 用户消息数
+    avg_message_length = Column(Integer, default=0)  # 平均消息长度
+    # 时间统计
+    start_time = Column(DateTime, default=datetime.now)
+    end_time = Column(DateTime, default=datetime.now)
+    duration_seconds = Column(Integer, default=0)  # 会话时长（秒）
+    # 话题标签（从记忆中提取）
+    topics = Column(Text)  # JSON格式存储话题列表
+    # 记录时间
+    created_at = Column(DateTime, default=datetime.now)
+
+
 Base.metadata.create_all(engine)
 print("✅ 数据库初始化完成。")

@@ -1,5 +1,6 @@
 from memory import MemoryManager
 from conversation import ConversationManager
+from behavior_analytics import BehaviorAnalyzer
 from error_handler import (
     retry_with_backoff, log_execution, handle_api_errors,
     APITimeoutError, APIRateLimitError, APIConnectionError,
@@ -18,6 +19,7 @@ class XiaoLeAgent:
     def __init__(self):
         self.memory = MemoryManager()
         self.conversation = ConversationManager()
+        self.behavior_analyzer = BehaviorAnalyzer()  # v0.3.0 行为分析器
 
         # 支持多个AI平台
         self.api_type = os.getenv("AI_API_TYPE", "deepseek")
@@ -302,6 +304,12 @@ class XiaoLeAgent:
 
         # 智能提取：让AI判断是否有关键事实需要记住
         self._extract_and_remember(prompt)
+
+        # v0.3.0: 记录用户行为数据
+        try:
+            self.behavior_analyzer.record_session_behavior(user_id, session_id)
+        except Exception as e:
+            logger.warning(f"行为数据记录失败: {e}")
 
         return {
             "session_id": session_id,
