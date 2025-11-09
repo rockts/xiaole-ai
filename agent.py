@@ -49,7 +49,7 @@ class XiaoLeAgent:
         try:
             from tools import (
                 weather_tool, system_info_tool,
-                time_tool, calculator_tool, reminder_tool
+                time_tool, calculator_tool, reminder_tool, search_tool
             )
 
             # 注册工具
@@ -58,6 +58,7 @@ class XiaoLeAgent:
             self.tool_registry.register(time_tool)
             self.tool_registry.register(calculator_tool)
             self.tool_registry.register(reminder_tool)  # v0.5.0 提醒工具
+            self.tool_registry.register(search_tool)  # v0.5.0 搜索工具
 
             logger.info(
                 f"✅ 工具注册完成，共 "
@@ -502,7 +503,8 @@ class XiaoLeAgent:
 3. 如果用户询问时间/日期 -> 使用 time 工具
 4. 如果用户请求数学计算 -> 使用 calculator 工具
 5. 如果用户请求创建提醒/定时提醒 -> 使用 reminder 工具
-6. 如果只是普通对话 -> 不需要工具
+6. 如果用户请求搜索信息/查询资料/百科知识 -> 使用 search 工具
+7. 如果只是普通对话 -> 不需要工具
 
 **重要规则：**
 - 天气查询需要城市名称：
@@ -518,6 +520,10 @@ class XiaoLeAgent:
   - 如果用户说"提醒我..."、"记得..."、"别忘了..."等 -> 使用 reminder 工具
   - 提取时间描述（如：明天下午3点、2小时后）和提醒内容
   - 可选：提取标题
+- 搜索识别规则：
+  - 如果用户询问实时信息、新闻、百科知识 -> 使用 search 工具
+  - 如果用户说"搜索..."、"查一下..."、"帮我找..." -> 使用 search 工具
+  - 提取搜索关键词
 
 请以JSON格式返回（不要markdown代码块）：
 {{
@@ -532,7 +538,8 @@ class XiaoLeAgent:
 - system_info工具参数: info_type(cpu/memory/disk/all)
 - time工具参数: format(full/date/time/timestamp)
 - calculator工具参数: expression(数学表达式)
-- reminder工具参数: content(提醒内容), time_desc(时间描述，如"明天下午3点"、"2小时后"), title(可选，提醒标题)"""
+- reminder工具参数: content(提醒内容), time_desc(时间描述，如"明天下午3点"、"2小时后"), title(可选，提醒标题)
+- search工具参数: query(搜索关键词), max_results(可选，默认5)"""
 
         try:
             if self.api_type == "deepseek":
