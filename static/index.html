@@ -430,10 +430,16 @@
                 <div class="stats-card">
                     <h3>📊 用户行为分析 <span style="font-size: 12px; color: #667eea; font-weight: normal;">v0.3.0
                             Learning层</span></h3>
-                    <div style="margin: 15px 0;">
+                    <div style="margin: 15px 0; display: flex; gap: 10px; align-items: center;">
                         <button onclick="loadBehaviorAnalytics()"
                             style="padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 8px; cursor: pointer;">🔄
                             刷新数据</button>
+                        <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                            <input type="checkbox" id="autoRefreshToggle" onchange="toggleAutoRefresh()"
+                                style="cursor: pointer;">
+                            <span>自动刷新 (30秒)</span>
+                        </label>
+                        <span id="refreshStatus" style="font-size: 12px; color: #999;"></span>
                     </div>
 
                     <div style="margin: 20px 0;">
@@ -486,7 +492,10 @@
 
             if (tabName === 'sessions') loadSessions();
             if (tabName === 'memory') loadMemoryStats();
-            if (tabName === 'analytics') loadBehaviorAnalytics();
+            if (tabName === 'analytics') {
+                // 自动加载行为分析数据
+                loadBehaviorAnalytics();
+            }
         }
 
         // 发送消息
@@ -735,6 +744,57 @@
                 container.innerHTML = `<div class="error">搜索失败: ${error.message}</div>`;
             }
         }
+
+        // 自动刷新相关变量
+        let autoRefreshInterval = null;
+        let lastRefreshTime = null;
+
+        // 切换自动刷新
+        function toggleAutoRefresh() {
+            const checkbox = document.getElementById('autoRefreshToggle');
+            const statusSpan = document.getElementById('refreshStatus');
+
+            if (checkbox.checked) {
+                // 启用自动刷新
+                loadBehaviorAnalytics();
+                lastRefreshTime = Date.now();
+                updateRefreshStatus();
+
+                autoRefreshInterval = setInterval(() => {
+                    loadBehaviorAnalytics();
+                    lastRefreshTime = Date.now();
+                    updateRefreshStatus();
+                }, 30000); // 30秒
+
+                statusSpan.style.color = '#51cf66';
+                console.log('✅ 自动刷新已启用 (30秒)');
+            } else {
+                // 禁用自动刷新
+                if (autoRefreshInterval) {
+                    clearInterval(autoRefreshInterval);
+                    autoRefreshInterval = null;
+                }
+                statusSpan.textContent = '';
+                console.log('⏸️ 自动刷新已禁用');
+            }
+        }
+
+        // 更新刷新状态
+        function updateRefreshStatus() {
+            const statusSpan = document.getElementById('refreshStatus');
+            if (lastRefreshTime) {
+                const now = Date.now();
+                const elapsed = Math.floor((now - lastRefreshTime) / 1000);
+                statusSpan.textContent = `上次刷新: ${elapsed}秒前`;
+            }
+        }
+
+        // 定期更新状态显示
+        setInterval(() => {
+            if (autoRefreshInterval && lastRefreshTime) {
+                updateRefreshStatus();
+            }
+        }, 1000);
 
         // 加载行为分析数据
         async function loadBehaviorAnalytics() {
