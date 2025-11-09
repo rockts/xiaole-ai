@@ -103,5 +103,32 @@ class ProactiveQuestion(Base):
     answered_at = Column(DateTime)  # 回答时间
 
 
+class LearnedPattern(Base):
+    """学习模式表 - v0.3.0 Learning层"""
+    __tablename__ = "learned_patterns"
+
+    pattern_id = Column(Integer, primary_key=True)
+    user_id = Column(String(50), default="default_user", index=True)
+
+    # 模式类型：frequent_word(高频词), synonym(同义词),
+    # common_question(常见问题), user_preference(用户偏好)
+    pattern_type = Column(String(50), index=True)
+
+    # 模式数据（JSON格式）
+    # 高频词: {"word": "天气", "context": ["今天", "明天"]}
+    # 同义词: {"word": "你好", "synonyms": ["您好", "hi"]}
+    # 常见问题: {"question": "天气怎么样", "category": "天气查询"}
+    # 用户偏好: {"preference": "喜欢简短回答", "strength": 0.8}
+    pattern_data = Column(Text)
+
+    # 统计数据
+    frequency = Column(Integer, default=1)  # 出现频次
+    confidence = Column(Integer, default=50)  # 置信度 0-100
+
+    # 时间记录
+    created_at = Column(DateTime, default=datetime.now)
+    last_seen_at = Column(DateTime, default=datetime.now)  # 最后出现时间
+
+
 Base.metadata.create_all(engine)
 print("✅ 数据库初始化完成。")

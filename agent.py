@@ -2,6 +2,7 @@ from memory import MemoryManager
 from conversation import ConversationManager
 from behavior_analytics import BehaviorAnalyzer
 from proactive_qa import ProactiveQA  # v0.3.0 主动问答
+from pattern_learning import PatternLearner  # v0.3.0 模式学习
 from error_handler import (
     retry_with_backoff, log_execution, handle_api_errors,
     APITimeoutError, APIRateLimitError, APIConnectionError,
@@ -22,6 +23,7 @@ class XiaoLeAgent:
         self.conversation = ConversationManager()
         self.behavior_analyzer = BehaviorAnalyzer()  # v0.3.0 行为分析器
         self.proactive_qa = ProactiveQA()  # v0.3.0 主动问答分析器
+        self.pattern_learner = PatternLearner()  # v0.3.0 模式学习器
 
         # 支持多个AI平台
         self.api_type = os.getenv("AI_API_TYPE", "deepseek")
@@ -306,6 +308,14 @@ class XiaoLeAgent:
 
         # 智能提取：让AI判断是否有关键事实需要记住
         self._extract_and_remember(prompt)
+
+        # v0.3.0: 模式学习（从用户消息中学习使用模式）
+        try:
+            self.pattern_learner.learn_from_message(
+                user_id, prompt, session_id
+            )
+        except Exception as e:
+            logger.warning(f"模式学习失败: {e}")
 
         # v0.3.0: 记录用户行为数据
         try:

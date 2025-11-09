@@ -479,6 +479,14 @@
                             <div class="loading">点击"刷新数据"加载</div>
                         </div>
                     </div>
+
+                    <div style="margin: 20px 0;">
+                        <h4 style="margin-bottom: 10px; color: #10b981;">🧠 学习模式</h4>
+                        <div id="learningPatterns"
+                            style="background: #f0fdf4; padding: 15px; border-radius: 10px; min-height: 100px; border: 1px solid #10b981;">
+                            <div class="loading">点击"刷新数据"加载</div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -820,6 +828,9 @@
 
             // 加载主动问答历史
             loadProactiveQA(userId);
+
+            // 加载学习模式
+            loadLearningPatterns(userId);
         }
 
         // 加载活跃时间分布
@@ -1038,6 +1049,106 @@
                 } else {
                     container.innerHTML = '<div style="color: #999; text-align: center;">暂无追问记录</div>';
                 }
+            } catch (error) {
+                container.innerHTML = `<div class="error">加载失败: ${error.message}</div>`;
+            }
+        }
+
+        // 加载学习模式
+        async function loadLearningPatterns(userId) {
+            const container = document.getElementById('learningPatterns');
+            container.innerHTML = '<div class="loading">加载中...</div>';
+
+            try {
+                // 并行获取三个API数据
+                const [frequentRes, questionsRes, insightsRes] = await Promise.all([
+                    fetch(`${API_BASE}/patterns/frequent?user_id=${userId}&limit=10`),
+                    fetch(`${API_BASE}/patterns/common_questions?user_id=${userId}&limit=5`),
+                    fetch(`${API_BASE}/patterns/insights?user_id=${userId}`)
+                ]);
+
+                const frequentData = await frequentRes.json();
+                const questionsData = await questionsRes.json();
+                const insightsData = await insightsRes.json();
+
+                let html = '';
+
+                // 显示统计概览
+                if (insightsData && insightsData.statistics) {
+                    const stats = insightsData.statistics;
+                    html += `<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 15px;">`;
+                    html += `<div style="background: white; padding: 10px; border-radius: 5px; text-align: center;">
+                        <div style="font-size: 24px; font-weight: bold; color: #10b981;">${stats.total_patterns || 0}</div>
+                        <div style="font-size: 12px; color: #999;">总学习模式</div>
+                    </div>`;
+                    html += `<div style="background: white; padding: 10px; border-radius: 5px; text-align: center;">
+                        <div style="font-size: 24px; font-weight: bold; color: #10b981;">${stats.frequent_words_count || 0}</div>
+                        <div style="font-size: 12px; color: #999;">高频词汇</div>
+                    </div>`;
+                    html += `<div style="background: white; padding: 10px; border-radius: 5px; text-align: center;">
+                        <div style="font-size: 24px; font-weight: bold; color: #10b981;">${stats.common_questions_count || 0}</div>
+                        <div style="font-size: 12px; color: #999;">常见问题</div>
+                    </div>`;
+                    html += `</div>`;
+                }
+
+                // 显示高频词
+                if (frequentData.frequent_words && frequentData.frequent_words.length > 0) {
+                    html += `<div style="margin: 15px 0;">
+                        <div style="font-weight: bold; color: #10b981; margin-bottom: 8px;">📝 高频词汇 TOP10</div>
+                        <div style="display: flex; flex-wrap: wrap; gap: 8px;">`;
+                    
+                    frequentData.frequent_words.forEach(item => {
+                        const confidence = item.confidence || 50;
+                        const bgColor = confidence >= 80 ? '#10b981' : confidence >= 60 ? '#3b82f6' : '#6b7280';
+                        html += `<span style="background: ${bgColor}; color: white; padding: 5px 12px; border-radius: 15px; font-size: 13px;">
+                            ${item.word} (${item.frequency}次)
+                        </span>`;
+                    });
+                    
+                    html += `</div></div>`;
+                }
+
+                // 显示常见问题分类
+                if (questionsData.common_questions && questionsData.common_questions.length > 0) {
+                    html += `<div style="margin: 15px 0;">
+                        <div style="font-weight: bold; color: #10b981; margin-bottom: 8px;">❓ 常见问题分类</div>`;
+                    
+                    questionsData.common_questions.forEach(item => {
+                        const typeEmoji = {
+                            '天气查询': '🌤️',
+                            '时间日期': '⏰',
+                            '个人信息': '👤',
+                            '功能咨询': '🔧',
+                            '推荐建议': '💡',
+                            '闲聊': '💬'
+                        };
+                        
+                        html += `<div style="margin: 10px 0; padding: 10px; background: white; border-left: 3px solid #10b981; border-radius: 5px;">
+                            <div style="font-weight: bold; margin-bottom: 5px;">
+                                ${typeEmoji[item.category] || '📌'} ${item.category} 
+                                <span style="color: #999; font-size: 12px; font-weight: normal;">(${item.frequency}次)</span>
+                            </div>`;
+                        
+                        if (item.examples && item.examples.length > 0) {
+                            html += `<div style="font-size: 12px; color: #666; margin-top: 5px;">`;
+                            item.examples.slice(0, 2).forEach(example => {
+                                html += `<div style="margin: 3px 0;">• ${example}</div>`;
+                            });
+                            html += `</div>`;
+                        }
+                        
+                        html += `</div>`;
+                    });
+                    
+                    html += `</div>`;
+                }
+
+                if (!html) {
+                    html = '<div style="color: #999; text-align: center;">暂无学习数据，多聊几句让小乐了解你吧~</div>';
+                }
+
+                container.innerHTML = html;
             } catch (error) {
                 container.innerHTML = `<div class="error">加载失败: ${error.message}</div>`;
             }

@@ -146,6 +146,34 @@ def get_topic_preferences(user_id: str = "default_user", days: int = 30):
     return topics
 
 
+# v0.3.0 模式学习 API
+@app.get("/patterns/frequent")
+def get_frequent_words(
+    user_id: str = "default_user",
+    limit: int = 20
+):
+    """获取用户高频词列表"""
+    words = xiaole.pattern_learner.get_frequent_words(user_id, limit)
+    return {"user_id": user_id, "frequent_words": words}
+
+
+@app.get("/patterns/common_questions")
+def get_common_questions(
+    user_id: str = "default_user",
+    limit: int = 10
+):
+    """获取用户常见问题分类"""
+    questions = xiaole.pattern_learner.get_common_questions(user_id, limit)
+    return {"user_id": user_id, "common_questions": questions}
+
+
+@app.get("/patterns/insights")
+def get_learning_insights(user_id: str = "default_user"):
+    """获取模式学习统计洞察"""
+    insights = xiaole.pattern_learner.get_learning_insights(user_id)
+    return insights
+
+
 # v0.3.0 记忆冲突检测 API
 @app.get("/memory/conflicts")
 def check_memory_conflicts(tag: str = "facts", limit: int = 100):
