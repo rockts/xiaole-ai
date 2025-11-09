@@ -2105,6 +2105,7 @@
             // 创建提醒弹窗
             const notification = document.createElement('div');
             notification.className = 'reminder-notification';
+            notification.id = `reminder-notif-${reminder.reminder_id}`;
 
             const priorityEmoji = { 1: '🔴', 2: '🟠', 3: '🟡', 4: '🟢', 5: '⚪' };
             const emoji = priorityEmoji[reminder.priority] || '🔔';
@@ -2114,17 +2115,17 @@
                     <div class="reminder-notification-header">
                         <span class="reminder-notification-icon">${emoji}</span>
                         <span class="reminder-notification-title">${reminder.title || '提醒'}</span>
-                        <button class="reminder-notification-close" onclick="this.parentElement.parentElement.parentElement.remove()">✕</button>
+                        <button class="reminder-notification-close" onclick="closeReminderNotif(${reminder.reminder_id})">✕</button>
                     </div>
                     <div class="reminder-notification-body">
                         ${reminder.content}
                     </div>
                     <div class="reminder-notification-actions">
-                        <button onclick="markReminderAsRead(${reminder.reminder_id}); this.parentElement.parentElement.parentElement.remove();">
-                            已知道
+                        <button onclick="handleReminderRead(${reminder.reminder_id})">
+                            ✅ 已知道
                         </button>
-                        <button onclick="snoozeReminder(${reminder.reminder_id}, 5); this.parentElement.parentElement.parentElement.remove();">
-                            稍后提醒
+                        <button onclick="handleReminderSnooze(${reminder.reminder_id})">
+                            ⏰ 稍后提醒
                         </button>
                     </div>
                 </div>
@@ -2132,11 +2133,63 @@
 
             document.body.appendChild(notification);
 
-            // 10秒后自动淡出
+            // 30秒后自动淡出（给用户更多时间查看）
             setTimeout(() => {
-                notification.style.opacity = '0';
-                setTimeout(() => notification.remove(), 300);
-            }, 10000);
+                if (document.getElementById(`reminder-notif-${reminder.reminder_id}`)) {
+                    notification.style.opacity = '0';
+                    setTimeout(() => notification.remove(), 300);
+                }
+            }, 30000);
+        }
+
+        // 关闭提醒通知
+        function closeReminderNotif(reminderId) {
+            const notif = document.getElementById(`reminder-notif-${reminderId}`);
+            if (notif) {
+                notif.style.opacity = '0';
+                setTimeout(() => notif.remove(), 300);
+            }
+        }
+
+        // 处理"已知道"
+        async function handleReminderRead(reminderId) {
+            const notif = document.getElementById(`reminder-notif-${reminderId}`);
+            if (!notif) return;
+            
+            // 显示处理中状态
+            const actionsDiv = notif.querySelector('.reminder-notification-actions');
+            const originalHTML = actionsDiv.innerHTML;
+            actionsDiv.innerHTML = '<span style="color: #10b981;">✅ 已标记为已读</span>';
+            
+            // 标记已读
+            markReminderAsRead(reminderId);
+            
+            // 1秒后关闭
+            setTimeout(() => {
+                closeReminderNotif(reminderId);
+            }, 1000);
+        }
+
+        // 处理"稍后提醒"
+        async function handleReminderSnooze(reminderId) {
+            const notif = document.getElementById(`reminder-notif-${reminderId}`);
+            if (!notif) return;
+            
+            // 显示处理中状态
+            const actionsDiv = notif.querySelector('.reminder-notification-actions');
+            const originalHTML = actionsDiv.innerHTML;
+            actionsDiv.innerHTML = '<span style="color: #f59e0b;">⏰ 正在延迟...</span>';
+            
+            // 执行延迟操作
+            await snoozeReminder(reminderId, 5);
+            
+            // 显示成功状态
+            actionsDiv.innerHTML = '<span style="color: #10b981;">✅ 已延迟5分钟</span>';
+            
+            // 1秒后关闭
+            setTimeout(() => {
+                closeReminderNotif(reminderId);
+            }, 1000);
         }
 
         function sendBrowserNotification(reminder) {
