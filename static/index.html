@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小乐 AI 管家</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            width: 100%;
+            max-width: 900px;
+            height: 90vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .tabs {
+            display: flex;
+            background: #f5f5f5;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            border-bottom: 3px solid transparent;
+        }
+
+        .tab:hover {
+            background: #e8e8e8;
+        }
+
+        .tab.active {
+            background: white;
+            border-bottom: 3px solid #667eea;
+            color: #667eea;
+            font-weight: bold;
+        }
+
+        .tab-content {
+            display: none;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .tab-content.active {
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* 聊天界面 */
+        .chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            background: #fafafa;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            display: flex;
+            animation: fadeIn 0.3s;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message.user {
+            justify-content: flex-end;
+        }
+
+        .message-content {
+            max-width: 70%;
+            padding: 12px 16px;
+            border-radius: 18px;
+            word-wrap: break-word;
+        }
+
+        .message.user .message-content {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .message.assistant .message-content {
+            background: white;
+            color: #333;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Markdown 样式 */
+        .message.assistant .message-content p {
+            margin: 0.5em 0;
+        }
+
+        .message.assistant .message-content strong {
+            color: #667eea;
+            font-weight: bold;
+        }
+
+        .message.assistant .message-content ul,
+        .message.assistant .message-content ol {
+            margin: 0.5em 0;
+            padding-left: 20px;
+        }
+
+        .message.assistant .message-content li {
+            margin: 0.3em 0;
+        }
+
+        .message.assistant .message-content code {
+            background: #f5f5f5;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        .message.assistant .message-content pre {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 0.5em 0;
+        }
+
+        .message.assistant .message-content blockquote {
+            border-left: 3px solid #667eea;
+            padding-left: 10px;
+            margin: 0.5em 0;
+            color: #666;
+        }
+
+        .message.assistant .message-content h1,
+        .message.assistant .message-content h2,
+        .message.assistant .message-content h3 {
+            margin: 0.8em 0 0.4em 0;
+            color: #667eea;
+        }
+
+        .input-container {
+            padding: 20px;
+            background: white;
+            border-top: 1px solid #ddd;
+            display: flex;
+            gap: 10px;
+        }
+
+        #messageInput {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 25px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        #messageInput:focus {
+            border-color: #667eea;
+        }
+
+        button {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: transform 0.2s;
+        }
+
+        button:hover {
+            transform: scale(1.05);
+        }
+
+        button:active {
+            transform: scale(0.95);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* 会话列表 */
+        .sessions-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .session-item {
+            background: white;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 10px;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s;
+        }
+
+        .session-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+        }
+
+        .session-item.active {
+            border-left: 4px solid #667eea;
+            background: #f0f4ff;
+        }
+
+        .session-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #333;
+        }
+
+        .session-time {
+            font-size: 12px;
+            color: #999;
+        }
+
+        /* 记忆查看 */
+        .memory-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .stats-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 15px;
+            background: #f5f5f5;
+            border-radius: 10px;
+        }
+
+        .stat-number {
+            font-size: 28px;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .search-box {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .memory-item {
+            background: white;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .memory-content {
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .memory-meta {
+            font-size: 12px;
+            color: #999;
+            display: flex;
+            gap: 15px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+
+        .error {
+            background: #fee;
+            color: #c33;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 10px;
+        }
+    </style>
+    <!-- Markdown 解析库 -->
+    <script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js"></script>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">🤖 小乐 AI 管家</div>
+
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('chat')">💬 聊天</div>
+            <div class="tab" onclick="switchTab('sessions')">📋 会话</div>
+            <div class="tab" onclick="switchTab('memory')">🧠 记忆</div>
+        </div>
+
+        <!-- 聊天界面 -->
+        <div id="chat" class="tab-content active">
+            <div class="chat-container" id="chatContainer"></div>
+            <div class="input-container">
+                <input type="text" id="messageInput" placeholder="输入消息..."
+                    onkeypress="if(event.key==='Enter') sendMessage()">
+                <button onclick="sendMessage()" id="sendBtn">发送</button>
+                <button onclick="newChat()">新对话</button>
+            </div>
+        </div>
+
+        <!-- 会话列表 -->
+        <div id="sessions" class="tab-content">
+            <div class="sessions-list" id="sessionsList">
+                <div class="loading">加载中...</div>
+            </div>
+        </div>
+
+        <!-- 记忆查看 -->
+        <div id="memory" class="tab-content">
+            <div class="memory-container">
+                <div class="stats-card">
+                    <h3>📊 记忆统计</h3>
+                    <div class="stats-grid" id="statsGrid">
+                        <div class="loading">加载中...</div>
+                    </div>
+                </div>
+
+                <div class="search-box">
+                    <input type="text" id="searchInput" placeholder="搜索关键词..."
+                        style="flex: 1; padding: 10px; border: 2px solid #ddd; border-radius: 10px;">
+                    <button onclick="searchMemories()">🔍 搜索</button>
+                </div>
+
+                <div id="memoryList"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentSessionId = null;
+        const API_BASE = '';
+
+        // 切换标签页
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+
+            event.target.classList.add('active');
+            document.getElementById(tabName).classList.add('active');
+
+            if (tabName === 'sessions') loadSessions();
+            if (tabName === 'memory') loadMemoryStats();
+        }
+
+        // 发送消息
+        async function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+            if (!message) return;
+
+            const sendBtn = document.getElementById('sendBtn');
+            sendBtn.disabled = true;
+            input.disabled = true;
+
+            // 显示用户消息
+            addMessage('user', message);
+            input.value = '';
+
+            try {
+                const url = currentSessionId
+                    ? `${API_BASE}/chat?prompt=${encodeURIComponent(message)}&session_id=${currentSessionId}`
+                    : `${API_BASE}/chat?prompt=${encodeURIComponent(message)}`;
+
+                const response = await fetch(url, { method: 'POST' });
+                const data = await response.json();
+
+                if (response.ok) {
+                    currentSessionId = data.session_id;
+                    addMessage('assistant', data.reply);
+                } else {
+                    addMessage('assistant', '抱歉，出现错误：' + (data.detail || '未知错误'));
+                }
+            } catch (error) {
+                addMessage('assistant', '网络错误：' + error.message);
+            } finally {
+                sendBtn.disabled = false;
+                input.disabled = false;
+                input.focus();
+            }
+        }
+
+        // 添加消息到界面
+        function addMessage(role, content) {
+            const container = document.getElementById('chatContainer');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}`;
+
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+
+            // 如果是助手消息，使用Markdown渲染；用户消息保持纯文本
+            if (role === 'assistant') {
+                contentDiv.innerHTML = marked.parse(content);
+            } else {
+                contentDiv.textContent = content;
+            }
+
+            messageDiv.appendChild(contentDiv);
+            container.appendChild(messageDiv);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        // 新对话
+        function newChat() {
+            currentSessionId = null;
+            document.getElementById('chatContainer').innerHTML = '';
+            document.getElementById('messageInput').focus();
+        }
+
+        // 加载会话列表
+        async function loadSessions() {
+            const container = document.getElementById('sessionsList');
+            container.innerHTML = '<div class="loading">加载中...</div>';
+
+            try {
+                const response = await fetch(`${API_BASE}/sessions`);
+                const data = await response.json();
+
+                if (data.sessions && data.sessions.length > 0) {
+                    container.innerHTML = data.sessions.map(session => `
+                        <div class="session-item ${session.session_id === currentSessionId ? 'active' : ''}"
+                             onclick="loadSession('${session.session_id}')">
+                            <div class="session-title">${session.title}</div>
+                            <div class="session-time">
+                                创建: ${session.created_at} | 更新: ${session.updated_at}
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    container.innerHTML = '<div class="loading">还没有会话记录</div>';
+                }
+            } catch (error) {
+                container.innerHTML = `<div class="error">加载失败: ${error.message}</div>`;
+            }
+        }
+
+        // 加载指定会话
+        async function loadSession(sessionId) {
+            try {
+                const response = await fetch(`${API_BASE}/session/${sessionId}`);
+                const data = await response.json();
+
+                currentSessionId = sessionId;
+                const container = document.getElementById('chatContainer');
+                container.innerHTML = '';
+
+                data.history.forEach(msg => {
+                    addMessage(msg.role, msg.content);
+                });
+
+                switchTab('chat');
+                document.querySelector('.tab').click();
+            } catch (error) {
+                alert('加载会话失败: ' + error.message);
+            }
+        }
+
+        // 加载记忆统计
+        async function loadMemoryStats() {
+            try {
+                const response = await fetch(`${API_BASE}/memory/stats`);
+                const data = await response.json();
+
+                const statsGrid = document.getElementById('statsGrid');
+                const tags = data.by_tag || {};
+
+                statsGrid.innerHTML = `
+                    <div class="stat-item">
+                        <div class="stat-number">${data.total}</div>
+                        <div class="stat-label">总记忆数</div>
+                    </div>
+                    ${Object.entries(tags).map(([tag, count]) => `
+                        <div class="stat-item">
+                            <div class="stat-number">${count}</div>
+                            <div class="stat-label">${tag}</div>
+                        </div>
+                    `).join('')}
+                `;
+
+                loadRecentMemories();
+            } catch (error) {
+                document.getElementById('statsGrid').innerHTML =
+                    `<div class="error">加载失败: ${error.message}</div>`;
+            }
+        }
+
+        // 加载最近记忆
+        async function loadRecentMemories() {
+            const container = document.getElementById('memoryList');
+            container.innerHTML = '<div class="loading">加载中...</div>';
+
+            try {
+                const response = await fetch(`${API_BASE}/memory/recent?hours=24&limit=20`);
+                const data = await response.json();
+
+                if (data.memories && data.memories.length > 0) {
+                    container.innerHTML = data.memories.map(mem => `
+                        <div class="memory-item">
+                            <div class="memory-content">${mem.content}</div>
+                            <div class="memory-meta">
+                                <span>🏷️ ${mem.tag}</span>
+                                <span>🕐 ${mem.timestamp}</span>
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    container.innerHTML = '<div class="loading">没有记忆记录</div>';
+                }
+            } catch (error) {
+                container.innerHTML = `<div class="error">加载失败: ${error.message}</div>`;
+            }
+        }
+
+        // 搜索记忆
+        async function searchMemories() {
+            const keywords = document.getElementById('searchInput').value.trim();
+            if (!keywords) {
+                loadRecentMemories();
+                return;
+            }
+
+            const container = document.getElementById('memoryList');
+            container.innerHTML = '<div class="loading">搜索中...</div>';
+
+            try {
+                const response = await fetch(
+                    `${API_BASE}/memory/search?keywords=${encodeURIComponent(keywords)}&limit=20`
+                );
+                const data = await response.json();
+
+                if (data.memories && data.memories.length > 0) {
+                    container.innerHTML = data.memories.map(mem => `
+                        <div class="memory-item">
+                            <div class="memory-content">${mem.content}</div>
+                            <div class="memory-meta">
+                                <span>🏷️ ${mem.tag}</span>
+                                <span>🕐 ${mem.timestamp}</span>
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    container.innerHTML = '<div class="loading">没有找到相关记忆</div>';
+                }
+            } catch (error) {
+                container.innerHTML = `<div class="error">搜索失败: ${error.message}</div>`;
+            }
+        }
+
+        // 页面加载时聚焦输入框
+        window.onload = () => {
+            document.getElementById('messageInput').focus();
+        };
+    </script>
+</body>
+
+</html>

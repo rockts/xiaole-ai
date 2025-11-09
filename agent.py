@@ -1,0 +1,455 @@
+from memory import MemoryManager
+from conversation import ConversationManager
+from error_handler import (
+    retry_with_backoff, log_execution, handle_api_errors,
+    APITimeoutError, APIRateLimitError, APIConnectionError,
+    logger
+)
+import os
+from dotenv import load_dotenv
+import requests
+from datetime import datetime
+import re
+
+load_dotenv()
+
+
+class XiaoLeAgent:
+    def __init__(self):
+        self.memory = MemoryManager()
+        self.conversation = ConversationManager()
+
+        # 支持多个AI平台
+        self.api_type = os.getenv("AI_API_TYPE", "deepseek")
+
+        # DeepSeek配置
+        self.deepseek_key = os.getenv("DEEPSEEK_API_KEY")
+        self.deepseek_url = "https://api.deepseek.com/v1/chat/completions"
+
+        # Claude配置
+        self.claude_key = os.getenv("CLAUDE_API_KEY")
+
+        self.model = self._get_model()
+        self.client = self._init_client()
+
+    def _get_model(self):
+        """根据API类型获取模型名称"""
+        if self.api_type == "deepseek":
+            return os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
+        else:  # claude
+            return os.getenv("CLAUDE_MODEL", "claude-3-5-sonnet-20241022")
+
+    def _init_client(self):
+        """初始化客户端"""
+        if self.api_type == "deepseek":
+            if not self.deepseek_key or \
+               self.deepseek_key == "your_deepseek_api_key_here":
+                print(f"⚠️  警告: 未配置 DEEPSEEK_API_KEY，使用占位模式")
+                return None
+            print(f"✅ 使用 DeepSeek API ({self.model})")
+            return "deepseek"
+
+        elif self.api_type == "claude":
+            if not self.claude_key or \
+               self.claude_key == "your_claude_api_key_here":
+                print("⚠️  警告: 未配置 CLAUDE_API_KEY，使用占位模式")
+                return None
+            try:
+                from anthropic import Anthropic
+                print(f"✅ 使用 Claude API ({self.model})")
+                return Anthropic(api_key=self.claude_key)
+            except Exception as e:
+                print(f"⚠️  Claude初始化失败: {e}")
+                return None
+
+        print(f"⚠️  未知的API类型: {self.api_type}")
+        return None
+
+    def think(self, prompt, use_memory=True):
+        """调用 AI API 进行思考"""
+        # 如果没有配置 API，返回占位响应
+        if not self.client:
+            return f"（占位模式）你说的是：{prompt}"
+
+        try:
+            # 获取当前日期和时间
+            current_date = datetime.now().strftime("%Y年%m月%d日")
+            current_datetime = datetime.now().strftime("%Y年%m月%d日 %H:%M")
+
+            # 构建系统提示
+            system_prompt = (
+                "你是小乐AI管家，一个诚实、友好的个人助手。\n\n"
+                "核心原则：\n"
+                "1. 你是对话助手，没有连接智能设备（无手环/摄像头/传感器）\n"
+                "2. 只使用用户明确告诉你的信息和下方的记忆库内容\n"
+                "3. 记忆库按时间倒序排列，最新信息在前，优先使用最新信息\n"
+                "4. 如果记忆库没有相关信息，诚实说'您还没告诉我'\n"
+                "5. 当用户告诉你新信息时，友好确认并记录\n"
+                "6. 绝不编造数据、假装有设备、或推测未知信息\n"
+                f"当前时间：{current_datetime}\n"
+            )
+
+            # 添加历史记忆（智能检索）
+            if use_memory:
+                # 1. 获取最近5条记忆（时间相关）- 最新信息优先
+                recent_memories = self.memory.recall(
+                    tag="general", limit=5)
+
+                # 2. 搜索关键信息（名字、生日等重要记忆）
+                keywords = ['叫', '名字', '生日', '爱好', '喜欢']
+                important_memories = []
+                for kw in keywords:
+                    mems = self.memory.recall(
+                        tag="general", keyword=kw, limit=2)
+                    important_memories.extend(mems)
+
+                # 3. 合并去重：最近记忆在前（优先级高）
+                all_memories = list(dict.fromkeys(
+                    recent_memories + important_memories))[:8]
+
+                if all_memories:
+                    context = "记忆库（按时间倒序，最新在前）：\n" + \
+                              "\n".join(all_memories)
+                    system_prompt += f"\n\n{context}"
+
+            # 根据API类型调用
+            if self.api_type == "deepseek":
+                reply = self._call_deepseek(system_prompt, prompt)
+            elif self.api_type == "claude":
+                reply = self._call_claude(system_prompt, prompt)
+            else:
+                reply = "未知的API类型"
+
+            # 处理回复中的日期占位符（以防AI还是使用了）
+            reply = self._process_date_placeholders(reply)
+
+            # 注意：对话记录不应存入memories表，会导致AI把自己的回复当成事实
+            # 如果需要记录对话，应使用conversation.add_message()
+
+            return reply
+
+        except Exception as e:
+            error_msg = f"调用 AI API 时出错: {str(e)}"
+            print(f"❌ {error_msg}")
+            return f"抱歉，我遇到了一些问题：{str(e)}"
+
+    @retry_with_backoff(
+        max_retries=3,
+        initial_delay=1.0,
+        exceptions=(requests.Timeout, requests.ConnectionError)
+    )
+    @handle_api_errors
+    @log_execution
+    def _call_deepseek(self, system_prompt, user_prompt):
+        """调用 DeepSeek API"""
+        logger.info(f"调用 DeepSeek API - Prompt长度: {len(user_prompt)}")
+
+        headers = {
+            "Authorization": f"Bearer {self.deepseek_key}",
+            "Content-Type": "application/json"
+        }
+
+        data = {
+            "model": self.model,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            "temperature": 0.5,
+            "max_tokens": 512,
+            "stream": False
+        }
+
+        response = requests.post(
+            self.deepseek_url,
+            headers=headers,
+            json=data,
+            timeout=15
+        )
+
+        response.raise_for_status()
+        result = response.json()
+        reply = result["choices"][0]["message"]["content"]
+        logger.info(f"DeepSeek API 响应成功 - 回复长度: {len(reply)}")
+        return reply
+
+    @retry_with_backoff(
+        max_retries=3,
+        initial_delay=1.0,
+        exceptions=(Exception,)
+    )
+    @handle_api_errors
+    @log_execution
+    def _call_claude(self, system_prompt, user_prompt):
+        """调用 Claude API"""
+        logger.info(f"调用 Claude API - Prompt长度: {len(user_prompt)}")
+
+        response = self.client.messages.create(
+            model=self.model,
+            max_tokens=1024,
+            system=system_prompt,
+            messages=[
+                {"role": "user", "content": user_prompt}
+            ]
+        )
+
+        reply = response.content[0].text
+        logger.info(f"Claude API 响应成功 - 回复长度: {len(reply)}")
+        return reply
+
+    def _process_date_placeholders(self, text):
+        """处理文本中的日期占位符"""
+        current_date = datetime.now().strftime("%Y年%m月%d日")
+        current_datetime = datetime.now().strftime("%Y年%m月%d日 %H:%M")
+
+        # 替换各种可能的日期占位符
+        replacements = {
+            r'\{\{当前日期\}\}': current_date,
+            r'\{\{当前时间\}\}': current_datetime,
+            r'\{\{今天\}\}': current_date,
+            r'\{\{date\}\}': current_date,
+            r'\{\{datetime\}\}': current_datetime,
+        }
+
+        for pattern, replacement in replacements.items():
+            text = re.sub(pattern, replacement, text, flags=re.IGNORECASE)
+
+        return text
+
+    def _extract_and_remember(self, user_message):
+        """
+        智能提取用户消息中的关键事实并存储
+        只有当用户主动告诉我们关键信息时才存储
+        """
+        if not self.client:
+            return  # 占位模式不提取
+
+        # 让AI判断是否包含需要记住的关键事实
+        extraction_prompt = f"""分析用户的这句话，判断是否包含需要长期记住的关键个人信息。
+
+用户说："{user_message}"
+
+如果包含以下类型的关键信息，请提取出来（只提取用户明确告知的事实）：
+- 姓名、年龄、生日
+- 明确的爱好、兴趣（例如"我喜欢..."）
+- 职业、工作
+- 家庭成员
+- 重要日期
+
+**重要规则：**
+1. 只提取用户主动告诉的信息，不要推测
+2. 如果只是闲聊（如"今天天气好"、"你好"），返回"无"
+3. 提取格式：简洁的陈述句，例如"用户姓名：张三"、"用户喜欢打篮球"
+
+请直接返回提取结果，如果没有需要记住的信息就返回"无"。"""
+
+        try:
+            if self.api_type == "deepseek":
+                result = self._call_deepseek(
+                    system_prompt="你是信息提取助手，专门识别和提取用户的关键个人信息。",
+                    user_prompt=extraction_prompt
+                )
+            else:  # claude
+                result = self._call_claude(
+                    system_prompt="你是信息提取助手，专门识别和提取用户的关键个人信息。",
+                    user_prompt=extraction_prompt
+                )
+
+            # 如果提取到了有效信息（不是"无"），存储到记忆
+            if result and result.strip() not in ["无", "无。", "None", "none", ""]:
+                self.memory.remember(result.strip(), tag="facts")
+                logger.info(f"✅ 提取并存储关键事实: {result.strip()}")
+            else:
+                logger.info(f"ℹ️ 无需存储: {user_message}")
+
+        except Exception as e:
+            # 提取失败不影响主流程
+            logger.warning(f"⚠️ 信息提取失败: {e}")
+
+    def act(self, command):
+        """执行任务：思考 -> 记录 -> 输出"""
+        thought = self.think(command, use_memory=True)
+
+        # 额外记录到 task 标签
+        self.memory.remember(
+            f"执行任务：{command} => {thought}",
+            tag="task"
+        )
+
+        return thought
+
+    def chat(self, prompt, session_id=None, user_id="default_user"):
+        """
+        支持上下文的对话方法
+        session_id: 会话ID（None则创建新会话）
+        """
+        # 如果没有session_id，创建新会话
+        if not session_id:
+            session_id = self.conversation.create_session(
+                user_id=user_id,
+                title=prompt[:50] + "..." if len(prompt) > 50 else prompt
+            )
+
+        # 获取对话历史
+        history = self.conversation.get_history(session_id, limit=5)
+
+        # 调用 AI 生成回复（带上下文）
+        reply = self._think_with_context(prompt, history)
+
+        # 保存用户消息和助手回复到会话表
+        self.conversation.add_message(session_id, "user", prompt)
+        self.conversation.add_message(session_id, "assistant", reply)
+
+        # 智能提取：让AI判断是否有关键事实需要记住
+        self._extract_and_remember(prompt)
+
+        return {
+            "session_id": session_id,
+            "reply": reply
+        }
+
+    def _think_with_context(self, prompt, history):
+        """带上下文的思考方法（同时使用会话历史和长期记忆）"""
+        if not self.client:
+            return f"（占位模式）你说的是：{prompt}"
+
+        try:
+            current_datetime = datetime.now().strftime("%Y年%m月%d日 %H:%M")
+
+            system_prompt = (
+                "你是小乐AI管家，一个诚实、友好的个人助手。\n\n"
+                "核心原则：\n"
+                "1. 你是对话助手，没有连接智能设备（无手环/摄像头/传感器）\n"
+                "2. 优先使用对话历史中的上下文信息\n"
+                "3. 同时参考下方记忆库中的长期信息（用户的基本资料、喜好等）\n"
+                "4. 记忆库按时间倒序排列，最新信息在前，优先使用最新信息\n"
+                "5. 如果记忆库和对话历史都没有相关信息，诚实说'您还没告诉我'\n"
+                "6. 绝不编造数据、假装有设备、或推测未知信息\n"
+                f"当前时间：{current_datetime}\n"
+            )
+
+            # 添加长期记忆到系统提示词
+            # 1. 优先获取 facts 标签的关键事实（用户主动告知的真实信息）
+            facts_memories = self.memory.recall(tag="facts", limit=20)
+
+            # 2. 使用语义搜索查找相关记忆（替代关键词搜索）
+            semantic_memories = []
+            if hasattr(self.memory, 'semantic_recall'):
+                # 语义搜索用户问题相关的记忆
+                semantic_memories = self.memory.semantic_recall(
+                    query=prompt,
+                    tag="facts",
+                    limit=10,
+                    min_score=0.3
+                )
+
+            # 3. 获取最近的 general 记忆（补充上下文）
+            recent_memories = self.memory.recall(tag="general", limit=3)
+
+            # 4. 合并去重：facts > 语义相关 > 最近记忆
+            all_memories = []
+            seen = set()
+
+            # 最高优先级：facts 标签（所有关键事实）
+            for mem in facts_memories:
+                if mem not in seen:
+                    all_memories.append(mem)
+                    seen.add(mem)
+
+            # 第二优先级：语义相关记忆（问题相关）
+            for mem in semantic_memories:
+                if mem not in seen:
+                    all_memories.append(mem)
+                    seen.add(mem)
+
+            # 第三优先级：最近记忆（补充上下文）
+            for mem in recent_memories:
+                if mem not in seen and len(all_memories) < 20:
+                    all_memories.append(mem)
+                    seen.add(mem)
+
+            if all_memories:
+                context = "记忆库（按时间倒序，最新在前）：\n" + \
+                          "\n".join(all_memories)
+                system_prompt += f"\n\n{context}"
+
+            # 构建消息列表（包含历史）
+            messages = []
+            for msg in history:
+                messages.append({
+                    "role": msg["role"],
+                    "content": msg["content"]
+                })
+            messages.append({"role": "user", "content": prompt})
+
+            # 根据API类型调用
+            if self.api_type == "deepseek":
+                return self._call_deepseek_with_history(
+                    system_prompt, messages
+                )
+            elif self.api_type == "claude":
+                return self._call_claude_with_history(
+                    system_prompt, messages
+                )
+
+        except Exception as e:
+            return f"抱歉，我遇到了一些问题：{str(e)}"
+
+    @retry_with_backoff(
+        max_retries=3,
+        initial_delay=1.0,
+        exceptions=(requests.Timeout, requests.ConnectionError)
+    )
+    @handle_api_errors
+    @log_execution
+    def _call_deepseek_with_history(self, system_prompt, messages):
+        """DeepSeek API 多轮对话"""
+        logger.info(f"调用 DeepSeek 多轮对话 - 消息数: {len(messages)}")
+
+        headers = {
+            "Authorization": f"Bearer {self.deepseek_key}",
+            "Content-Type": "application/json"
+        }
+
+        data = {
+            "model": self.model,
+            "messages": [
+                {"role": "system", "content": system_prompt}
+            ] + messages,
+            "temperature": 0.5,
+            "max_tokens": 512
+        }
+
+        response = requests.post(
+            self.deepseek_url,
+            headers=headers,
+            json=data,
+            timeout=15
+        )
+
+        response.raise_for_status()
+        result = response.json()
+        reply = result["choices"][0]["message"]["content"]
+        logger.info(f"DeepSeek 多轮对话响应成功 - 回复长度: {len(reply)}")
+        return reply
+
+    @retry_with_backoff(
+        max_retries=3,
+        initial_delay=1.0,
+        exceptions=(Exception,)
+    )
+    @handle_api_errors
+    @log_execution
+    def _call_claude_with_history(self, system_prompt, messages):
+        """Claude API 多轮对话"""
+        logger.info(f"调用 Claude 多轮对话 - 消息数: {len(messages)}")
+
+        response = self.client.messages.create(
+            model=self.model,
+            max_tokens=1024,
+            system=system_prompt,
+            messages=messages
+        )
+        reply = response.content[0].text
+        logger.info(f"Claude 多轮对话响应成功 - 回复长度: {len(reply)}")
+        return reply
