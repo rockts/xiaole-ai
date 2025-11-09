@@ -383,8 +383,7 @@
             </div>
             <div class="chat-container" id="chatContainer"></div>
             <div class="input-container">
-                <input type="text" id="messageInput" placeholder="输入消息..."
-                    onkeydown="if(event.key==='Enter' && !event.shiftKey) sendMessage()">
+                <input type="text" id="messageInput" placeholder="输入消息...">
                 <button onclick="sendMessage()" id="sendBtn">发送</button>
                 <button onclick="newChat()">新对话</button>
             </div>
@@ -413,8 +412,7 @@
 
                 <div class="search-box">
                     <input type="text" id="searchInput" placeholder="搜索记忆（支持语义理解）..."
-                        style="flex: 1; padding: 10px; border: 2px solid #ddd; border-radius: 10px;"
-                        onkeydown="if(event.key==='Enter' && !event.shiftKey) searchMemories()">
+                        style="flex: 1; padding: 10px; border: 2px solid #ddd; border-radius: 10px;">
                     <button onclick="searchMemories()">🔍 关键词</button>
                     <button onclick="semanticSearch()" title="支持自然语言查询，如'多大年纪'">🧠 语义</button>
                     <button onclick="loadRecentMemories()">📋 全部</button>
@@ -1047,7 +1045,27 @@
 
         // 页面加载时聚焦输入框
         window.onload = () => {
-            document.getElementById('messageInput').focus();
+            const messageInput = document.getElementById('messageInput');
+            messageInput.focus();
+
+            // 添加回车发送功能
+            messageInput.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter' && !event.shiftKey) {
+                    event.preventDefault();
+                    sendMessage();
+                }
+            });
+
+            // 搜索框回车功能
+            const searchInput = document.getElementById('searchInput');
+            if (searchInput) {
+                searchInput.addEventListener('keydown', (event) => {
+                    if (event.key === 'Enter' && !event.shiftKey) {
+                        event.preventDefault();
+                        searchMemories();
+                    }
+                });
+            }
         };
     </script>
 </body>
