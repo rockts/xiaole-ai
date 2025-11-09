@@ -364,7 +364,10 @@
 
 <body>
     <div class="container">
-        <div class="header">🤖 小乐 AI 管家</div>
+        <div class="header">
+            🤖 小乐 AI 管家
+            <span style="font-size: 12px; opacity: 0.8; margin-left: 10px;">v0.2.0</span>
+        </div>
 
         <div class="tabs">
             <div class="tab active" onclick="switchTab('chat')">💬 聊天</div>
@@ -397,7 +400,11 @@
         <div id="memory" class="tab-content">
             <div class="memory-container">
                 <div class="stats-card">
-                    <h3>📊 记忆统计</h3>
+                    <h3>📊 记忆统计
+                        <span style="font-size: 12px; color: #667eea; font-weight: normal;">
+                            v0.2.0 - 🧠 支持语义搜索
+                        </span>
+                    </h3>
                     <div class="stats-grid" id="statsGrid">
                         <div class="loading">加载中...</div>
                     </div>
@@ -408,7 +415,7 @@
                         style="flex: 1; padding: 10px; border: 2px solid #ddd; border-radius: 10px;"
                         onkeypress="if(event.key==='Enter') searchMemories()">
                     <button onclick="searchMemories()">🔍 关键词</button>
-                    <button onclick="semanticSearch()">🧠 语义</button>
+                    <button onclick="semanticSearch()" title="支持自然语言查询，如'多大年纪'">🧠 语义</button>
                     <button onclick="loadRecentMemories()">📋 全部</button>
                 </div>
 
