@@ -653,10 +653,15 @@ class XiaoLeAgent:
                     seen.add(mem)
 
             # 第二优先级：语义相关记忆（问题相关）
+            # semantic_memories可能是字典列表，需要提取content
             for mem in semantic_memories:
-                if mem not in seen:
-                    all_memories.append(mem)
-                    seen.add(mem)
+                mem_content = (
+                    mem if isinstance(mem, str)
+                    else mem.get('content', str(mem))
+                )
+                if mem_content not in seen:
+                    all_memories.append(mem_content)
+                    seen.add(mem_content)
 
             # 第三优先级：最近记忆（补充上下文）
             for mem in recent_memories:
