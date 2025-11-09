@@ -22,7 +22,11 @@ else:
         f"/{os.getenv('DB_NAME')}"
     )
 
-engine = create_engine(DB_URL)
+engine = create_engine(
+    DB_URL,
+    connect_args={'client_encoding': 'utf8'},
+    pool_pre_ping=True
+)
 SessionLocal = sessionmaker(bind=engine)
 
 
@@ -30,8 +34,7 @@ class ConflictDetector:
     """记忆冲突检测器"""
 
     def __init__(self):
-        self.session = SessionLocal()
-
+        # 不在init中创建长期session，避免并发问题
         # 定义关键信息的模式匹配规则
         self.patterns = {
             'name': [
@@ -91,61 +94,66 @@ class ConflictDetector:
             limit: 检查最近N条记忆
 
         Returns:
-            list: 冲突列表 [{type, old_value, new_value, old_memory, 
+            list: 冲突列表 [{type, old_value, new_value, old_memory,
                             new_memory, conflict_time}]
         """
         from db_setup import Memory
 
-        # 获取指定标签的记忆
-        memories = self.session.query(Memory).filter(
-            Memory.tag == tag
-        ).order_by(Memory.created_at.desc()).limit(limit).all()
+        # 每次创建新session
+        session = SessionLocal()
+        try:
+            # 获取指定标签的记忆
+            memories = session.query(Memory).filter(
+                Memory.tag == tag
+            ).order_by(Memory.created_at.desc()).limit(limit).all()
 
-        if not memories:
-            return []
+            if not memories:
+                return []
 
-        # 提取每条记忆的关键信息
-        memory_info = []
-        for mem in memories:
-            info = self.extract_key_info(mem.content)
-            if info:
-                memory_info.append({
-                    'memory': mem,
-                    'info': info,
-                    'content': mem.content,
-                    'created_at': mem.created_at
-                })
+            # 提取每条记忆的关键信息
+            memory_info = []
+            for mem in memories:
+                info = self.extract_key_info(mem.content)
+                if info:
+                    memory_info.append({
+                        'memory': mem,
+                        'info': info,
+                        'content': mem.content,
+                        'created_at': mem.created_at
+                    })
 
-        # 检测冲突
-        conflicts = []
-        seen_info = {}  # {info_type: [(value, memory, created_at)]}
+            # 检测冲突
+            conflicts = []
+            seen_info = {}  # {info_type: [(value, memory, created_at)]}
 
-        for item in reversed(memory_info):  # 从旧到新检查
-            for info_type, value in item['info'].items():
-                if info_type not in seen_info:
-                    seen_info[info_type] = []
+            for item in reversed(memory_info):  # 从旧到新检查
+                for info_type, value in item['info'].items():
+                    if info_type not in seen_info:
+                        seen_info[info_type] = []
 
-                # 检查是否与之前的值冲突
-                for old_value, old_mem, old_time in seen_info[info_type]:
-                    if self._is_conflict(info_type, old_value, value):
-                        conflicts.append({
-                            'type': info_type,
-                            'type_cn': self._get_type_name(info_type),
-                            'old_value': old_value,
-                            'new_value': value,
-                            'old_memory': old_mem.content,
-                            'new_memory': item['content'],
-                            'old_time': old_time,
-                            'new_time': item['created_at'],
-                            'conflict_detected_at': datetime.now()
-                        })
+                    # 检查是否与之前的值冲突
+                    for old_value, old_mem, old_time in seen_info[info_type]:
+                        if self._is_conflict(info_type, old_value, value):
+                            conflicts.append({
+                                'type': info_type,
+                                'type_cn': self._get_type_name(info_type),
+                                'old_value': old_value,
+                                'new_value': value,
+                                'old_memory': old_mem.content,
+                                'new_memory': item['content'],
+                                'old_time': old_time.isoformat() if old_time else None,
+                                'new_time': item['created_at'].isoformat() if item['created_at'] else None,
+                                'conflict_detected_at': datetime.now().isoformat()
+                            })
 
-                # 记录当前值
-                seen_info[info_type].append(
-                    (value, item['memory'], item['created_at'])
-                )
+                    # 记录当前值
+                    seen_info[info_type].append(
+                        (value, item['memory'], item['created_at'])
+                    )
 
-        return conflicts
+            return conflicts
+        finally:
+            session.close()
 
     def _is_conflict(self, info_type, value1, value2):
         """
@@ -292,8 +300,3 @@ class ConflictDetector:
             'resolved': 0,
             'message': '自动解决功能开发中，请使用 mark_only 策略'
         }
-
-    def __del__(self):
-        """清理数据库连接"""
-        if hasattr(self, 'session'):
-            self.session.close()
