@@ -275,20 +275,20 @@ def get_tool_history(
 ):
     """获取工具执行历史"""
     from db_setup import SessionLocal, ToolExecution
-    
+
     db = SessionLocal()
     try:
         query = db.query(ToolExecution).filter(
             ToolExecution.user_id == user_id
         )
-        
+
         if session_id:
             query = query.filter(ToolExecution.session_id == session_id)
-        
+
         executions = query.order_by(
             ToolExecution.executed_at.desc()
         ).limit(limit).all()
-        
+
         return {
             "total": len(executions),
             "history": [
@@ -305,4 +305,3 @@ def get_tool_history(
         }
     finally:
         db.close()
-

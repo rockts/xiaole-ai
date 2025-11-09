@@ -15,13 +15,13 @@ logger = logging.getLogger(__name__)
 
 class SystemInfoTool(Tool):
     """系统信息查询工具"""
-    
+
     def __init__(self):
         super().__init__()
         self.name = "system_info"
         self.description = "查询系统信息（CPU、内存、磁盘、进程等）"
         self.category = "system"
-        
+
         self.parameters = [
             ToolParameter(
                 name="info_type",
@@ -35,29 +35,29 @@ class SystemInfoTool(Tool):
                 enum=["cpu", "memory", "disk", "all"]
             )
         ]
-    
+
     async def execute(self, **kwargs) -> Dict[str, Any]:
         """执行系统信息查询"""
         info_type = kwargs.get('info_type', 'all')
-        
+
         try:
             result_text = ""
-            
+
             if info_type in ["cpu", "all"]:
                 result_text += self._get_cpu_info()
-            
+
             if info_type in ["memory", "all"]:
                 result_text += "\n" + self._get_memory_info()
-            
+
             if info_type in ["disk", "all"]:
                 result_text += "\n" + self._get_disk_info()
-            
+
             return {
                 'success': True,
                 'result': result_text.strip(),
                 'error': None
             }
-        
+
         except Exception as e:
             logger.error(f"系统信息查询异常: {e}", exc_info=True)
             return {
@@ -65,14 +65,14 @@ class SystemInfoTool(Tool):
                 'error': f"查询异常: {str(e)}",
                 'result': None
             }
-    
+
     def _get_cpu_info(self) -> str:
         """获取CPU信息"""
         cpu_count = psutil.cpu_count(logical=False)
         cpu_count_logical = psutil.cpu_count(logical=True)
         cpu_percent = psutil.cpu_percent(interval=1)
         cpu_freq = psutil.cpu_freq()
-        
+
         result = "🖥️ CPU信息\n"
         result += f"  处理器: {platform.processor()}\n"
         result += f"  物理核心: {cpu_count}个\n"
@@ -83,14 +83,14 @@ class SystemInfoTool(Tool):
                 f"  频率: 当前 {cpu_freq.current:.2f}MHz "
                 f"(最大 {cpu_freq.max:.2f}MHz)\n"
             )
-        
+
         return result
-    
+
     def _get_memory_info(self) -> str:
         """获取内存信息"""
         mem = psutil.virtual_memory()
         swap = psutil.swap_memory()
-        
+
         result = "💾 内存信息\n"
         result += (
             f"  物理内存: "
@@ -107,13 +107,13 @@ class SystemInfoTool(Tool):
             f"{self._bytes_to_gb(swap.total):.2f}GB "
             f"({swap.percent}%)\n"
         )
-        
+
         return result
-    
+
     def _get_disk_info(self) -> str:
         """获取磁盘信息"""
         result = "💿 磁盘信息\n"
-        
+
         partitions = psutil.disk_partitions()
         for partition in partitions:
             try:
@@ -127,9 +127,9 @@ class SystemInfoTool(Tool):
                 )
             except PermissionError:
                 continue
-        
+
         return result
-    
+
     def _bytes_to_gb(self, bytes_value: int) -> float:
         """字节转GB"""
         return bytes_value / (1024 ** 3)
@@ -137,13 +137,13 @@ class SystemInfoTool(Tool):
 
 class TimeTool(Tool):
     """时间查询工具"""
-    
+
     def __init__(self):
         super().__init__()
         self.name = "time"
         self.description = "查询当前时间和日期"
         self.category = "system"
-        
+
         self.parameters = [
             ToolParameter(
                 name="format",
@@ -157,38 +157,38 @@ class TimeTool(Tool):
                 enum=["full", "date", "time", "timestamp"]
             )
         ]
-    
+
     async def execute(self, **kwargs) -> Dict[str, Any]:
         """执行时间查询"""
         format_type = kwargs.get('format', 'full')
-        
+
         try:
             now = datetime.now()
-            
+
             if format_type == "full":
                 result = now.strftime("%Y年%m月%d日 %H:%M:%S")
                 weekdays = ['一', '二', '三', '四', '五', '六', '日']
                 weekday = weekdays[now.weekday()]
                 result += f" 星期{weekday}"
-            
+
             elif format_type == "date":
                 result = now.strftime("%Y年%m月%d日")
                 weekdays = ['一', '二', '三', '四', '五', '六', '日']
                 weekday = weekdays[now.weekday()]
                 result += f" 星期{weekday}"
-            
+
             elif format_type == "time":
                 result = now.strftime("%H:%M:%S")
-            
+
             elif format_type == "timestamp":
                 result = str(int(now.timestamp()))
-            
+
             return {
                 'success': True,
                 'result': f"⏰ 当前时间: {result}",
                 'error': None
             }
-        
+
         except Exception as e:
             logger.error(f"时间查询异常: {e}", exc_info=True)
             return {
@@ -200,13 +200,13 @@ class TimeTool(Tool):
 
 class CalculatorTool(Tool):
     """计算器工具"""
-    
+
     def __init__(self):
         super().__init__()
         self.name = "calculator"
         self.description = "执行数学计算（支持基本四则运算和常用数学函数）"
         self.category = "system"
-        
+
         self.parameters = [
             ToolParameter(
                 name="expression",
@@ -215,11 +215,11 @@ class CalculatorTool(Tool):
                 required=True
             )
         ]
-    
+
     async def execute(self, **kwargs) -> Dict[str, Any]:
         """执行计算"""
         expression = kwargs.get('expression', '')
-        
+
         try:
             # 安全的数学运算环境
             import math
@@ -234,10 +234,10 @@ class CalculatorTool(Tool):
                 'exp': math.exp, 'pi': math.pi,
                 'e': math.e
             }
-            
+
             # 计算结果
             result = eval(expression, {"__builtins__": {}}, safe_dict)
-            
+
             return {
                 'success': True,
                 'result': f"🧮 计算结果: {expression} = {result}",
@@ -247,7 +247,7 @@ class CalculatorTool(Tool):
                     'value': result
                 }
             }
-        
+
         except Exception as e:
             logger.error(f"计算异常: {e}", exc_info=True)
             return {

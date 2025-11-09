@@ -42,7 +42,7 @@ class XiaoLeAgent:
 
         self.model = self._get_model()
         self.client = self._init_client()
-    
+
     def _register_tools(self):
         """注册所有可用工具"""
         try:
@@ -50,13 +50,13 @@ class XiaoLeAgent:
                 weather_tool, system_info_tool,
                 time_tool, calculator_tool
             )
-            
+
             # 注册工具
             self.tool_registry.register(weather_tool)
             self.tool_registry.register(system_info_tool)
             self.tool_registry.register(time_tool)
             self.tool_registry.register(calculator_tool)
-            
+
             logger.info(
                 f"✅ 工具注册完成，共 "
                 f"{len(self.tool_registry.get_tool_names())} 个工具"

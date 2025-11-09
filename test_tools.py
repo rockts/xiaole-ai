@@ -12,7 +12,7 @@ def test_tools_list():
     print("=" * 60)
     print("测试工具列表API")
     print("=" * 60)
-    
+
     response = requests.get("http://127.0.0.1:8000/tools/list")
     if response.status_code == 200:
         data = response.json()
@@ -32,7 +32,7 @@ def test_time_tool():
     print("\n" + "=" * 60)
     print("测试时间工具")
     print("=" * 60)
-    
+
     response = requests.post(
         "http://127.0.0.1:8000/tools/execute",
         params={
@@ -41,7 +41,7 @@ def test_time_tool():
         },
         json={"format": "full"}
     )
-    
+
     if response.status_code == 200:
         data = response.json()
         print(f"✅ 工具执行成功: {data['success']}")
@@ -55,14 +55,14 @@ def test_calculator_tool():
     print("\n" + "=" * 60)
     print("测试计算器工具")
     print("=" * 60)
-    
+
     test_expressions = [
         "2 + 2",
         "10 * 5",
         "sqrt(16)",
         "pi * 2"
     ]
-    
+
     for expr in test_expressions:
         response = requests.post(
             "http://127.0.0.1:8000/tools/execute",
@@ -72,7 +72,7 @@ def test_calculator_tool():
             },
             json={"expression": expr}
         )
-        
+
         if response.status_code == 200:
             data = response.json()
             if data['success']:
@@ -88,7 +88,7 @@ def test_system_info_tool():
     print("\n" + "=" * 60)
     print("测试系统信息工具")
     print("=" * 60)
-    
+
     response = requests.post(
         "http://127.0.0.1:8000/tools/execute",
         params={
@@ -97,7 +97,7 @@ def test_system_info_tool():
         },
         json={"info_type": "cpu"}
     )
-    
+
     if response.status_code == 200:
         data = response.json()
         if data['success']:
@@ -114,12 +114,12 @@ def test_tool_history():
     print("\n" + "=" * 60)
     print("测试工具历史API")
     print("=" * 60)
-    
+
     response = requests.get(
         "http://127.0.0.1:8000/tools/history",
         params={"user_id": "test_user", "limit": 10}
     )
-    
+
     if response.status_code == 200:
         data = response.json()
         print(f"✅ 成功获取历史记录")
@@ -137,27 +137,27 @@ def test_tool_history():
 def main():
     """运行所有测试"""
     print("\n🚀 v0.4.0 工具系统测试开始\n")
-    
+
     try:
         # 测试工具列表
         test_tools_list()
-        
+
         # 测试时间工具
         test_time_tool()
-        
+
         # 测试计算器
         test_calculator_tool()
-        
+
         # 测试系统信息
         test_system_info_tool()
-        
+
         # 测试历史记录
         test_tool_history()
-        
+
         print("\n" + "=" * 60)
         print("✅ 所有测试完成！")
         print("=" * 60)
-    
+
     except requests.exceptions.ConnectionError:
         print("\n❌ 无法连接到服务器，请先启动服务器:")
         print("   source .venv/bin/activate && python main.py")
