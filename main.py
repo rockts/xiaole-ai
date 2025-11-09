@@ -545,31 +545,31 @@ async def snooze_reminder(reminder_id: int, minutes: int = 5):
     """延迟提醒（稍后提醒）"""
     from datetime import datetime, timedelta
     import json
-    
+
     # 获取当前提醒
     conn = await reminder_manager.get_connection()
     reminder = await conn.fetchrow(
         "SELECT * FROM reminders WHERE reminder_id = $1",
         reminder_id
     )
-    
+
     if not reminder:
         return {"success": False, "error": "Reminder not found"}
-    
+
     # 计算新的触发时间（当前时间 + minutes分钟）
     new_trigger_time = datetime.now() + timedelta(minutes=minutes)
-    
+
     # 更新trigger_condition
     trigger_condition = json.loads(reminder['trigger_condition'])
     new_time_str = new_trigger_time.strftime('%Y-%m-%d %H:%M:%S')
     trigger_condition['datetime'] = new_time_str
-    
+
     success = await reminder_manager.update_reminder(
         reminder_id,
         trigger_condition=json.dumps(trigger_condition),
         enabled=True  # 确保提醒是启用状态
     )
-    
+
     return {
         "success": success,
         "new_trigger_time": new_time_str,

@@ -1666,12 +1666,12 @@
                     };
 
                     const priority = priorityColors[reminder.priority] || priorityColors[3];
-                    
+
                     // 判断是否已触发
                     const isTriggered = reminder.trigger_count > 0 || reminder.last_triggered;
                     const statusColor = isTriggered ? '#9ca3af' : (reminder.enabled ? '#10b981' : '#9ca3af');
                     const statusText = isTriggered ? '已触发' : (reminder.enabled ? '启用' : '禁用');
-                    
+
                     // 已触发的提醒用灰色背景
                     const cardBg = isTriggered ? '#f3f4f6' : 'white';
                     const cardOpacity = isTriggered ? 'opacity: 0.8;' : '';
@@ -2055,47 +2055,47 @@
             try {
                 // 创建音频上下文
                 const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                
+
                 // 创建震荡器（生成声音）
                 const oscillator = audioContext.createOscillator();
                 const gainNode = audioContext.createGain();
-                
+
                 // 连接节点
                 oscillator.connect(gainNode);
                 gainNode.connect(audioContext.destination);
-                
+
                 // 设置音调和音量
                 oscillator.type = 'sine'; // 正弦波，柔和的声音
                 oscillator.frequency.setValueAtTime(800, audioContext.currentTime); // 800Hz
-                
+
                 // 音量渐变效果（避免突兀）
                 gainNode.gain.setValueAtTime(0, audioContext.currentTime);
                 gainNode.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + 0.1);
                 gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.5);
-                
+
                 // 播放声音
                 oscillator.start(audioContext.currentTime);
                 oscillator.stop(audioContext.currentTime + 0.5);
-                
+
                 // 第二声（双响）
                 setTimeout(() => {
                     const oscillator2 = audioContext.createOscillator();
                     const gainNode2 = audioContext.createGain();
-                    
+
                     oscillator2.connect(gainNode2);
                     gainNode2.connect(audioContext.destination);
-                    
+
                     oscillator2.type = 'sine';
                     oscillator2.frequency.setValueAtTime(1000, audioContext.currentTime);
-                    
+
                     gainNode2.gain.setValueAtTime(0, audioContext.currentTime);
                     gainNode2.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + 0.1);
                     gainNode2.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.5);
-                    
+
                     oscillator2.start(audioContext.currentTime);
                     oscillator2.stop(audioContext.currentTime + 0.5);
                 }, 200);
-                
+
             } catch (error) {
                 console.error('播放提示音失败:', error);
             }
@@ -2155,15 +2155,15 @@
         async function handleReminderRead(reminderId) {
             const notif = document.getElementById(`reminder-notif-${reminderId}`);
             if (!notif) return;
-            
+
             // 显示处理中状态
             const actionsDiv = notif.querySelector('.reminder-notification-actions');
             const originalHTML = actionsDiv.innerHTML;
             actionsDiv.innerHTML = '<span style="color: #10b981;">✅ 已标记为已读</span>';
-            
+
             // 标记已读
             markReminderAsRead(reminderId);
-            
+
             // 1秒后关闭
             setTimeout(() => {
                 closeReminderNotif(reminderId);
@@ -2174,18 +2174,18 @@
         async function handleReminderSnooze(reminderId) {
             const notif = document.getElementById(`reminder-notif-${reminderId}`);
             if (!notif) return;
-            
+
             // 显示处理中状态
             const actionsDiv = notif.querySelector('.reminder-notification-actions');
             const originalHTML = actionsDiv.innerHTML;
             actionsDiv.innerHTML = '<span style="color: #f59e0b;">⏰ 正在延迟...</span>';
-            
+
             // 执行延迟操作
             await snoozeReminder(reminderId, 5);
-            
+
             // 显示成功状态
             actionsDiv.innerHTML = '<span style="color: #10b981;">✅ 已延迟5分钟</span>';
-            
+
             // 1秒后关闭
             setTimeout(() => {
                 closeReminderNotif(reminderId);
@@ -2225,24 +2225,24 @@
                 const response = await fetch(`${API_BASE}/api/reminders/${reminderId}/snooze?minutes=${minutes}`, {
                     method: 'POST'
                 });
-                
+
                 const data = await response.json();
-                
+
                 if (data.success) {
                     console.log(`✅ 提醒已延迟 ${minutes} 分钟，新触发时间: ${data.new_trigger_time}`);
-                    
+
                     // 显示提示
                     const toast = document.createElement('div');
                     toast.style.cssText = 'position: fixed; top: 20px; right: 20px; background: #10b981; color: white; padding: 15px 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 10000;';
                     toast.textContent = `⏰ 提醒已延迟 ${minutes} 分钟`;
                     document.body.appendChild(toast);
-                    
+
                     setTimeout(() => {
                         toast.style.opacity = '0';
                         toast.style.transition = 'opacity 0.3s';
                         setTimeout(() => toast.remove(), 300);
                     }, 2000);
-                    
+
                     // 刷新提醒列表
                     if (document.getElementById('reminders').style.display !== 'none') {
                         loadReminders();
