@@ -1065,7 +1065,7 @@
             messageInput.addEventListener('keydown', (event) => {
                 // 输入法输入中不触发发送
                 if (isComposing) return;
-                
+
                 if (event.key === 'Enter' && !event.shiftKey) {
                     event.preventDefault();
                     sendMessage();
@@ -1087,7 +1087,7 @@
 
                 searchInput.addEventListener('keydown', (event) => {
                     if (searchComposing) return;
-                    
+
                     if (event.key === 'Enter' && !event.shiftKey) {
                         event.preventDefault();
                         searchMemories();
