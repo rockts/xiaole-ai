@@ -51,7 +51,8 @@ def memory_recent(hours: int = 24, tag: str = None, limit: int = 10):
 def memory_search(keywords: str, tag: str = None, limit: int = 10):
     """通过关键词搜索记忆（多个关键词用逗号分隔）"""
     kw_list = [kw.strip() for kw in keywords.split(',')]
-    return {"memory": xiaole.memory.recall_by_keywords(kw_list, tag, limit)}
+    memories = xiaole.memory.recall_by_keywords(kw_list, tag, limit)
+    return {"memories": memories}
 
 
 @app.get("/memory/stats")

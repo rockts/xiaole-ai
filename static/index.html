@@ -387,9 +387,11 @@
                 </div>
 
                 <div class="search-box">
-                    <input type="text" id="searchInput" placeholder="搜索关键词..."
-                        style="flex: 1; padding: 10px; border: 2px solid #ddd; border-radius: 10px;">
+                    <input type="text" id="searchInput" placeholder="搜索关键词（多个用逗号分隔）..."
+                        style="flex: 1; padding: 10px; border: 2px solid #ddd; border-radius: 10px;"
+                        onkeypress="if(event.key==='Enter') searchMemories()">
                     <button onclick="searchMemories()">🔍 搜索</button>
+                    <button onclick="loadRecentMemories()">📋 全部</button>
                 </div>
 
                 <div id="memoryList"></div>

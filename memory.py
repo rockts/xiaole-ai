@@ -85,6 +85,7 @@ class MemoryManager:
         keywords: 关键词列表
         tag: 可选标签过滤
         limit: 返回数量限制
+        返回: 包含完整信息的字典列表
         """
         if not keywords:
             return []
@@ -101,7 +102,13 @@ class MemoryManager:
 
         query = query.order_by(Memory.created_at.desc()).limit(limit)
         memories = query.all()
-        return [m.content for m in memories]
+        
+        # 返回完整的记忆信息
+        return [{
+            'content': m.content,
+            'tag': m.tag,
+            'timestamp': m.created_at.strftime('%Y-%m-%d %H:%M:%S')
+        } for m in memories]
 
     def get_stats(self):
         """获取记忆统计信息"""
