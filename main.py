@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from agent import XiaoLeAgent
+from conflict_detector import ConflictDetector
 
 app = FastAPI(
     title="小乐AI管家",
@@ -22,6 +23,7 @@ app.add_middleware(
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 xiaole = XiaoLeAgent()
+conflict_detector = ConflictDetector()  # v0.3.0 冲突检测器
 
 
 @app.get("/")
@@ -140,3 +142,28 @@ def get_topic_preferences(user_id: str = "default_user", days: int = 30):
     if not topics:
         return {"error": "No data available"}, 404
     return topics
+
+
+# v0.3.0 记忆冲突检测 API
+@app.get("/memory/conflicts")
+def check_memory_conflicts(tag: str = "facts", limit: int = 100):
+    """检测记忆冲突"""
+    conflicts = conflict_detector.detect_conflicts(tag, limit)
+    return {
+        "has_conflicts": len(conflicts) > 0,
+        "total": len(conflicts),
+        "conflicts": conflicts
+    }
+
+
+@app.get("/memory/conflicts/summary")
+def get_conflict_summary():
+    """获取冲突摘要"""
+    return conflict_detector.get_conflict_summary()
+
+
+@app.get("/memory/conflicts/report")
+def get_conflict_report():
+    """获取可读的冲突报告"""
+    report = conflict_detector.generate_conflict_report()
+    return {"report": report}

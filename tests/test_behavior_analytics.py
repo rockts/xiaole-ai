@@ -11,7 +11,7 @@ BASE_URL = "http://localhost:8000"
 
 def test_behavior_analytics():
     """测试行为分析完整流程"""
-    print("="  * 60)
+    print("=" * 60)
     print("🧪 测试 v0.3.0 用户行为分析功能")
     print("=" * 60)
 

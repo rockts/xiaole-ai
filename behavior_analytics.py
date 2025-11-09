@@ -39,7 +39,7 @@ class BehaviorAnalyzer:
     def record_session_behavior(self, user_id, session_id):
         """
         记录单次会话的行为数据
-        
+
         Args:
             user_id: 用户ID
             session_id: 会话ID
@@ -114,11 +114,11 @@ class BehaviorAnalyzer:
     def _extract_topics(self, messages, top_n=5):
         """
         从消息中提取话题关键词
-        
+
         Args:
             messages: 消息列表
             top_n: 返回前N个高频词
-        
+
         Returns:
             话题列表
         """
@@ -139,11 +139,11 @@ class BehaviorAnalyzer:
     def get_user_activity_pattern(self, user_id, days=30):
         """
         获取用户活跃时间模式
-        
+
         Args:
             user_id: 用户ID
             days: 统计最近N天
-        
+
         Returns:
             {
                 "hourly_distribution": {0: 5, 1: 2, ...},  # 按小时统计
@@ -193,12 +193,12 @@ class BehaviorAnalyzer:
     def get_topic_preferences(self, user_id, days=30, top_n=10):
         """
         获取用户话题偏好
-        
+
         Args:
             user_id: 用户ID
             days: 统计最近N天
             top_n: 返回前N个高频话题
-        
+
         Returns:
             {
                 "top_topics": [("话题1", 10), ("话题2", 8), ...],
@@ -238,11 +238,11 @@ class BehaviorAnalyzer:
     def get_conversation_stats(self, user_id, days=30):
         """
         获取对话统计数据
-        
+
         Args:
             user_id: 用户ID
             days: 统计最近N天
-        
+
         Returns:
             对话统计信息
         """
@@ -293,11 +293,11 @@ class BehaviorAnalyzer:
     def generate_behavior_report(self, user_id, days=30):
         """
         生成用户行为分析报告
-        
+
         Args:
             user_id: 用户ID
             days: 统计最近N天
-        
+
         Returns:
             完整的行为分析报告
         """
