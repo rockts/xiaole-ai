@@ -3,7 +3,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from agent import XiaoLeAgent
 
-app = FastAPI(title="小乐AI管家")
+app = FastAPI(
+    title="小乐AI管家",
+    version="0.2.0",
+    description="支持语义搜索的轻量级AI助手"
+)
 
 # 配置CORS，允许网页访问API
 app.add_middleware(
