@@ -1048,8 +1048,24 @@
             const messageInput = document.getElementById('messageInput');
             messageInput.focus();
 
-            // 添加回车发送功能
+            // 输入法状态标记
+            let isComposing = false;
+
+            // 监听输入法开始
+            messageInput.addEventListener('compositionstart', () => {
+                isComposing = true;
+            });
+
+            // 监听输入法结束
+            messageInput.addEventListener('compositionend', () => {
+                isComposing = false;
+            });
+
+            // 添加回车发送功能 - 兼容Windows输入法
             messageInput.addEventListener('keydown', (event) => {
+                // 输入法输入中不触发发送
+                if (isComposing) return;
+                
                 if (event.key === 'Enter' && !event.shiftKey) {
                     event.preventDefault();
                     sendMessage();
@@ -1059,7 +1075,19 @@
             // 搜索框回车功能
             const searchInput = document.getElementById('searchInput');
             if (searchInput) {
+                let searchComposing = false;
+
+                searchInput.addEventListener('compositionstart', () => {
+                    searchComposing = true;
+                });
+
+                searchInput.addEventListener('compositionend', () => {
+                    searchComposing = false;
+                });
+
                 searchInput.addEventListener('keydown', (event) => {
+                    if (searchComposing) return;
+                    
                     if (event.key === 'Enter' && !event.shiftKey) {
                         event.preventDefault();
                         searchMemories();
