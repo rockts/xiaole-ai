@@ -472,6 +472,29 @@
             transform: translateY(-1px);
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         }
+
+        /* 主动对话动画 */
+        @keyframes slideInRight {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideOutRight {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+        }
     </style>
     <!-- Markdown 解析库 -->
     <script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js"></script>
@@ -2067,6 +2090,9 @@
                         if (message.type === 'reminder') {
                             // 收到提醒推送
                             handleReminderPush(message.data);
+                        } else if (message.type === 'proactive_chat') {
+                            // 收到主动对话推送
+                            handleProactiveChatPush(message);
                         } else if (message.type === 'pong') {
                             // 心跳响应
                             console.log('心跳响应');
@@ -2325,6 +2351,156 @@
             if ('Notification' in window && Notification.permission === 'default') {
                 Notification.requestPermission().then(permission => {
                     console.log('通知权限:', permission);
+                });
+            }
+        }
+
+        // ============ 主动对话处理 ============
+
+        function handleProactiveChatPush(message) {
+            console.log('收到主动对话推送:', message);
+
+            // 播放柔和的提示音（不同于提醒的声音）
+            playProactiveChatSound();
+
+            // 显示主动对话通知
+            showProactiveChatNotification(message);
+
+            // 如果页面不在前台，发送浏览器通知
+            if (document.hidden) {
+                sendProactiveChatBrowserNotification(message);
+            }
+        }
+
+        function playProactiveChatSound() {
+            try {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+
+                // 更柔和的音调（600Hz）
+                oscillator.type = 'sine';
+                oscillator.frequency.setValueAtTime(600, audioContext.currentTime);
+
+                // 渐变音量
+                gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+                gainNode.gain.linearRampToValueAtTime(0.2, audioContext.currentTime + 0.15);
+                gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.6);
+
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.6);
+            } catch (error) {
+                console.error('播放主动对话提示音失败:', error);
+            }
+        }
+
+        function showProactiveChatNotification(message) {
+            // 创建主动对话通知卡片
+            const notification = document.createElement('div');
+            notification.className = 'proactive-chat-notification';
+            notification.style.cssText = `
+                position: fixed;
+                bottom: 30px;
+                right: 30px;
+                max-width: 400px;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                padding: 20px;
+                border-radius: 15px;
+                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+                z-index: 10000;
+                animation: slideInRight 0.3s ease-out;
+            `;
+
+            const reasonEmoji = {
+                'pending_question': '🤔',
+                'long_inactive': '👋',
+                'moderate_inactive': '💭',
+                'active_time': '⏰',
+                'interesting_topic': '💡'
+            };
+
+            const emoji = reasonEmoji[message.reason] || '💬';
+
+            notification.innerHTML = `
+                <div style="display: flex; align-items: flex-start; gap: 15px;">
+                    <div style="font-size: 32px;">${emoji}</div>
+                    <div style="flex: 1;">
+                        <div style="font-weight: bold; font-size: 16px; margin-bottom: 10px;">
+                            小乐想和你聊聊～
+                        </div>
+                        <div style="font-size: 14px; line-height: 1.6; margin-bottom: 15px;">
+                            ${message.message}
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <button onclick="respondToProactiveChat('${message.reason}')" 
+                                style="flex: 1; background: white; color: #667eea; border: none; padding: 10px; border-radius: 8px; font-weight: bold; cursor: pointer;">
+                                💬 去聊天
+                            </button>
+                            <button onclick="dismissProactiveChat(this)" 
+                                style="background: rgba(255,255,255,0.2); color: white; border: none; padding: 10px 15px; border-radius: 8px; cursor: pointer;">
+                                稍后
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(notification);
+
+            // 10秒后自动消失
+            setTimeout(() => {
+                if (notification.parentElement) {
+                    notification.style.animation = 'slideOutRight 0.3s ease-out';
+                    setTimeout(() => notification.remove(), 300);
+                }
+            }, 10000);
+        }
+
+        function respondToProactiveChat(reason) {
+            // 关闭通知
+            const notification = document.querySelector('.proactive-chat-notification');
+            if (notification) {
+                notification.remove();
+            }
+
+            // 切换到聊天标签
+            switchTab('chat');
+
+            // 聚焦输入框
+            const messageInput = document.getElementById('messageInput');
+            messageInput.focus();
+
+            // 可以根据reason预填充一些内容
+            // messageInput.textContent = '';
+        }
+
+        function dismissProactiveChat(button) {
+            const notification = button.closest('.proactive-chat-notification');
+            if (notification) {
+                notification.style.animation = 'slideOutRight 0.3s ease-out';
+                setTimeout(() => notification.remove(), 300);
+            }
+        }
+
+        function sendProactiveChatBrowserNotification(message) {
+            if ('Notification' in window && Notification.permission === 'granted') {
+                const reasonText = {
+                    'pending_question': '关于之前的问题',
+                    'long_inactive': '好久不见',
+                    'moderate_inactive': '最近还好吗',
+                    'active_time': '问候时间',
+                    'interesting_topic': '有趣的话题'
+                };
+
+                new Notification('小乐想和你聊聊', {
+                    body: message.message,
+                    icon: '/static/icon.png',
+                    tag: 'proactive-chat',
+                    requireInteraction: false
                 });
             }
         }
