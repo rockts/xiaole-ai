@@ -37,11 +37,28 @@ class ConversationManager:
         self.session = Session()
 
     def create_session(self, user_id="default_user", title=None):
-        """创建新的对话会话"""
-        session_id = str(uuid.uuid4())
+        """创建新的对话会话（带去重）"""
         if not title:
             title = f"对话 {datetime.now().strftime('%Y-%m-%d %H:%M')}"
 
+        # 检查是否已存在相同title的会话（10分钟内）
+        from datetime import timedelta
+        time_threshold = datetime.now() - timedelta(minutes=10)
+
+        existing = self.session.query(Conversation).filter(
+            Conversation.user_id == user_id,
+            Conversation.title == title,
+            Conversation.created_at >= time_threshold
+        ).first()
+
+        if existing:
+            # 如果已存在，更新时间并返回已有的session_id
+            existing.updated_at = datetime.now()
+            self.session.commit()
+            return existing.session_id
+
+        # 创建新会话
+        session_id = str(uuid.uuid4())
         conversation = Conversation(
             session_id=session_id,
             user_id=user_id,

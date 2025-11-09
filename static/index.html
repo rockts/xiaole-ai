@@ -875,32 +875,68 @@
             container.innerHTML = '<div class="loading">加载中...</div>';
 
             try {
-                const response = await fetch(`${API_BASE}/sessions`);
+                const response = await fetch(`${API_BASE}/sessions?limit=20`);
                 const data = await response.json();
 
                 if (data.sessions && data.sessions.length > 0) {
-                    container.innerHTML = data.sessions.map(session => `
+                    // 按时间去重：如果多个会话title相同，只显示最新的
+                    const uniqueSessions = [];
+                    const seenTitles = new Set();
+
+                    for (const session of data.sessions) {
+                        if (!seenTitles.has(session.title)) {
+                            seenTitles.add(session.title);
+                            uniqueSessions.push(session);
+                        }
+                    }
+
+                    container.innerHTML = uniqueSessions.map(session => `
                         <div class="session-item ${session.session_id === currentSessionId ? 'active' : ''}"
-                             onclick="loadSession('${session.session_id}')">
+                             data-session-id="${session.session_id}"
+                             style="cursor: pointer;">
                             <div class="session-title">${session.title}</div>
                             <div class="session-time">
                                 创建: ${session.created_at} | 更新: ${session.updated_at}
                             </div>
                         </div>
                     `).join('');
+
+                    // 为每个会话项添加事件监听器（更安全的方式）
+                    container.querySelectorAll('.session-item').forEach(item => {
+                        item.addEventListener('click', function (e) {
+                            e.preventDefault();
+                            const sessionId = this.getAttribute('data-session-id');
+                            if (sessionId) {
+                                loadSession(sessionId);
+                            }
+                        });
+                    });
                 } else {
                     container.innerHTML = '<div class="loading">还没有会话记录</div>';
                 }
             } catch (error) {
+                console.error('加载会话失败:', error);
                 container.innerHTML = `<div class="error">加载失败: ${error.message}</div>`;
             }
         }
 
         // 加载指定会话
         async function loadSession(sessionId) {
+            console.log('正在加载会话:', sessionId);
+
             try {
                 const response = await fetch(`${API_BASE}/session/${sessionId}`);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
                 const data = await response.json();
+                console.log('会话数据:', data);
+
+                if (data.error) {
+                    throw new Error(data.error);
+                }
 
                 currentSessionId = sessionId;
                 const container = document.getElementById('chatContainer');
@@ -909,15 +945,31 @@
                 // 显示会话信息
                 const sessionInfo = document.getElementById('sessionInfo');
                 const titleSpan = document.getElementById('currentSessionTitle');
-                titleSpan.textContent = data.title;
+                titleSpan.textContent = data.title || '未命名会话';
                 sessionInfo.style.display = 'block';
 
-                data.history.forEach(msg => {
-                    addMessage(msg.role, msg.content);
+                // 加载历史消息
+                if (data.history && data.history.length > 0) {
+                    data.history.forEach(msg => {
+                        addMessage(msg.role, msg.content);
+                    });
+                }
+
+                // 切换到聊天标签页
+                switchTab('chat');
+
+                // 更新会话列表的active状态
+                document.querySelectorAll('.session-item').forEach(item => {
+                    if (item.getAttribute('data-session-id') === sessionId) {
+                        item.classList.add('active');
+                    } else {
+                        item.classList.remove('active');
+                    }
                 });
 
-                switchTab('chat');
+                console.log('会话加载成功');
             } catch (error) {
+                console.error('加载会话失败:', error);
                 alert('加载会话失败: ' + error.message);
             }
         }
