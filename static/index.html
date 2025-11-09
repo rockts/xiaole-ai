@@ -214,6 +214,15 @@
             border-color: #667eea;
         }
 
+        #messageInput:empty:before {
+            content: attr(data-placeholder);
+            color: #999;
+        }
+
+        #messageInput:focus:before {
+            content: none;
+        }
+
         button {
             padding: 12px 24px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -383,8 +392,10 @@
             </div>
             <div class="chat-container" id="chatContainer"></div>
             <div class="input-container">
-                <input type="text" id="messageInput" placeholder="输入消息...">
-                <button onclick="sendMessage()" id="sendBtn">发送</button>
+                <div id="messageInput" contenteditable="true" data-placeholder="输入消息（Enter发送，Shift+Enter换行）..."
+                    style="flex: 1; padding: 12px; border: 2px solid #ddd; border-radius: 25px; font-size: 14px; outline: none; min-height: 40px; max-height: 120px; overflow-y: auto; line-height: 1.5; white-space: pre-wrap; word-wrap: break-word;">
+                </div>
+                <button onclick="sendMessageFromDiv()" id="sendBtn">发送</button>
                 <button onclick="newChat()">新对话</button>
             </div>
         </div>
@@ -512,9 +523,52 @@
             }
         }
 
-        // 发送消息
+        // 发送消息（从contenteditable div）
+        async function sendMessageFromDiv() {
+            const input = document.getElementById('messageInput');
+            const message = input.textContent.trim();
+            if (!message) return;
+
+            const sendBtn = document.getElementById('sendBtn');
+            sendBtn.disabled = true;
+            input.contentEditable = 'false';
+
+            // 显示用户消息
+            addMessage('user', message);
+            input.textContent = '';
+
+            try {
+                const url = currentSessionId
+                    ? `${API_BASE}/chat?prompt=${encodeURIComponent(message)}&session_id=${currentSessionId}`
+                    : `${API_BASE}/chat?prompt=${encodeURIComponent(message)}`;
+
+                const response = await fetch(url, { method: 'POST' });
+                const data = await response.json();
+
+                if (response.ok) {
+                    currentSessionId = data.session_id;
+                    addMessage('assistant', data.reply);
+                } else {
+                    addMessage('assistant', '抱歉，出现错误：' + (data.detail || '未知错误'));
+                }
+            } catch (error) {
+                addMessage('assistant', '网络错误：' + error.message);
+            } finally {
+                sendBtn.disabled = false;
+                input.contentEditable = 'true';
+                input.focus();
+            }
+        }
+
+        // 发送消息（保留旧函数兼容性）
         async function sendMessage() {
             const input = document.getElementById('messageInput');
+            // 检查是否是contenteditable
+            if (input.contentEditable === 'true') {
+                sendMessageFromDiv();
+                return;
+            }
+
             const message = input.value.trim();
             if (!message) return;
 
@@ -525,6 +579,8 @@
             // 显示用户消息
             addMessage('user', message);
             input.value = '';
+            // 重置textarea高度
+            input.style.height = 'auto';
 
             try {
                 const url = currentSessionId
@@ -1097,7 +1153,7 @@
                     html += `<div style="margin: 15px 0;">
                         <div style="font-weight: bold; color: #10b981; margin-bottom: 8px;">📝 高频词汇 TOP10</div>
                         <div style="display: flex; flex-wrap: wrap; gap: 8px;">`;
-                    
+
                     frequentData.frequent_words.forEach(item => {
                         const confidence = item.confidence || 50;
                         const bgColor = confidence >= 80 ? '#10b981' : confidence >= 60 ? '#3b82f6' : '#6b7280';
@@ -1105,7 +1161,7 @@
                             ${item.word} (${item.frequency}次)
                         </span>`;
                     });
-                    
+
                     html += `</div></div>`;
                 }
 
@@ -1113,7 +1169,7 @@
                 if (questionsData.common_questions && questionsData.common_questions.length > 0) {
                     html += `<div style="margin: 15px 0;">
                         <div style="font-weight: bold; color: #10b981; margin-bottom: 8px;">❓ 常见问题分类</div>`;
-                    
+
                     questionsData.common_questions.forEach(item => {
                         const typeEmoji = {
                             '天气查询': '🌤️',
@@ -1123,13 +1179,13 @@
                             '推荐建议': '💡',
                             '闲聊': '💬'
                         };
-                        
+
                         html += `<div style="margin: 10px 0; padding: 10px; background: white; border-left: 3px solid #10b981; border-radius: 5px;">
                             <div style="font-weight: bold; margin-bottom: 5px;">
                                 ${typeEmoji[item.category] || '📌'} ${item.category} 
                                 <span style="color: #999; font-size: 12px; font-weight: normal;">(${item.frequency}次)</span>
                             </div>`;
-                        
+
                         if (item.examples && item.examples.length > 0) {
                             html += `<div style="font-size: 12px; color: #666; margin-top: 5px;">`;
                             item.examples.slice(0, 2).forEach(example => {
@@ -1137,10 +1193,10 @@
                             });
                             html += `</div>`;
                         }
-                        
+
                         html += `</div>`;
                     });
-                    
+
                     html += `</div>`;
                 }
 
@@ -1159,47 +1215,19 @@
             const messageInput = document.getElementById('messageInput');
             messageInput.focus();
 
-            // 输入法状态标记
-            let isComposing = false;
-
-            // 监听输入法开始
-            messageInput.addEventListener('compositionstart', () => {
-                isComposing = true;
-            });
-
-            // 监听输入法结束
-            messageInput.addEventListener('compositionend', () => {
-                isComposing = false;
-            });
-
-            // 添加回车发送功能 - 兼容Windows输入法
+            // Enter发送，Shift+Enter换行
             messageInput.addEventListener('keydown', (event) => {
-                // 输入法输入中不触发发送
-                if (isComposing) return;
-
                 if (event.key === 'Enter' && !event.shiftKey) {
                     event.preventDefault();
-                    sendMessage();
+                    sendMessageFromDiv();
                 }
             });
 
-            // 搜索框回车功能
+            // 搜索框回车搜索
             const searchInput = document.getElementById('searchInput');
             if (searchInput) {
-                let searchComposing = false;
-
-                searchInput.addEventListener('compositionstart', () => {
-                    searchComposing = true;
-                });
-
-                searchInput.addEventListener('compositionend', () => {
-                    searchComposing = false;
-                });
-
                 searchInput.addEventListener('keydown', (event) => {
-                    if (searchComposing) return;
-
-                    if (event.key === 'Enter' && !event.shiftKey) {
+                    if (event.key === 'Enter') {
                         event.preventDefault();
                         searchMemories();
                     }

@@ -15,37 +15,37 @@ test_messages = [
     "这周末天气如何？",
     "今天会下雨吗？",
     "明天温度多少度？",
-    
+
     # 时间日期
     "现在几点了？",
     "今天是几月几号？",
     "今天星期几？",
     "今天是什么日子？",
-    
+
     # 个人信息
     "你叫什么名字？",
     "你是谁？",
     "你是什么？",
     "你能做什么？",
-    
+
     # 功能咨询
     "你有什么功能？",
     "你能帮我做什么？",
     "怎么使用你？",
     "如何设置提醒？",
-    
+
     # 推荐建议
     "推荐一部电影",
     "有什么好书推荐吗？",
     "今天吃什么好？",
     "周末去哪玩？",
-    
+
     # 闲聊
     "你好",
     "今天过得怎么样？",
     "聊聊天吧",
     "无聊了",
-    
+
     # 高频词汇测试（重复使用某些词）
     "帮我查一下天气",
     "帮我设置一个提醒",
@@ -66,7 +66,7 @@ def send_message(message, session_id=None):
     }
     if session_id:
         data["session_id"] = session_id
-    
+
     try:
         response = requests.post(url, json=data)
         if response.status_code == 200:
@@ -86,7 +86,7 @@ def check_patterns():
     print("\n" + "="*60)
     print("📊 模式学习统计")
     print("="*60)
-    
+
     try:
         # 获取学习洞察
         response = requests.get(
@@ -99,7 +99,7 @@ def check_patterns():
             print(f"总学习模式: {stats.get('total_patterns', 0)}")
             print(f"高频词汇数: {stats.get('frequent_words_count', 0)}")
             print(f"常见问题数: {stats.get('common_questions_count', 0)}")
-        
+
         # 获取高频词
         response = requests.get(
             f"{API_BASE}/patterns/frequent?user_id=test_user&limit=15"
@@ -113,7 +113,7 @@ def check_patterns():
                     print(f"{i}. {item['word']} - "
                           f"{item['frequency']}次 "
                           f"(置信度: {item.get('confidence', 0)})")
-        
+
         # 获取常见问题
         response = requests.get(
             f"{API_BASE}/patterns/common_questions?user_id=test_user&limit=10"
@@ -129,7 +129,7 @@ def check_patterns():
                     if examples:
                         for example in examples[:3]:
                             print(f"  • {example}")
-    
+
     except Exception as e:
         print(f"查询失败: {e}")
 
@@ -140,21 +140,21 @@ def main():
     print("=" * 60)
     print(f"将发送 {len(test_messages)} 条测试消息...")
     print()
-    
+
     session_id = None
     for i, message in enumerate(test_messages, 1):
         print(f"[{i}/{len(test_messages)}] ", end="")
         session_id = send_message(message, session_id)
         time.sleep(0.3)  # 避免请求过快
-    
+
     print("\n✓ 所有测试消息发送完毕！")
-    
+
     # 稍等片刻让数据处理完成
     time.sleep(2)
-    
+
     # 检查学习结果
     check_patterns()
-    
+
     print("\n" + "=" * 60)
     print("✓ 测试完成！请在浏览器中打开行为分析页面查看完整展示")
     print("=" * 60)
