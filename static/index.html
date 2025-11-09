@@ -384,7 +384,7 @@
             <div class="chat-container" id="chatContainer"></div>
             <div class="input-container">
                 <input type="text" id="messageInput" placeholder="输入消息..."
-                    onkeypress="if(event.key==='Enter') sendMessage()">
+                    onkeydown="if(event.key==='Enter' && !event.shiftKey) sendMessage()">
                 <button onclick="sendMessage()" id="sendBtn">发送</button>
                 <button onclick="newChat()">新对话</button>
             </div>
@@ -414,7 +414,7 @@
                 <div class="search-box">
                     <input type="text" id="searchInput" placeholder="搜索记忆（支持语义理解）..."
                         style="flex: 1; padding: 10px; border: 2px solid #ddd; border-radius: 10px;"
-                        onkeypress="if(event.key==='Enter') searchMemories()">
+                        onkeydown="if(event.key==='Enter' && !event.shiftKey) searchMemories()">
                     <button onclick="searchMemories()">🔍 关键词</button>
                     <button onclick="semanticSearch()" title="支持自然语言查询，如'多大年纪'">🧠 语义</button>
                     <button onclick="loadRecentMemories()">📋 全部</button>
