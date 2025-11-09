@@ -26,7 +26,11 @@ else:
         f"/{os.getenv('DB_NAME')}"
     )
 
-engine = create_engine(DB_URL)
+engine = create_engine(
+    DB_URL,
+    connect_args={'client_encoding': 'utf8'},
+    pool_pre_ping=True
+)
 SessionLocal = sessionmaker(bind=engine)
 
 
