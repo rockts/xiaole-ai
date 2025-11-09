@@ -1,3 +1,125 @@
+# v0.4.0 开发进度 - 智能工具系统
+
+## ✅ 已完成功能（v0.4.0）
+
+### 1. 智能工具调用系统
+- [x] **工具架构设计**
+  - `tool_manager.py` - 工具管理器（注册、执行、历史记录）
+  - `Tool` 基类：标准化工具接口
+  - `ToolParameter` 类：参数定义和验证
+  - `ToolRegistry` 类：工具注册表和执行引擎
+  
+- [x] **核心工具实现**
+  - `weather_tool.py` - 天气查询（Open-Meteo API，免费无需key）
+    - 支持32个中国主要城市（包括天水、秦州）
+    - 实时天气查询（温度、体感、湿度、风速、天气状况）
+    - 3天/7天天气预报
+    - 降水概率预测
+    - WMO天气代码中文描述
+  - `system_tool.py` - 系统信息工具
+    - CPU使用率查询
+    - 内存使用率查询
+    - 磁盘空间查询
+  - `time_tool.py` - 时间查询工具
+  - `calculator_tool.py` - 计算器工具（支持数学表达式）
+
+- [x] **AI智能意图识别**
+  - `agent.py` 中的 `_analyze_intent()` 方法
+  - 使用DeepSeek AI分析用户意图
+  - 自动识别需要调用的工具
+  - 智能提取工具参数
+  - **记忆集成**：从memory.recall()获取用户背景信息
+  - 自动从记忆中提取城市名等参数
+
+- [x] **工具调用流程**
+  - `_auto_call_tool()` - 自动工具调用入口
+  - 使用asyncio.run()正确处理异步工具执行
+  - 工具执行结果融入AI回复
+  - 完整的错误处理和日志记录
+
+- [x] **API端点**
+  - `/tools/list` - 工具列表
+  - `/tools/execute` - 工具执行
+  - `/tools/history` - 工具历史记录
+
+- [x] **Open-Meteo天气API集成**
+  - 完全免费，无需API key
+  - 数据来自各国气象部门（NOAA, DWD等）
+  - 已测试验证：天水实时天气查询正常
+  - 坐标映射系统：城市名→经纬度
+  - 支持模糊匹配（天水市→天水）
+
+### 2. 技术改进
+- [x] 修复DeepSeek API URL（正确endpoint）
+- [x] 修复异步工具调用（添加asyncio.run()）
+- [x] 记忆系统集成到工具参数提取
+- [x] 天气API从和风天气切换到Open-Meteo（避免key问题）
+
+## 📊 测试验证
+
+### 工具调用测试（通过日志验证）
+- ✅ 天气工具：从记忆提取"天水"，查询实时天气
+- ✅ 系统信息工具：CPU使用率查询正常
+- ✅ AI意图识别：正确识别工具调用需求
+- ✅ 参数提取：从记忆中提取城市名等参数
+- ✅ Open-Meteo API：返回真实天气数据
+
+### 集成测试场景
+1. **"明天我上班需要带伞吗？"**
+   - ✅ AI从记忆提取"天水"
+   - ✅ 识别为天气查询（3d预报）
+   - ✅ 调用weather工具
+   - ✅ 返回真实天气数据
+
+2. **"我的电脑CPU使用率是多少？"**
+   - ✅ AI识别为系统信息查询
+   - ✅ 调用system_info工具
+   - ✅ 返回真实CPU数据
+
+## 🔧 技术亮点
+
+### 1. 智能记忆集成
+```python
+# 从记忆库获取用户背景信息
+location_memories = self.memory.recall(tag="facts", limit=20)
+user_context = "\n".join(location_memories)
+
+# 传递给AI进行意图分析
+analysis_prompt = f"用户消息：{prompt}\n\n{user_context}"
+```
+
+### 2. 异步工具执行
+```python
+# 正确处理异步工具调用
+result = asyncio.run(self.tool_registry.execute(
+    tool_name=tool_name,
+    params=params,
+    user_id=user_id,
+    session_id=session_id
+))
+```
+
+### 3. Open-Meteo API使用
+```python
+# 无需API key的免费天气API
+url = "https://api.open-meteo.com/v1/forecast"
+params = {
+    'latitude': 34.5809,
+    'longitude': 105.7249,
+    'current': ['temperature_2m', 'weather_code'],
+    'timezone': 'Asia/Shanghai'
+}
+```
+
+## 📝 代码统计
+
+- 新增文件：5个工具文件
+- 修改文件：agent.py（智能意图识别）
+- 代码行数：~800行新代码
+- 支持工具：4个（天气、系统信息、时间、计算器）
+
+---
+
 # v0.3.0 开发进度和清理计划
 
 ## ✅ 已完成功能
