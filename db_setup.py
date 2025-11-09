@@ -1,5 +1,6 @@
 from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
 from datetime import datetime
 import os
 from dotenv import load_dotenv
@@ -22,6 +23,9 @@ engine = create_engine(
     else {'client_encoding': 'utf8'}
 )
 Base = declarative_base()
+
+# 创建Session工厂
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
 class Memory(Base):

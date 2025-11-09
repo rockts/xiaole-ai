@@ -30,7 +30,8 @@ cur.execute("DELETE FROM conversations WHERE user_id LIKE '%test%'")
 print(f"删除会话: {cur.rowcount}")
 
 # 删除测试记忆
-keywords = ['小明', 'test', '测试', '25岁', '篮球', '科幻', '3月15', '看电影', '5月20', '张三', '28岁', '上海']
+keywords = ['小明', 'test', '测试', '25岁', '篮球', '科幻',
+            '3月15', '看电影', '5月20', '张三', '28岁', '上海']
 total = 0
 for kw in keywords:
     cur.execute(f"DELETE FROM memories WHERE content LIKE %s", (f'%{kw}%',))

@@ -25,7 +25,8 @@ db.execute(text("DELETE FROM messages WHERE session_id IN (SELECT session_id FRO
 db.execute(text("DELETE FROM conversations WHERE user_id LIKE '%test%'"))
 
 # 删除测试记忆
-db.execute(text("DELETE FROM memories WHERE content LIKE '%小明%' OR content LIKE '%test%' OR content LIKE '%测试%'"))
+db.execute(text(
+    "DELETE FROM memories WHERE content LIKE '%小明%' OR content LIKE '%test%' OR content LIKE '%测试%'"))
 
 db.commit()
 print("✅ 清理完成")

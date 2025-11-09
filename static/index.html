@@ -373,6 +373,7 @@
             <div class="tab active" onclick="switchTab('chat')">💬 聊天</div>
             <div class="tab" onclick="switchTab('sessions')">📋 会话</div>
             <div class="tab" onclick="switchTab('memory')">🧠 记忆</div>
+            <div class="tab" onclick="switchTab('analytics')">📊 行为分析</div>
         </div>
 
         <!-- 聊天界面 -->
@@ -422,6 +423,53 @@
                 <div id="memoryList"></div>
             </div>
         </div>
+
+        <!-- 行为分析 -->
+        <div id="analytics" class="tab-content">
+            <div class="memory-container">
+                <div class="stats-card">
+                    <h3>📊 用户行为分析 <span style="font-size: 12px; color: #667eea; font-weight: normal;">v0.3.0
+                            Learning层</span></h3>
+                    <div style="margin: 15px 0;">
+                        <button onclick="loadBehaviorAnalytics()"
+                            style="padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 8px; cursor: pointer;">🔄
+                            刷新数据</button>
+                    </div>
+
+                    <div style="margin: 20px 0;">
+                        <h4 style="margin-bottom: 10px; color: #667eea;">⏰ 活跃时间分布</h4>
+                        <div id="activityPattern"
+                            style="background: #f8f9fa; padding: 15px; border-radius: 10px; min-height: 100px;">
+                            <div class="loading">点击"刷新数据"加载</div>
+                        </div>
+                    </div>
+
+                    <div style="margin: 20px 0;">
+                        <h4 style="margin-bottom: 10px; color: #667eea;">💬 话题偏好</h4>
+                        <div id="topicPreferences"
+                            style="background: #f8f9fa; padding: 15px; border-radius: 10px; min-height: 100px;">
+                            <div class="loading">点击"刷新数据"加载</div>
+                        </div>
+                    </div>
+
+                    <div style="margin: 20px 0;">
+                        <h4 style="margin-bottom: 10px; color: #667eea;">📈 对话统计</h4>
+                        <div id="behaviorStats"
+                            style="background: #f8f9fa; padding: 15px; border-radius: 10px; min-height: 100px;">
+                            <div class="loading">点击"刷新数据"加载</div>
+                        </div>
+                    </div>
+
+                    <div style="margin: 20px 0;">
+                        <h4 style="margin-bottom: 10px; color: #ff6b6b;">⚠️ 记忆冲突检测</h4>
+                        <div id="conflictDetection"
+                            style="background: #fff5f5; padding: 15px; border-radius: 10px; min-height: 100px; border: 1px solid #ff6b6b;">
+                            <div class="loading">点击"刷新数据"加载</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -438,6 +486,7 @@
 
             if (tabName === 'sessions') loadSessions();
             if (tabName === 'memory') loadMemoryStats();
+            if (tabName === 'analytics') loadBehaviorAnalytics();
         }
 
         // 发送消息
@@ -684,6 +733,187 @@
                 }
             } catch (error) {
                 container.innerHTML = `<div class="error">搜索失败: ${error.message}</div>`;
+            }
+        }
+
+        // 加载行为分析数据
+        async function loadBehaviorAnalytics() {
+            const userId = 'default_user';
+            
+            // 加载活跃时间分布
+            loadActivityPattern(userId);
+            
+            // 加载话题偏好
+            loadTopicPreferences(userId);
+            
+            // 加载对话统计
+            loadBehaviorStats(userId);
+            
+            // 加载冲突检测
+            loadConflictDetection();
+        }
+
+        // 加载活跃时间分布
+        async function loadActivityPattern(userId) {
+            const container = document.getElementById('activityPattern');
+            container.innerHTML = '<div class="loading">加载中...</div>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/analytics/activity?user_id=${userId}`);
+                const data = await response.json();
+                
+                if (data.error) {
+                    container.innerHTML = '<div style="color: #999;">暂无数据</div>';
+                    return;
+                }
+                
+                let html = '<div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;">';
+                
+                // 小时分布
+                if (data.by_hour && Object.keys(data.by_hour).length > 0) {
+                    html += '<div><strong>📅 活跃时段（小时）</strong><div style="margin-top: 8px;">';
+                    const sortedHours = Object.entries(data.by_hour).sort((a, b) => b[1] - a[1]).slice(0, 5);
+                    sortedHours.forEach(([hour, count]) => {
+                        html += `<div style="margin: 5px 0;">🕐 ${hour}:00 - ${count}次</div>`;
+                    });
+                    html += '</div></div>';
+                }
+                
+                // 星期分布
+                if (data.by_weekday && Object.keys(data.by_weekday).length > 0) {
+                    const weekdays = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+                    html += '<div><strong>📆 活跃星期</strong><div style="margin-top: 8px;">';
+                    const sortedDays = Object.entries(data.by_weekday).sort((a, b) => b[1] - a[1]);
+                    sortedDays.forEach(([day, count]) => {
+                        html += `<div style="margin: 5px 0;">${weekdays[day] || '周'+day} - ${count}次</div>`;
+                    });
+                    html += '</div></div>';
+                }
+                
+                html += '</div>';
+                container.innerHTML = html || '<div style="color: #999;">暂无数据</div>';
+            } catch (error) {
+                container.innerHTML = `<div class="error">加载失败: ${error.message}</div>`;
+            }
+        }
+
+        // 加载话题偏好
+        async function loadTopicPreferences(userId) {
+            const container = document.getElementById('topicPreferences');
+            container.innerHTML = '<div class="loading">加载中...</div>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/analytics/topics?user_id=${userId}`);
+                const data = await response.json();
+                
+                if (data.error || !data.topics || data.topics.length === 0) {
+                    container.innerHTML = '<div style="color: #999;">暂无话题数据</div>';
+                    return;
+                }
+                
+                let html = '<div>';
+                data.topics.slice(0, 10).forEach((item, index) => {
+                    const percentage = ((item.count / data.total_sessions) * 100).toFixed(1);
+                    html += `
+                        <div style="margin: 8px 0; padding: 8px; background: white; border-radius: 5px; display: flex; justify-content: space-between; align-items: center;">
+                            <span>${index + 1}. 🏷️ ${item.topic}</span>
+                            <span style="color: #667eea; font-weight: bold;">${item.count}次 (${percentage}%)</span>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+                
+                container.innerHTML = html;
+            } catch (error) {
+                container.innerHTML = `<div class="error">加载失败: ${error.message}</div>`;
+            }
+        }
+
+        // 加载对话统计
+        async function loadBehaviorStats(userId) {
+            const container = document.getElementById('behaviorStats');
+            container.innerHTML = '<div class="loading">加载中...</div>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/analytics/behavior?user_id=${userId}`);
+                const data = await response.json();
+                
+                if (data.error) {
+                    container.innerHTML = '<div style="color: #999;">暂无数据</div>';
+                    return;
+                }
+                
+                const stats = data.stats || {};
+                let html = `
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;">
+                        <div style="text-align: center; padding: 10px; background: white; border-radius: 8px;">
+                            <div style="font-size: 24px; font-weight: bold; color: #667eea;">${stats.total_sessions || 0}</div>
+                            <div style="color: #999; margin-top: 5px;">总会话数</div>
+                        </div>
+                        <div style="text-align: center; padding: 10px; background: white; border-radius: 8px;">
+                            <div style="font-size: 24px; font-weight: bold; color: #667eea;">${stats.total_messages || 0}</div>
+                            <div style="color: #999; margin-top: 5px;">总消息数</div>
+                        </div>
+                        <div style="text-align: center; padding: 10px; background: white; border-radius: 8px;">
+                            <div style="font-size: 24px; font-weight: bold; color: #667eea;">${stats.avg_messages_per_session || 0}</div>
+                            <div style="color: #999; margin-top: 5px;">平均消息/会话</div>
+                        </div>
+                        <div style="text-align: center; padding: 10px; background: white; border-radius: 8px;">
+                            <div style="font-size: 24px; font-weight: bold; color: #667eea;">${stats.avg_message_length || 0}</div>
+                            <div style="color: #999; margin-top: 5px;">平均消息长度</div>
+                        </div>
+                    </div>
+                `;
+                
+                if (stats.last_session_time) {
+                    html += `<div style="margin-top: 15px; text-align: center; color: #666;">
+                        最后活跃: ${new Date(stats.last_session_time).toLocaleString('zh-CN')}
+                    </div>`;
+                }
+                
+                container.innerHTML = html;
+            } catch (error) {
+                container.innerHTML = `<div class="error">加载失败: ${error.message}</div>`;
+            }
+        }
+
+        // 加载冲突检测
+        async function loadConflictDetection() {
+            const container = document.getElementById('conflictDetection');
+            container.innerHTML = '<div class="loading">检测中...</div>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/memory/conflicts`);
+                const data = await response.json();
+                
+                if (data.conflicts && data.conflicts.length > 0) {
+                    let html = `<div style="color: #ff6b6b; font-weight: bold; margin-bottom: 10px;">
+                        ⚠️ 发现 ${data.conflicts.length} 组冲突记忆
+                    </div>`;
+                    
+                    data.conflicts.forEach((conflict, index) => {
+                        html += `
+                            <div style="margin: 10px 0; padding: 10px; background: white; border-left: 3px solid #ff6b6b; border-radius: 5px;">
+                                <div style="font-weight: bold; margin-bottom: 5px;">冲突 ${index + 1}: ${conflict.field_name}</div>
+                                <div style="margin: 5px 0; padding: 5px; background: #fff5f5; border-radius: 3px;">
+                                    📄 ${conflict.memory1.content}
+                                </div>
+                                <div style="margin: 5px 0; padding: 5px; background: #fff5f5; border-radius: 3px;">
+                                    📄 ${conflict.memory2.content}
+                                </div>
+                                <div style="margin-top: 5px; color: #999; font-size: 12px;">
+                                    原因: ${conflict.reason}
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    container.innerHTML = html;
+                } else {
+                    container.innerHTML = '<div style="color: #51cf66; text-align: center;">✅ 没有发现冲突记忆</div>';
+                }
+            } catch (error) {
+                container.innerHTML = `<div class="error">检测失败: ${error.message}</div>`;
             }
         }
 
