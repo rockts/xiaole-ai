@@ -127,7 +127,7 @@ class BehaviorAnalyzer:
 
     def _extract_topics(self, messages, top_n=5):
         """
-        从消息中提取话题关键词
+        从消息中提取话题关键词（智能版）
 
         Args:
             messages: 消息列表
@@ -140,15 +140,78 @@ class BehaviorAnalyzer:
             import jieba
             import jieba.analyse
         except ImportError:
-            # 如果jieba未安装，返回空列表
             return []
+
+        # 定义话题分类规则（基于关键词匹配）
+        topic_rules = {
+            "天气": [
+                "天气", "下雨", "温度", "晴天", "阴天",
+                "雨", "雪", "风", "带伞", "冷", "热"
+            ],
+            "电脑": [
+                "电脑", "内存", "磁盘", "CPU", "空间",
+                "使用率", "系统", "机器"
+            ],
+            "时间": ["时间", "几点", "现在", "今天", "明天", "日期"],
+            "健康": ["健康", "身体", "锻炼", "睡眠", "疲劳", "运动"],
+            "工作": ["工作", "上班", "项目", "任务", "会议", "deadline"],
+            "学习": ["学习", "课程", "知识", "教程", "书", "阅读"],
+            "娱乐": ["电影", "游戏", "音乐", "视频", "看", "玩"],
+            "美食": ["吃", "饭", "餐", "菜", "食物", "美食", "饿"],
+            "旅游": ["旅游", "旅行", "景点", "出去玩", "度假"],
+            "购物": ["买", "购物", "价格", "商品", "网购"],
+            "聊天": ["聊天", "说话", "对话", "交流"],
+            "计算": ["计算", "多少", "几个", "算", "数量", "腿"],
+        }
 
         # 合并所有用户消息
         text = " ".join([m.content for m in messages])
 
-        # 提取关键词
-        keywords = jieba.analyse.extract_tags(text, topK=top_n)
-        return keywords
+        # 方法1: 基于规则匹配
+        matched_topics = []
+        for topic, keywords in topic_rules.items():
+            for keyword in keywords:
+                if keyword in text:
+                    matched_topics.append(topic)
+                    break
+
+        # 方法2: jieba关键词提取（作为补充）
+        jieba_keywords = jieba.analyse.extract_tags(text, topK=top_n * 2)
+        
+        # 过滤停用词和无意义词
+        stopwords = {
+            # 基础停用词
+            "什么", "怎么", "怎么样", "吗", "呢", "啊",
+            "的", "了", "是", "在", "有", "和",
+            "我", "你", "他", "她", "它", "这", "那",
+            # 扩展停用词（对话常见词）
+            "喜欢", "你好", "认识", "可以", "知道", "告诉",
+            "名字", "今年", "现在", "以前", "刚才", "时候",
+            "所有", "关于", "尤其", "列表", "信息", "功能",
+            "意思", "测试", "添加", "变化", "问答", "主动"
+        }
+        filtered_keywords = [
+            k for k in jieba_keywords
+            if k not in stopwords and len(k) > 1
+        ]
+
+        # 合并两种方法的结果，优先使用规则匹配
+        topics = matched_topics + [
+            k for k in filtered_keywords
+            if k not in matched_topics
+        ]
+        
+        # 去重并限制数量
+        seen = set()
+        result = []
+        for topic in topics:
+            if topic not in seen:
+                seen.add(topic)
+                result.append(topic)
+                if len(result) >= top_n:
+                    break
+        
+        return result if result else ["日常对话"]
 
     def get_user_activity_pattern(self, user_id, days=30):
         """

@@ -905,9 +905,9 @@
                 let html = '<div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;">';
 
                 // 小时分布
-                if (data.by_hour && Object.keys(data.by_hour).length > 0) {
+                if (data.hourly_distribution && Object.keys(data.hourly_distribution).length > 0) {
                     html += '<div><strong>📅 活跃时段（小时）</strong><div style="margin-top: 8px;">';
-                    const sortedHours = Object.entries(data.by_hour).sort((a, b) => b[1] - a[1]).slice(0, 5);
+                    const sortedHours = Object.entries(data.hourly_distribution).sort((a, b) => b[1] - a[1]).slice(0, 5);
                     sortedHours.forEach(([hour, count]) => {
                         html += `<div style="margin: 5px 0;">🕐 ${hour}:00 - ${count}次</div>`;
                     });
@@ -915,10 +915,10 @@
                 }
 
                 // 星期分布
-                if (data.by_weekday && Object.keys(data.by_weekday).length > 0) {
+                if (data.daily_distribution && Object.keys(data.daily_distribution).length > 0) {
                     const weekdays = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
                     html += '<div><strong>📆 活跃星期</strong><div style="margin-top: 8px;">';
-                    const sortedDays = Object.entries(data.by_weekday).sort((a, b) => b[1] - a[1]);
+                    const sortedDays = Object.entries(data.daily_distribution).sort((a, b) => b[1] - a[1]);
                     sortedDays.forEach(([day, count]) => {
                         html += `<div style="margin: 5px 0;">${weekdays[day] || '周' + day} - ${count}次</div>`;
                     });
@@ -941,18 +941,18 @@
                 const response = await fetch(`${API_BASE}/analytics/topics?user_id=${userId}`);
                 const data = await response.json();
 
-                if (data.error || !data.topics || data.topics.length === 0) {
+                if (data.error || !data.top_topics || data.top_topics.length === 0) {
                     container.innerHTML = '<div style="color: #999;">暂无话题数据</div>';
                     return;
                 }
 
                 let html = '<div>';
-                data.topics.slice(0, 10).forEach((item, index) => {
-                    const percentage = ((item.count / data.total_sessions) * 100).toFixed(1);
+                data.top_topics.slice(0, 10).forEach((item, index) => {
+                    const [topic, count] = item;
                     html += `
                         <div style="margin: 8px 0; padding: 8px; background: white; border-radius: 5px; display: flex; justify-content: space-between; align-items: center;">
-                            <span>${index + 1}. 🏷️ ${item.topic}</span>
-                            <span style="color: #667eea; font-weight: bold;">${item.count}次 (${percentage}%)</span>
+                            <span>${index + 1}. 🏷️ ${topic}</span>
+                            <span style="color: #667eea; font-weight: bold;">${count}次</span>
                         </div>
                     `;
                 });
