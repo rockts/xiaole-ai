@@ -383,6 +383,7 @@
             <div class="tab" onclick="switchTab('sessions')">📋 会话</div>
             <div class="tab" onclick="switchTab('memory')">🧠 记忆</div>
             <div class="tab" onclick="switchTab('analytics')">📊 行为分析</div>
+            <div class="tab" onclick="switchTab('tools')">🔧 工具管理</div>
         </div>
 
         <!-- 聊天界面 -->
@@ -501,6 +502,51 @@
                 </div>
             </div>
         </div>
+
+        <!-- 工具管理 -->
+        <div id="tools" class="tab-content">
+            <div class="memory-container">
+                <div class="stats-card">
+                    <h3>🔧 工具管理 <span style="font-size: 12px; color: #667eea; font-weight: normal;">v0.4.0 Action层</span></h3>
+                    
+                    <div style="margin: 15px 0; display: flex; gap: 10px; align-items: center;">
+                        <button onclick="loadTools()" 
+                            style="padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 8px; cursor: pointer;">
+                            🔄 刷新工具列表
+                        </button>
+                    </div>
+
+                    <!-- 工具列表 -->
+                    <div style="margin: 20px 0;">
+                        <h4 style="margin-bottom: 10px; color: #667eea;">📋 可用工具</h4>
+                        <div id="toolsList" 
+                            style="background: #f8f9fa; padding: 15px; border-radius: 10px; min-height: 150px;">
+                            <div class="loading">点击"刷新工具列表"加载</div>
+                        </div>
+                    </div>
+
+                    <!-- 工具执行历史 -->
+                    <div style="margin: 20px 0;">
+                        <h4 style="margin-bottom: 10px; color: #667eea;">📊 工具执行历史</h4>
+                        <div style="margin-bottom: 10px;">
+                            <button onclick="loadToolHistory()" 
+                                style="padding: 8px 16px; background: #10b981; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px;">
+                                🔄 刷新历史
+                            </button>
+                            <select id="historyLimit" style="margin-left: 10px; padding: 8px; border-radius: 6px; border: 1px solid #ddd;">
+                                <option value="10">最近10条</option>
+                                <option value="20" selected>最近20条</option>
+                                <option value="50">最近50条</option>
+                            </select>
+                        </div>
+                        <div id="toolHistory" 
+                            style="background: #f8f9fa; padding: 15px; border-radius: 10px; min-height: 200px; max-height: 400px; overflow-y: auto;">
+                            <div class="loading">点击"刷新历史"加载</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -520,6 +566,11 @@
             if (tabName === 'analytics') {
                 // 自动加载行为分析数据
                 loadBehaviorAnalytics();
+            }
+            if (tabName === 'tools') {
+                // 自动加载工具列表
+                loadTools();
+                loadToolHistory();
             }
         }
 
@@ -1208,6 +1259,161 @@
                 container.innerHTML = `<div class="error">加载失败: ${error.message}</div>`;
             }
         }
+
+        // ============ 工具管理功能 (v0.4.0) ============
+
+        // 加载工具列表
+        async function loadTools() {
+            const container = document.getElementById('toolsList');
+            container.innerHTML = '<div class="loading">加载中...</div>';
+
+            try {
+                const response = await fetch(`${API_BASE}/tools/list?enabled_only=true`);
+                const data = await response.json();
+
+                if (!data.tools || data.tools.length === 0) {
+                    container.innerHTML = '<div style="color: #999; text-align: center;">暂无可用工具</div>';
+                    return;
+                }
+
+                let html = '<div style="display: grid; gap: 15px;">';
+
+                data.tools.forEach(tool => {
+                    const categoryEmoji = {
+                        'weather': '🌤️',
+                        'system': '💻',
+                        'search': '🔍',
+                        'file': '📁'
+                    };
+
+                    const emoji = categoryEmoji[tool.category] || '🔧';
+                    const statusColor = tool.enabled ? '#10b981' : '#9ca3af';
+                    const statusText = tool.enabled ? '启用' : '禁用';
+
+                    html += `
+                        <div style="background: white; padding: 15px; border-radius: 10px; border-left: 4px solid ${statusColor};">
+                            <div style="display: flex; justify-content: space-between; align-items: start;">
+                                <div style="flex: 1;">
+                                    <div style="font-size: 16px; font-weight: bold; color: #333; margin-bottom: 5px;">
+                                        ${emoji} ${tool.name}
+                                    </div>
+                                    <div style="font-size: 13px; color: #666; margin-bottom: 10px;">
+                                        ${tool.description}
+                                    </div>
+                                    <div style="display: flex; gap: 10px; flex-wrap: wrap; font-size: 12px;">
+                                        <span style="background: #e0e7ff; color: #4f46e5; padding: 3px 8px; border-radius: 4px;">
+                                            📦 ${tool.category}
+                                        </span>
+                                        <span style="background: ${tool.enabled ? '#d1fae5' : '#f3f4f6'}; color: ${statusColor}; padding: 3px 8px; border-radius: 4px;">
+                                            ● ${statusText}
+                                        </span>
+                                        ${tool.version ? `<span style="background: #fef3c7; color: #d97706; padding: 3px 8px; border-radius: 4px;">v${tool.version}</span>` : ''}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            ${tool.parameters && tool.parameters.length > 0 ? `
+                                <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #e5e7eb;">
+                                    <div style="font-size: 12px; color: #666; margin-bottom: 5px;">📝 参数:</div>
+                                    <div style="display: flex; flex-wrap: wrap; gap: 5px;">
+                                        ${tool.parameters.map(p => `
+                                            <span style="background: #f9fafb; border: 1px solid #e5e7eb; padding: 2px 6px; border-radius: 3px; font-size: 11px; color: #4b5563;">
+                                                ${p.name}${p.required ? '*' : ''}: ${p.type}
+                                            </span>
+                                        `).join('')}
+                                    </div>
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+                });
+
+                html += '</div>';
+                container.innerHTML = html;
+
+                // 显示工具总数
+                const title = container.parentElement.querySelector('h4');
+                if (title) {
+                    title.innerHTML = `📋 可用工具 <span style="font-size: 12px; color: #999; font-weight: normal;">(共 ${data.tools.length} 个)</span>`;
+                }
+
+            } catch (error) {
+                container.innerHTML = `<div class="error">加载失败: ${error.message}</div>`;
+            }
+        }
+
+        // 加载工具执行历史
+        async function loadToolHistory() {
+            const container = document.getElementById('toolHistory');
+            const limit = document.getElementById('historyLimit').value;
+            
+            container.innerHTML = '<div class="loading">加载中...</div>';
+
+            try {
+                const response = await fetch(`${API_BASE}/tools/history?user_id=default_user&limit=${limit}`);
+                const data = await response.json();
+
+                if (!data.history || data.history.length === 0) {
+                    container.innerHTML = '<div style="color: #999; text-align: center;">暂无执行历史</div>';
+                    return;
+                }
+
+                let html = '<div style="display: grid; gap: 10px;">';
+
+                data.history.forEach((record, index) => {
+                    const statusColor = record.success ? '#10b981' : '#ef4444';
+                    const statusIcon = record.success ? '✅' : '❌';
+                    const executionTime = record.execution_time ? record.execution_time.toFixed(3) : 'N/A';
+                    
+                    // 格式化时间
+                    const date = new Date(record.executed_at);
+                    const timeStr = date.toLocaleString('zh-CN', {
+                        month: '2-digit',
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit'
+                    });
+
+                    html += `
+                        <div style="background: white; padding: 12px; border-radius: 8px; border-left: 3px solid ${statusColor};">
+                            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 5px;">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <span style="font-size: 16px;">${statusIcon}</span>
+                                    <span style="font-weight: bold; color: #333;">${record.tool_name}</span>
+                                </div>
+                                <div style="display: flex; gap: 8px; align-items: center;">
+                                    <span style="font-size: 11px; color: #999;">${timeStr}</span>
+                                    <span style="background: ${statusColor}20; color: ${statusColor}; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500;">
+                                        ${executionTime}s
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            ${record.error_message ? `
+                                <div style="margin-top: 5px; padding: 8px; background: #fef2f2; border-radius: 5px; font-size: 12px; color: #991b1b;">
+                                    ⚠️ ${record.error_message}
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+                });
+
+                html += '</div>';
+                container.innerHTML = html;
+
+                // 更新标题显示总数
+                const title = container.parentElement.querySelector('h4');
+                if (title) {
+                    title.innerHTML = `📊 工具执行历史 <span style="font-size: 12px; color: #999; font-weight: normal;">(共 ${data.total} 条)</span>`;
+                }
+
+            } catch (error) {
+                container.innerHTML = `<div class="error">加载失败: ${error.message}</div>`;
+            }
+        }
+
+        // ============ 工具管理功能结束 ============
 
         // 页面加载时聚焦输入框
         window.onload = () => {
