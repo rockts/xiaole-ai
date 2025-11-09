@@ -79,8 +79,16 @@ def get_session(session_id: str):
     """获取会话详情"""
     stats = xiaole.conversation.get_session_stats(session_id)
     history = xiaole.conversation.get_history(session_id, limit=50)
+
+    if not stats:
+        return {"error": "Session not found"}, 404
+
     return {
-        "stats": stats,
+        "session_id": stats["session_id"],
+        "title": stats["title"],
+        "message_count": stats["message_count"],
+        "created_at": stats["created_at"],
+        "updated_at": stats["updated_at"],
         "history": history
     }
 

@@ -102,7 +102,7 @@ class MemoryManager:
 
         query = query.order_by(Memory.created_at.desc()).limit(limit)
         memories = query.all()
-        
+
         # 返回完整的记忆信息
         return [{
             'content': m.content,

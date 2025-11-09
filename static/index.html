@@ -80,12 +80,19 @@
             flex-direction: column;
         }
 
-        /* 聊天界面 */
-        .chat-container {
-            flex: 1;
-            overflow-y: auto;
-            padding: 20px;
-            background: #fafafa;
+        /* 会话信息栏 */
+        .session-info {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 10px 10px 0 0;
+            margin-bottom: 10px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .session-title-display {
+            font-size: 14px;
+            font-weight: bold;
         }
 
         .message {
@@ -360,7 +367,11 @@
 
         <!-- 聊天界面 -->
         <div id="chat" class="tab-content active">
-            <div class="chat-container" id="chatContainer"></div>
+            <div class="chat-container" id="chatContainer">
+                <div id="sessionInfo" class="session-info" style="display: none;">
+                    <div class="session-title-display">💬 当前会话： <span id="currentSessionTitle"></span></div>
+                </div>
+            </div>
             <div class="input-container">
                 <input type="text" id="messageInput" placeholder="输入消息..."
                     onkeypress="if(event.key==='Enter') sendMessage()">
@@ -477,6 +488,7 @@
         function newChat() {
             currentSessionId = null;
             document.getElementById('chatContainer').innerHTML = '';
+            document.getElementById('sessionInfo').style.display = 'none';
             document.getElementById('messageInput').focus();
         }
 
@@ -516,6 +528,12 @@
                 currentSessionId = sessionId;
                 const container = document.getElementById('chatContainer');
                 container.innerHTML = '';
+
+                // 显示会话信息
+                const sessionInfo = document.getElementById('sessionInfo');
+                const titleSpan = document.getElementById('currentSessionTitle');
+                titleSpan.textContent = data.title;
+                sessionInfo.style.display = 'block';
 
                 data.history.forEach(msg => {
                     addMessage(msg.role, msg.content);
