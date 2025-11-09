@@ -507,10 +507,11 @@
         <div id="tools" class="tab-content">
             <div class="memory-container">
                 <div class="stats-card">
-                    <h3>🔧 工具管理 <span style="font-size: 12px; color: #667eea; font-weight: normal;">v0.4.0 Action层</span></h3>
-                    
+                    <h3>🔧 工具管理 <span style="font-size: 12px; color: #667eea; font-weight: normal;">v0.4.0
+                            Action层</span></h3>
+
                     <div style="margin: 15px 0; display: flex; gap: 10px; align-items: center;">
-                        <button onclick="loadTools()" 
+                        <button onclick="loadTools()"
                             style="padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 8px; cursor: pointer;">
                             🔄 刷新工具列表
                         </button>
@@ -519,7 +520,7 @@
                     <!-- 工具列表 -->
                     <div style="margin: 20px 0;">
                         <h4 style="margin-bottom: 10px; color: #667eea;">📋 可用工具</h4>
-                        <div id="toolsList" 
+                        <div id="toolsList"
                             style="background: #f8f9fa; padding: 15px; border-radius: 10px; min-height: 150px;">
                             <div class="loading">点击"刷新工具列表"加载</div>
                         </div>
@@ -529,17 +530,18 @@
                     <div style="margin: 20px 0;">
                         <h4 style="margin-bottom: 10px; color: #667eea;">📊 工具执行历史</h4>
                         <div style="margin-bottom: 10px;">
-                            <button onclick="loadToolHistory()" 
+                            <button onclick="loadToolHistory()"
                                 style="padding: 8px 16px; background: #10b981; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px;">
                                 🔄 刷新历史
                             </button>
-                            <select id="historyLimit" style="margin-left: 10px; padding: 8px; border-radius: 6px; border: 1px solid #ddd;">
+                            <select id="historyLimit"
+                                style="margin-left: 10px; padding: 8px; border-radius: 6px; border: 1px solid #ddd;">
                                 <option value="10">最近10条</option>
                                 <option value="20" selected>最近20条</option>
                                 <option value="50">最近50条</option>
                             </select>
                         </div>
-                        <div id="toolHistory" 
+                        <div id="toolHistory"
                             style="background: #f8f9fa; padding: 15px; border-radius: 10px; min-height: 200px; max-height: 400px; overflow-y: auto;">
                             <div class="loading">点击"刷新历史"加载</div>
                         </div>
@@ -1346,7 +1348,7 @@
         async function loadToolHistory() {
             const container = document.getElementById('toolHistory');
             const limit = document.getElementById('historyLimit').value;
-            
+
             container.innerHTML = '<div class="loading">加载中...</div>';
 
             try {
@@ -1364,7 +1366,7 @@
                     const statusColor = record.success ? '#10b981' : '#ef4444';
                     const statusIcon = record.success ? '✅' : '❌';
                     const executionTime = record.execution_time ? record.execution_time.toFixed(3) : 'N/A';
-                    
+
                     // 格式化时间
                     const date = new Date(record.executed_at);
                     const timeStr = date.toLocaleString('zh-CN', {

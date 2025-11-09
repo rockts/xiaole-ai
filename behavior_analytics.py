@@ -177,7 +177,7 @@ class BehaviorAnalyzer:
 
         # 方法2: jieba关键词提取（作为补充）
         jieba_keywords = jieba.analyse.extract_tags(text, topK=top_n * 2)
-        
+
         # 过滤停用词和无意义词
         stopwords = {
             # 基础停用词
@@ -200,7 +200,7 @@ class BehaviorAnalyzer:
             k for k in filtered_keywords
             if k not in matched_topics
         ]
-        
+
         # 去重并限制数量
         seen = set()
         result = []
@@ -210,7 +210,7 @@ class BehaviorAnalyzer:
                 result.append(topic)
                 if len(result) >= top_n:
                     break
-        
+
         return result if result else ["日常对话"]
 
     def get_user_activity_pattern(self, user_id, days=30):
