@@ -5,6 +5,7 @@ from agent import XiaoLeAgent
 from conflict_detector import ConflictDetector
 from proactive_qa import ProactiveQA  # v0.3.0 主动问答
 from reminder_manager import get_reminder_manager  # v0.5.0 主动提醒
+from scheduler import get_scheduler  # v0.5.0 定时调度
 
 app = FastAPI(
     title="小乐AI管家",
@@ -28,6 +29,23 @@ xiaole = XiaoLeAgent()
 conflict_detector = ConflictDetector()  # v0.3.0 冲突检测器
 proactive_qa = ProactiveQA()  # v0.3.0 主动问答分析器
 reminder_manager = get_reminder_manager()  # v0.5.0 提醒管理器
+scheduler = get_scheduler()  # v0.5.0 定时调度器
+
+
+@app.on_event("startup")
+async def startup_event():
+    """应用启动时初始化"""
+    # 启动提醒调度器
+    scheduler.start()
+    print("✅ 提醒调度器已启动")
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """应用关闭时清理"""
+    # 停止提醒调度器
+    scheduler.stop()
+    print("👋 提醒调度器已停止")
 
 
 @app.get("/")
@@ -484,3 +502,23 @@ async def check_reminders(user_id: str = "default_user"):
         "total_checked": len(all_triggered),
         "triggered": results
     }
+
+
+@app.get("/api/scheduler/status")
+def get_scheduler_status():
+    """获取调度器状态"""
+    return scheduler.get_status()
+
+
+@app.post("/api/scheduler/start")
+def start_scheduler():
+    """启动调度器"""
+    scheduler.start()
+    return {"message": "Scheduler started", "status": scheduler.get_status()}
+
+
+@app.post("/api/scheduler/stop")
+def stop_scheduler():
+    """停止调度器"""
+    scheduler.stop()
+    return {"message": "Scheduler stopped", "status": scheduler.get_status()}

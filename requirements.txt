@@ -8,3 +8,4 @@ anthropic
 jieba
 psutil
 aiohttp
+apscheduler
