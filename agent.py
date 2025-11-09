@@ -1,5 +1,9 @@
 from memory import MemoryManager
 from conversation import ConversationManager
+from behavior_analytics import BehaviorAnalyzer
+from proactive_qa import ProactiveQA  # v0.3.0 主动问答
+from pattern_learning import PatternLearner  # v0.3.0 模式学习
+from tool_manager import get_tool_registry  # v0.4.0 工具管理
 from error_handler import (
     retry_with_backoff, log_execution, handle_api_errors,
     APITimeoutError, APIRateLimitError, APIConnectionError,
@@ -10,6 +14,7 @@ from dotenv import load_dotenv
 import requests
 from datetime import datetime
 import re
+import asyncio  # v0.4.0 用于同步执行异步工具调用
 
 load_dotenv()
 
@@ -18,19 +23,48 @@ class XiaoLeAgent:
     def __init__(self):
         self.memory = MemoryManager()
         self.conversation = ConversationManager()
+        self.behavior_analyzer = BehaviorAnalyzer()  # v0.3.0 行为分析器
+        self.proactive_qa = ProactiveQA()  # v0.3.0 主动问答分析器
+        self.pattern_learner = PatternLearner()  # v0.3.0 模式学习器
+        self.tool_registry = get_tool_registry()  # v0.4.0 工具注册中心
+
+        # 注册工具
+        self._register_tools()
 
         # 支持多个AI平台
         self.api_type = os.getenv("AI_API_TYPE", "deepseek")
 
         # DeepSeek配置
         self.deepseek_key = os.getenv("DEEPSEEK_API_KEY")
-        self.deepseek_url = "https://api.deepseek.com/v1/chat/completions"
+        self.deepseek_url = "https://api.deepseek.com/chat/completions"
 
         # Claude配置
         self.claude_key = os.getenv("CLAUDE_API_KEY")
 
         self.model = self._get_model()
         self.client = self._init_client()
+
+    def _register_tools(self):
+        """注册所有可用工具"""
+        try:
+            from tools import (
+                weather_tool, system_info_tool,
+                time_tool, calculator_tool, reminder_tool
+            )
+
+            # 注册工具
+            self.tool_registry.register(weather_tool)
+            self.tool_registry.register(system_info_tool)
+            self.tool_registry.register(time_tool)
+            self.tool_registry.register(calculator_tool)
+            self.tool_registry.register(reminder_tool)  # v0.5.0 提醒工具
+
+            logger.info(
+                f"✅ 工具注册完成，共 "
+                f"{len(self.tool_registry.get_tool_names())} 个工具"
+            )
+        except Exception as e:
+            logger.error(f"工具注册失败: {e}", exc_info=True)
 
     def _get_model(self):
         """根据API类型获取模型名称"""
@@ -164,7 +198,7 @@ class XiaoLeAgent:
             self.deepseek_url,
             headers=headers,
             json=data,
-            timeout=15
+            timeout=60  # 增加超时时间以处理复杂问题
         )
 
         response.raise_for_status()
@@ -290,11 +324,34 @@ class XiaoLeAgent:
                 title=prompt[:50] + "..." if len(prompt) > 50 else prompt
             )
 
+        # v0.5.0: 检查未读提醒
+        pending_reminders = []
+        try:
+            from reminder_manager import get_reminder_manager
+            reminder_mgr = get_reminder_manager()
+            pending_reminders = asyncio.run(
+                reminder_mgr.get_pending_reminders(user_id, limit=3)
+            )
+        except Exception as e:
+            logger.warning(f"检查提醒失败: {e}")
+
         # 获取对话历史
         history = self.conversation.get_history(session_id, limit=5)
 
-        # 调用 AI 生成回复（带上下文）
-        reply = self._think_with_context(prompt, history)
+        # v0.4.0: 智能工具调用 - 先分析是否需要调用工具
+        tool_result = None
+        try:
+            tool_result = self._auto_call_tool(prompt, user_id, session_id)
+        except Exception as e:
+            logger.warning(f"工具调用失败: {e}")
+
+        # 调用 AI 生成回复（带上下文和工具结果）
+        reply = self._think_with_context(prompt, history, tool_result)
+
+        # v0.5.0: 如果有未读提醒，在回复前插入提醒
+        if pending_reminders:
+            reminder_text = self._format_reminders(pending_reminders)
+            reply = reminder_text + "\n\n" + reply
 
         # 保存用户消息和助手回复到会话表
         self.conversation.add_message(session_id, "user", prompt)
@@ -303,13 +360,212 @@ class XiaoLeAgent:
         # 智能提取：让AI判断是否有关键事实需要记住
         self._extract_and_remember(prompt)
 
-        return {
+        # v0.3.0: 模式学习（从用户消息中学习使用模式）
+        try:
+            self.pattern_learner.learn_from_message(
+                user_id, prompt, session_id
+            )
+        except Exception as e:
+            logger.warning(f"模式学习失败: {e}")
+
+        # v0.3.0: 记录用户行为数据
+        try:
+            self.behavior_analyzer.record_session_behavior(user_id, session_id)
+        except Exception as e:
+            logger.warning(f"行为数据记录失败: {e}")
+
+        # v0.3.0: 主动问答分析（检测是否需要追问）
+        followup_info = None
+        try:
+            analysis = self.proactive_qa.analyze_conversation(
+                session_id, user_id
+            )
+            if analysis.get("needs_followup"):
+                questions = analysis.get("questions", [])
+                if questions:
+                    # 取置信度最高的问题
+                    best_question = max(
+                        questions, key=lambda x: x.get("confidence", 0)
+                    )
+                    # 生成追问
+                    followup = self.proactive_qa.generate_followup_question(
+                        best_question["question"],
+                        best_question["missing_info"],
+                        best_question.get("ai_response", "")
+                    )
+                    # 保存追问记录
+                    question_id = self.proactive_qa.save_proactive_question(
+                        session_id=session_id,
+                        user_id=user_id,
+                        original_question=best_question["question"],
+                        question_type=best_question["type"],
+                        missing_info=best_question["missing_info"],
+                        confidence=best_question["confidence"],
+                        followup_question=followup
+                    )
+                    followup_info = {
+                        "id": question_id,
+                        "followup": followup,
+                        "confidence": best_question["confidence"]
+                    }
+        except Exception as e:
+            logger.warning(f"主动问答分析失败: {e}")
+
+        result = {
             "session_id": session_id,
             "reply": reply
         }
+        if followup_info:
+            result["followup"] = followup_info
 
-    def _think_with_context(self, prompt, history):
-        """带上下文的思考方法（同时使用会话历史和长期记忆）"""
+        return result
+
+    def _auto_call_tool(self, prompt, user_id, session_id):
+        """
+        v0.4.0: 智能工具调用
+        分析用户消息，自动识别意图并调用相应工具
+        """
+        # 使用AI分析用户意图
+        intent_analysis = self._analyze_intent(prompt)
+
+        if not intent_analysis.get("needs_tool"):
+            return None
+
+        tool_name = intent_analysis.get("tool_name")
+        params = intent_analysis.get("parameters", {})
+
+        if not tool_name:
+            return None
+
+        # 调用工具（异步方法需要同步执行）
+        try:
+            # 使用asyncio.run()在同步上下文中执行异步工具调用
+            result = asyncio.run(self.tool_registry.execute(
+                tool_name=tool_name,
+                params=params,
+                user_id=user_id,
+                session_id=session_id
+            ))
+            logger.info(
+                f"✅ 工具调用成功: {tool_name} -> {result.get('success')}"
+            )
+            return result
+        except Exception as e:
+            logger.error(f"❌ 工具调用失败: {tool_name} - {e}")
+            return None
+
+    def _analyze_intent(self, prompt):
+        """
+        使用AI分析用户消息，判断是否需要调用工具及具体参数
+        返回: {"needs_tool": bool, "tool_name": str, "parameters": dict}
+        """
+        # 获取可用工具列表
+        tools_info = []
+        for tool_name in self.tool_registry.get_tool_names():
+            tool = self.tool_registry.get(tool_name)
+            if tool and tool.enabled:
+                params_desc = ", ".join([
+                    f"{p.name}({p.param_type})"
+                    for p in tool.parameters
+                ])
+                tools_info.append(
+                    f"- {tool_name}: {tool.description}"
+                    f"{' [参数: ' + params_desc + ']' if params_desc else ''}"
+                )
+
+        if not tools_info:
+            return {"needs_tool": False}
+
+        # 获取用户的位置信息（从记忆中查找）
+        user_context = ""
+        try:
+            # 从facts标签中查找城市、地点相关信息
+            location_memories = self.memory.recall(tag="facts", limit=20)
+            if location_memories:
+                user_context = (
+                    "\n\n用户背景信息（从记忆库提取）：\n"
+                    + "\n".join(location_memories)
+                )
+        except Exception as e:
+            logger.warning(f"获取用户位置信息失败: {e}")
+
+        analysis_prompt = f"""分析用户消息，判断是否需要调用工具。
+
+用户消息："{prompt}"{user_context}
+
+可用工具：
+{chr(10).join(tools_info)}
+
+请分析用户意图：
+1. 如果用户请求天气查询 -> 使用 weather 工具
+2. 如果用户请求系统信息/CPU/内存/磁盘 -> 使用 system_info 工具
+3. 如果用户询问时间/日期 -> 使用 time 工具
+4. 如果用户请求数学计算 -> 使用 calculator 工具
+5. 如果用户请求创建提醒/定时提醒 -> 使用 reminder 工具
+6. 如果只是普通对话 -> 不需要工具
+
+**重要规则：**
+- 天气查询需要城市名称：
+  - 如果用户在消息中指定了城市（如"北京天气"） -> 使用该城市
+  - 如果用户位置信息中包含城市 -> 从中提取城市名（只提取城市名，如"深圳"、"上海"）
+  - 如果两者都没有 -> 返回needs_tool=false
+- 参数值必须是具体的城市名（如"深圳"、"北京"），不能是完整句子
+- 对于预报查询，根据上下文判断query_type：
+  - 问"明天"/"后天" -> 使用3d
+  - 问"未来几天"/"本周" -> 使用7d
+  - 其他情况 -> 使用now
+- 提醒识别规则：
+  - 如果用户说"提醒我..."、"记得..."、"别忘了..."等 -> 使用 reminder 工具
+  - 提取时间描述（如：明天下午3点、2小时后）和提醒内容
+  - 可选：提取标题
+
+请以JSON格式返回（不要markdown代码块）：
+{{
+  "needs_tool": true/false,
+  "tool_name": "工具名称或null",
+  "parameters": {{"参数名": "参数值"}},
+  "reason": "判断理由"
+}}
+
+注意：
+- weather工具参数: city(城市名，只要城市名，如"深圳"), query_type(now/3d/7d)
+- system_info工具参数: info_type(cpu/memory/disk/all)
+- time工具参数: format(full/date/time/timestamp)
+- calculator工具参数: expression(数学表达式)
+- reminder工具参数: content(提醒内容), time_desc(时间描述，如"明天下午3点"、"2小时后"), title(可选，提醒标题)"""
+
+        try:
+            if self.api_type == "deepseek":
+                result = self._call_deepseek(
+                    system_prompt="你是智能工具选择助手，精准识别用户意图并返回JSON格式分析结果。",
+                    user_prompt=analysis_prompt
+                )
+            else:
+                result = self._call_claude(
+                    system_prompt="你是智能工具选择助手，精准识别用户意图并返回JSON格式分析结果。",
+                    user_prompt=analysis_prompt
+                )
+
+            # 解析JSON结果
+            import json
+            # 清理可能的markdown代码块标记
+            result = result.strip()
+            if result.startswith("```"):
+                result = result.split("```")[1]
+                if result.startswith("json"):
+                    result = result[4:]
+            result = result.strip()
+
+            analysis = json.loads(result)
+            logger.info(f"意图分析: {analysis.get('reason', 'N/A')}")
+            return analysis
+
+        except Exception as e:
+            logger.warning(f"意图分析失败: {e}")
+            return {"needs_tool": False}
+
+    def _think_with_context(self, prompt, history, tool_result=None):
+        """带上下文的思考方法（同时使用会话历史、长期记忆和工具结果）"""
         if not self.client:
             return f"（占位模式）你说的是：{prompt}"
 
@@ -327,6 +583,15 @@ class XiaoLeAgent:
                 "6. 绝不编造数据、假装有设备、或推测未知信息\n"
                 f"当前时间：{current_datetime}\n"
             )
+
+            # v0.4.0: 如果有工具执行结果，添加到系统提示词
+            if tool_result and tool_result.get('success'):
+                tool_info = (
+                    f"\n\n📊 工具执行结果：\n"
+                    f"{tool_result.get('result', '无结果')}\n"
+                    f"请根据这个工具结果，用自然友好的语言回答用户的问题。"
+                )
+                system_prompt += tool_info
 
             # 添加长期记忆到系统提示词
             # 1. 优先获取 facts 标签的关键事实（用户主动告知的真实信息）
@@ -424,7 +689,7 @@ class XiaoLeAgent:
             self.deepseek_url,
             headers=headers,
             json=data,
-            timeout=15
+            timeout=60  # 增加超时时间以处理复杂问题
         )
 
         response.raise_for_status()
@@ -432,6 +697,41 @@ class XiaoLeAgent:
         reply = result["choices"][0]["message"]["content"]
         logger.info(f"DeepSeek 多轮对话响应成功 - 回复长度: {len(reply)}")
         return reply
+
+    def _format_reminders(self, reminders: list) -> str:
+        """
+        格式化提醒消息
+
+        Args:
+            reminders: 提醒列表
+
+        Returns:
+            格式化后的提醒文本
+        """
+        if not reminders:
+            return ""
+
+        reminder_texts = []
+        for reminder in reminders:
+            priority_emoji = {
+                1: "🔴",  # 最高优先级
+                2: "🟠",
+                3: "🟡",
+                4: "🟢",
+                5: "⚪"   # 最低优先级
+            }.get(reminder.get('priority', 3), "🔔")
+
+            title = reminder.get('title', '提醒')
+            content = reminder.get('content', '')
+
+            reminder_texts.append(f"{priority_emoji} **{title}**：{content}")
+
+        if len(reminders) == 1:
+            header = "🔔 **提醒** "
+        else:
+            header = f"🔔 **你有 {len(reminders)} 条提醒** "
+
+        return header + "\n" + "\n".join(reminder_texts)
 
     @retry_with_backoff(
         max_retries=3,

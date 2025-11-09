@@ -1,9 +1,19 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
+from typing import Optional, Dict, Any, List
 from agent import XiaoLeAgent
+from conflict_detector import ConflictDetector
+from proactive_qa import ProactiveQA  # v0.3.0 主动问答
+from reminder_manager import get_reminder_manager  # v0.5.0 主动提醒
+from scheduler import get_scheduler  # v0.5.0 定时调度
 
-app = FastAPI(title="小乐AI管家")
+app = FastAPI(
+    title="小乐AI管家",
+    version="0.5.0-dev",
+    description="支持主动提醒的AI助手 - Active Perception层开发中"
+)
 
 # 配置CORS，允许网页访问API
 app.add_middleware(
@@ -17,7 +27,100 @@ app.add_middleware(
 # 挂载静态文件目录
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
+
+# Pydantic模型 - v0.5.0提醒系统
+class ReminderCreate(BaseModel):
+    user_id: str = "default_user"
+    reminder_type: str = "time"
+    trigger_condition: Dict[str, Any]
+    content: str
+    title: Optional[str] = None
+    priority: int = 3
+    repeat: bool = False
+    repeat_interval: Optional[int] = None
+
+
 xiaole = XiaoLeAgent()
+conflict_detector = ConflictDetector()  # v0.3.0 冲突检测器
+proactive_qa = ProactiveQA()  # v0.3.0 主动问答分析器
+reminder_manager = get_reminder_manager()  # v0.5.0 提醒管理器
+scheduler = get_scheduler()  # v0.5.0 定时调度器
+
+
+# WebSocket连接管理器
+class ConnectionManager:
+    """管理WebSocket连接"""
+
+    def __init__(self):
+        self.active_connections: List[WebSocket] = []
+
+    async def connect(self, websocket: WebSocket):
+        """接受新连接"""
+        await websocket.accept()
+        self.active_connections.append(websocket)
+        print(f"✅ WebSocket客户端已连接，当前连接数: {len(self.active_connections)}")
+
+    def disconnect(self, websocket: WebSocket):
+        """断开连接"""
+        self.active_connections.remove(websocket)
+        print(f"👋 WebSocket客户端已断开，当前连接数: {len(self.active_connections)}")
+
+    async def broadcast(self, message: dict):
+        """广播消息给所有连接的客户端"""
+        disconnected = []
+        for connection in self.active_connections:
+            try:
+                await connection.send_json(message)
+            except Exception as e:
+                print(f"❌ 发送消息失败: {e}")
+                disconnected.append(connection)
+
+        # 清理断开的连接
+        for conn in disconnected:
+            if conn in self.active_connections:
+                self.active_connections.remove(conn)
+
+
+websocket_manager = ConnectionManager()
+
+
+@app.on_event("startup")
+async def startup_event():
+    """应用启动时初始化"""
+    # 设置ReminderManager的WebSocket推送回调
+    global reminder_manager
+    reminder_manager = get_reminder_manager(websocket_manager.broadcast)
+
+    # 启动提醒调度器
+    scheduler.start()
+    print("✅ 提醒调度器已启动")
+    print("✅ WebSocket推送已配置")
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """应用关闭时清理"""
+    # 停止提醒调度器
+    scheduler.stop()
+    print("👋 提醒调度器已停止")
+
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    """WebSocket端点，用于实时推送提醒"""
+    await websocket_manager.connect(websocket)
+    try:
+        while True:
+            # 保持连接，接收客户端消息（心跳等）
+            data = await websocket.receive_text()
+            # 可以处理客户端消息，如心跳响应
+            if data == "ping":
+                await websocket.send_json({"type": "pong"})
+    except WebSocketDisconnect:
+        websocket_manager.disconnect(websocket)
+    except Exception as e:
+        print(f"WebSocket错误: {e}")
+        websocket_manager.disconnect(websocket)
 
 
 @app.get("/")
@@ -105,3 +208,443 @@ def delete_session(session_id: str):
     """删除会话"""
     xiaole.conversation.delete_session(session_id)
     return {"message": "Session deleted"}
+
+
+# v0.3.0 用户行为分析 API
+@app.get("/analytics/behavior")
+def get_behavior_analytics(
+    user_id: str = "default_user",
+    days: int = 30
+):
+    """获取用户行为分析报告"""
+    report = xiaole.behavior_analyzer.generate_behavior_report(user_id, days)
+    if not report or not report.get("conversation_stats"):
+        return {"error": "No data available"}, 404
+    return report
+
+
+@app.get("/analytics/activity")
+def get_activity_pattern(user_id: str = "default_user", days: int = 30):
+    """获取用户活跃时间模式"""
+    pattern = xiaole.behavior_analyzer.get_user_activity_pattern(user_id, days)
+    if not pattern:
+        return {"error": "No data available"}, 404
+    return pattern
+
+
+@app.get("/analytics/topics")
+def get_topic_preferences(user_id: str = "default_user", days: int = 30):
+    """获取用户话题偏好"""
+    topics = xiaole.behavior_analyzer.get_topic_preferences(user_id, days)
+    if not topics:
+        return {"error": "No data available"}, 404
+    return topics
+
+
+# v0.3.0 模式学习 API
+@app.get("/patterns/frequent")
+def get_frequent_words(
+    user_id: str = "default_user",
+    limit: int = 20
+):
+    """获取用户高频词列表"""
+    words = xiaole.pattern_learner.get_frequent_words(user_id, limit)
+    return {"user_id": user_id, "frequent_words": words}
+
+
+@app.get("/patterns/common_questions")
+def get_common_questions(
+    user_id: str = "default_user",
+    limit: int = 10
+):
+    """获取用户常见问题分类"""
+    questions = xiaole.pattern_learner.get_common_questions(user_id, limit)
+    return {"user_id": user_id, "common_questions": questions}
+
+
+@app.get("/patterns/insights")
+def get_learning_insights(user_id: str = "default_user"):
+    """获取模式学习统计洞察"""
+    insights = xiaole.pattern_learner.get_learning_insights(user_id)
+    return insights
+
+
+# v0.3.0 记忆冲突检测 API
+@app.get("/memory/conflicts")
+def check_memory_conflicts(tag: str = "facts", limit: int = 100):
+    """检测记忆冲突"""
+    conflicts = conflict_detector.detect_conflicts(tag, limit)
+    return {
+        "has_conflicts": len(conflicts) > 0,
+        "total": len(conflicts),
+        "conflicts": conflicts
+    }
+
+
+@app.get("/memory/conflicts/summary")
+def get_conflict_summary():
+    """获取冲突摘要"""
+    return conflict_detector.get_conflict_summary()
+
+
+@app.get("/memory/conflicts/report")
+def get_conflict_report():
+    """获取可读的冲突报告"""
+    report = conflict_detector.generate_conflict_report()
+    return {"report": report}
+
+
+# v0.3.0 主动问答 API
+@app.get("/proactive/pending/{session_id}")
+def get_pending_followups(session_id: str, limit: int = 5):
+    """获取待追问的问题列表"""
+    questions = proactive_qa.get_pending_followups(session_id, limit)
+    return {
+        "session_id": session_id,
+        "pending_count": len(questions),
+        "questions": questions
+    }
+
+
+@app.get("/proactive/history")
+def get_followup_history(
+    session_id: str = None,
+    user_id: str = None,
+    limit: int = 20
+):
+    """获取追问历史记录"""
+    history = proactive_qa.get_followup_history(session_id, user_id, limit)
+    return {
+        "total": len(history),
+        "history": history
+    }
+
+
+@app.post("/proactive/mark_asked/{question_id}")
+def mark_followup_asked(question_id: int):
+    """标记追问已发送"""
+    proactive_qa.mark_followup_asked(question_id)
+    return {"message": "Followup marked as asked"}
+
+
+@app.get("/proactive/analyze/{session_id}")
+def analyze_session(session_id: str, user_id: str = "default_user"):
+    """分析会话，返回需要追问的问题"""
+    analysis = proactive_qa.analyze_conversation(session_id, user_id)
+    return analysis
+
+
+# v0.4.0 工具调用 API
+@app.get("/tools/list")
+def list_tools(category: str = None, enabled_only: bool = True):
+    """列出所有可用工具"""
+    tools = xiaole.tool_registry.list_tools(category, enabled_only)
+    return {
+        "total": len(tools),
+        "tools": tools
+    }
+
+
+@app.post("/tools/execute")
+async def execute_tool(
+    tool_name: str,
+    params: dict,
+    user_id: str = "default_user",
+    session_id: str = None
+):
+    """执行指定工具"""
+    result = await xiaole.tool_registry.execute(
+        tool_name=tool_name,
+        params=params,
+        user_id=user_id,
+        session_id=session_id
+    )
+    return result
+
+
+@app.get("/tools/history")
+def get_tool_history(
+    user_id: str = "default_user",
+    session_id: str = None,
+    limit: int = 20
+):
+    """获取工具执行历史"""
+    from db_setup import SessionLocal, ToolExecution
+
+    db = SessionLocal()
+    try:
+        query = db.query(ToolExecution).filter(
+            ToolExecution.user_id == user_id
+        )
+
+        if session_id:
+            query = query.filter(ToolExecution.session_id == session_id)
+
+        executions = query.order_by(
+            ToolExecution.executed_at.desc()
+        ).limit(limit).all()
+
+        return {
+            "total": len(executions),
+            "history": [
+                {
+                    "execution_id": e.execution_id,
+                    "tool_name": e.tool_name,
+                    "success": e.success,
+                    "execution_time": e.execution_time,
+                    "executed_at": e.executed_at.isoformat(),
+                    "error_message": e.error_message
+                }
+                for e in executions
+            ]
+        }
+    finally:
+        db.close()
+
+
+# ============ v0.5.0 主动提醒系统 API ============
+
+@app.post("/api/reminders")
+async def create_reminder(reminder: ReminderCreate):
+    """创建新提醒"""
+    try:
+        result = await reminder_manager.create_reminder(
+            user_id=reminder.user_id,
+            reminder_type=reminder.reminder_type,
+            trigger_condition=reminder.trigger_condition,
+            content=reminder.content,
+            title=reminder.title,
+            priority=reminder.priority,
+            repeat=reminder.repeat,
+            repeat_interval=reminder.repeat_interval
+        )
+        return {
+            "success": True,
+            "reminder": result
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
+@app.get("/api/reminders")
+async def get_reminders(
+    user_id: str = "default_user",
+    enabled_only: bool = True,
+    reminder_type: str = None
+):
+    """获取用户提醒列表"""
+    reminders = await reminder_manager.get_user_reminders(
+        user_id=user_id,
+        enabled_only=enabled_only,
+        reminder_type=reminder_type
+    )
+    return {
+        "total": len(reminders),
+        "reminders": reminders
+    }
+
+
+@app.get("/api/reminders/{reminder_id}")
+async def get_reminder(reminder_id: int, user_id: str = "default_user"):
+    """获取单个提醒详情"""
+    reminders = await reminder_manager.get_user_reminders(user_id)
+    reminder = next(
+        (r for r in reminders if r['reminder_id'] == reminder_id), None)
+
+    if not reminder:
+        return {"error": "Reminder not found"}, 404
+
+    return reminder
+
+
+@app.put("/api/reminders/{reminder_id}")
+async def update_reminder(
+    reminder_id: int,
+    content: str = None,
+    title: str = None,
+    priority: int = None,
+    enabled: bool = None,
+    trigger_condition: dict = None
+):
+    """更新提醒"""
+    updates = {}
+    if content is not None:
+        updates['content'] = content
+    if title is not None:
+        updates['title'] = title
+    if priority is not None:
+        updates['priority'] = priority
+    if enabled is not None:
+        updates['enabled'] = enabled
+    if trigger_condition is not None:
+        import json
+        updates['trigger_condition'] = json.dumps(trigger_condition)
+
+    success = await reminder_manager.update_reminder(reminder_id, **updates)
+
+    return {
+        "success": success,
+        "message": "Reminder updated" if success else "Update failed"
+    }
+
+
+@app.delete("/api/reminders/{reminder_id}")
+async def delete_reminder(reminder_id: int):
+    """删除提醒"""
+    success = await reminder_manager.delete_reminder(reminder_id)
+    return {
+        "success": success,
+        "message": "Reminder deleted" if success else "Delete failed"
+    }
+
+
+@app.post("/api/reminders/{reminder_id}/toggle")
+async def toggle_reminder(reminder_id: int, user_id: str = "default_user"):
+    """启用/禁用提醒"""
+    # 先获取当前状态
+    reminders = await reminder_manager.get_user_reminders(
+        user_id,
+        enabled_only=False
+    )
+    reminder = next(
+        (r for r in reminders if r['reminder_id'] == reminder_id), None
+    )
+
+    if not reminder:
+        return {"error": "Reminder not found", "success": False}
+
+    # 切换状态
+    new_enabled = not reminder.get('enabled', True)
+    success = await reminder_manager.update_reminder(
+        reminder_id,
+        enabled=new_enabled
+    )
+
+    return {
+        "success": success,
+        "enabled": new_enabled,
+        "message": f"Reminder {'enabled' if new_enabled else 'disabled'}"
+    }
+
+
+@app.post("/api/reminders/{reminder_id}/trigger")
+async def trigger_reminder_manually(reminder_id: int):
+    """手动触发提醒"""
+    success = await reminder_manager.trigger_reminder(reminder_id)
+    return {
+        "success": success,
+        "message": "Reminder triggered" if success else "Trigger failed"
+    }
+
+
+@app.post("/api/reminders/{reminder_id}/snooze")
+async def snooze_reminder(reminder_id: int, minutes: int = 5):
+    """延迟提醒（稍后提醒）"""
+    from datetime import datetime, timedelta
+    import json
+
+    # 获取当前提醒
+    conn = await reminder_manager.get_connection()
+    reminder = await conn.fetchrow(
+        "SELECT * FROM reminders WHERE reminder_id = $1",
+        reminder_id
+    )
+
+    if not reminder:
+        return {"success": False, "error": "Reminder not found"}
+
+    # 计算新的触发时间（当前时间 + minutes分钟）
+    new_trigger_time = datetime.now() + timedelta(minutes=minutes)
+
+    # 更新trigger_condition
+    trigger_condition = json.loads(reminder['trigger_condition'])
+    new_time_str = new_trigger_time.strftime('%Y-%m-%d %H:%M:%S')
+    trigger_condition['datetime'] = new_time_str
+
+    success = await reminder_manager.update_reminder(
+        reminder_id,
+        trigger_condition=json.dumps(trigger_condition),
+        enabled=True  # 确保提醒是启用状态
+    )
+
+    return {
+        "success": success,
+        "new_trigger_time": new_time_str,
+        "message": (
+            f"Reminder snoozed for {minutes} minutes"
+            if success else "Snooze failed"
+        )
+    }
+
+
+@app.get("/api/reminders/history/{user_id}")
+async def get_reminder_history(
+    user_id: str,
+    limit: int = 50
+):
+    """获取提醒历史"""
+    history = await reminder_manager.get_reminder_history(user_id, limit)
+    return {
+        "total": len(history),
+        "history": history
+    }
+
+
+@app.post("/api/reminders/check")
+async def check_reminders(user_id: str = "default_user"):
+    """手动检查并触发提醒"""
+    # 检查时间提醒
+    time_triggered = await reminder_manager.check_time_reminders(user_id)
+
+    # 检查行为提醒
+    behavior_triggered = await reminder_manager.check_behavior_reminders(
+        user_id
+    )
+
+    all_triggered = time_triggered + behavior_triggered
+
+    # 触发所有需要触发的提醒
+    results = []
+    for reminder in all_triggered:
+        success = await reminder_manager.trigger_reminder(
+            reminder['reminder_id']
+        )
+        results.append({
+            "reminder_id": reminder['reminder_id'],
+            "title": reminder.get('title', 'Untitled'),
+            "content": reminder['content'],
+            "triggered": success
+        })
+
+    return {
+        "total_checked": len(all_triggered),
+        "triggered": results
+    }
+
+
+@app.get("/api/scheduler/status")
+def get_scheduler_status():
+    """获取调度器状态"""
+    return scheduler.get_status()
+
+
+@app.post("/api/scheduler/start")
+def start_scheduler():
+    """启动调度器"""
+    scheduler.start()
+    return {"message": "Scheduler started", "status": scheduler.get_status()}
+
+
+@app.post("/api/scheduler/stop")
+def stop_scheduler():
+    """停止调度器"""
+    scheduler.stop()
+    return {"message": "Scheduler stopped", "status": scheduler.get_status()}
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)

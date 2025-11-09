@@ -1,0 +1,370 @@
+# v0.4.0 开发进度 - 智能工具系统
+
+## ✅ 已完成功能（v0.4.0）
+
+### 1. 智能工具调用系统
+- [x] **工具架构设计**
+  - `tool_manager.py` - 工具管理器（注册、执行、历史记录）
+  - `Tool` 基类：标准化工具接口
+  - `ToolParameter` 类：参数定义和验证
+  - `ToolRegistry` 类：工具注册表和执行引擎
+  
+- [x] **核心工具实现**
+  - `weather_tool.py` - 天气查询（Open-Meteo API，免费无需key）
+    - 支持32个中国主要城市（包括天水、秦州）
+    - 实时天气查询（温度、体感、湿度、风速、天气状况）
+    - 3天/7天天气预报
+    - 降水概率预测
+    - WMO天气代码中文描述
+  - `system_tool.py` - 系统信息工具
+    - CPU使用率查询
+    - 内存使用率查询
+    - 磁盘空间查询
+  - `time_tool.py` - 时间查询工具
+  - `calculator_tool.py` - 计算器工具（支持数学表达式）
+
+- [x] **AI智能意图识别**
+  - `agent.py` 中的 `_analyze_intent()` 方法
+  - 使用DeepSeek AI分析用户意图
+  - 自动识别需要调用的工具
+  - 智能提取工具参数
+  - **记忆集成**：从memory.recall()获取用户背景信息
+  - 自动从记忆中提取城市名等参数
+
+- [x] **工具调用流程**
+  - `_auto_call_tool()` - 自动工具调用入口
+  - 使用asyncio.run()正确处理异步工具执行
+  - 工具执行结果融入AI回复
+  - 完整的错误处理和日志记录
+
+- [x] **API端点**
+  - `/tools/list` - 工具列表
+  - `/tools/execute` - 工具执行
+  - `/tools/history` - 工具历史记录
+
+- [x] **Open-Meteo天气API集成**
+  - 完全免费，无需API key
+  - 数据来自各国气象部门（NOAA, DWD等）
+  - 已测试验证：天水实时天气查询正常
+  - 坐标映射系统：城市名→经纬度
+  - 支持模糊匹配（天水市→天水）
+
+### 2. 技术改进
+- [x] 修复DeepSeek API URL（正确endpoint）
+- [x] 修复异步工具调用（添加asyncio.run()）
+- [x] 记忆系统集成到工具参数提取
+- [x] 天气API从和风天气切换到Open-Meteo（避免key问题）
+
+## 📊 测试验证
+
+### 工具调用测试（通过日志验证）
+- ✅ 天气工具：从记忆提取"天水"，查询实时天气
+- ✅ 系统信息工具：CPU使用率查询正常
+- ✅ AI意图识别：正确识别工具调用需求
+- ✅ 参数提取：从记忆中提取城市名等参数
+- ✅ Open-Meteo API：返回真实天气数据
+
+### 集成测试场景
+1. **"明天我上班需要带伞吗？"**
+   - ✅ AI从记忆提取"天水"
+   - ✅ 识别为天气查询（3d预报）
+   - ✅ 调用weather工具
+   - ✅ 返回真实天气数据
+
+2. **"我的电脑CPU使用率是多少？"**
+   - ✅ AI识别为系统信息查询
+   - ✅ 调用system_info工具
+   - ✅ 返回真实CPU数据
+
+## 🔧 技术亮点
+
+### 1. 智能记忆集成
+```python
+# 从记忆库获取用户背景信息
+location_memories = self.memory.recall(tag="facts", limit=20)
+user_context = "\n".join(location_memories)
+
+# 传递给AI进行意图分析
+analysis_prompt = f"用户消息：{prompt}\n\n{user_context}"
+```
+
+### 2. 异步工具执行
+```python
+# 正确处理异步工具调用
+result = asyncio.run(self.tool_registry.execute(
+    tool_name=tool_name,
+    params=params,
+    user_id=user_id,
+    session_id=session_id
+))
+```
+
+### 3. Open-Meteo API使用
+```python
+# 无需API key的免费天气API
+url = "https://api.open-meteo.com/v1/forecast"
+params = {
+    'latitude': 34.5809,
+    'longitude': 105.7249,
+    'current': ['temperature_2m', 'weather_code'],
+    'timezone': 'Asia/Shanghai'
+}
+```
+
+## 📝 代码统计
+
+- 新增文件：5个工具文件
+- 修改文件：agent.py（智能意图识别）
+- 代码行数：~800行新代码
+- 支持工具：4个（天气、系统信息、时间、计算器）
+
+---
+
+# v0.3.0 开发进度和清理计划
+
+## ✅ 已完成功能
+
+### 1. 用户行为分析系统
+- [x] `behavior_analytics.py` - 行为分析器（活跃时间、话题偏好、对话统计）
+- [x] `user_behaviors` 表结构
+- [x] API端点：
+  - `/analytics/behavior` - 用户行为统计
+  - `/analytics/activity` - 活跃时间分布
+  - `/analytics/topics` - 话题偏好
+- [x] 前端"行为分析"标签页（可视化展示）
+- [x] 集成到 `agent.py` 的 `chat()` 方法
+
+### 2. 记忆冲突检测
+- [x] `conflict_detector.py` - 冲突检测器
+- [x] 支持5类信息检测：姓名、年龄、生日、性别、地址
+- [x] 智能判断逻辑（昵称容忍、年龄±2岁）
+- [x] API端点：
+  - `/memory/conflicts` - 冲突列表
+  - `/memory/conflicts/summary` - 冲突摘要
+  - `/memory/conflicts/report` - 详细报告
+- [x] 前端冲突检测展示
+- [x] 修复UnicodeDecodeError和SQLAlchemy并发问题
+
+### 3. 文档更新
+- [x] README.md 更新为 v0.3.0-dev
+- [x] docs/README.md 路线图更新
+- [x] 标记已完成功能
+
+### 4. Bug修复
+- [x] 修复 `db_setup.py` 缺失 `SessionLocal`
+- [x] 修复 `conflict_detector.py` 编码问题（client_encoding='utf8'）
+- [x] 修复session并发问题（每次创建新session）
+- [x] 修复前端字段名不匹配问题
+
+## 🗑️ 待删除文件列表
+
+### 测试数据清理脚本（功能重复，已完成使命）
+```
+✗ check_and_delete.py       # 检查并删除最后3条
+✗ clean_test.py              # ORM方式清理
+✗ delete_last_3.py           # 删除最后3条
+✗ final_clean.py             # 最终清理版本
+✗ force_clean.py             # SQL强制清理
+✗ psql_delete.py             # psycopg2删除
+✗ verify_clean.py            # 验证清理
+```
+
+### 演示/测试脚本（已完成测试）
+```
+✗ demo_conflict_detection.py # 冲突检测演示
+✗ check_memories.py          # 检查记忆
+```
+
+### 归档脚本（已移至scripts目录）
+```
+✗ scripts/clean_test_data.py # 交互式清理
+✗ scripts/quick_clean.py     # 快速清理
+```
+
+### 保留的工具脚本
+```
+✓ generate_behavior_data.py  # 生成测试行为数据（用于演示）
+✓ tests/test_*.py             # 所有测试文件
+✓ scripts/start.sh            # 启动脚本
+✓ scripts/auto_commit.sh      # 自动提交
+```
+
+## 🚧 待完成功能（v0.3.0）
+
+### Learning层剩余功能
+- [x] 主动问答（Proactive Q&A）
+  - [x] `proactive_qa.py` - 主动问答分析器
+  - [x] `proactive_questions` 表结构（15字段）
+  - [x] 识别未完整回答的问题，主动追问
+  - [x] API端点：
+    - `/proactive/history` - 追问历史记录
+    - `/proactive/pending/{session_id}` - 待追问列表
+    - `/proactive/analyze/{session_id}` - 分析会话
+    - `/proactive/mark_asked/{question_id}` - 标记已追问
+  - [x] 前端"主动问答历史"展示（行为分析面板）
+  - [x] 集成到 `agent.py` 的 `chat()` 方法
+  - [x] 置信度评分系统（0-100）
+  - [x] 缺失信息识别（具体名称、操作方法、原因说明等）
+
+- [x] 模式学习（Pattern Learning）
+  - [x] `pattern_learning.py` - 模式学习器（350行）
+  - [x] `learned_patterns` 表结构（10字段）
+  - [x] 高频词汇识别和同义词扩展
+  - [x] 常见问题自动归类（6大类）
+  - [x] 用户偏好模型构建
+  - [x] API端点：
+    - `/patterns/frequent` - 高频词列表
+    - `/patterns/common_questions` - 常见问题分类
+    - `/patterns/insights` - 学习统计洞察
+  - [x] 前端"学习模式"展示（行为分析面板）
+  - [x] 集成到 `agent.py` 的 `chat()` 方法
+  - [x] 置信度系统（50基础分 + 频次加成）
+  - [x] 问题分类（天气查询、时间日期、个人信息、功能咨询、推荐建议、闲聊）
+
+### 优化和测试
+- [ ] 编写完整的单元测试
+- [ ] 性能优化（行为分析查询优化）
+- [ ] 增加更多话题提取策略
+
+## 📋 下次提交清理命令
+
+```bash
+# 删除无用文件
+git rm check_and_delete.py clean_test.py delete_last_3.py \
+       final_clean.py force_clean.py psql_delete.py verify_clean.py \
+       demo_conflict_detection.py check_memories.py \
+       scripts/clean_test_data.py scripts/quick_clean.py
+
+# 提交清理
+git commit -m "chore: 清理v0.3.0开发过程中的临时测试脚本
+
+- 删除8个重复的数据清理脚本
+- 删除演示和测试脚本
+- 保留generate_behavior_data.py用于演示行为分析功能
+"
+```
+
+## 📊 代码统计
+
+### 核心代码文件
+- `behavior_analytics.py`: ~316 行
+- `conflict_detector.py`: ~299 行
+- `proactive_qa.py`: ~360 行
+- `pattern_learning.py`: ~350 行（新增）
+- `main.py`: 新增 ~110 行（API端点）
+- `agent.py`: 新增 ~60 行（集成）
+- `static/index.html`: 新增 ~420 行（前端面板）
+- `db_setup.py`: 新增 ~70 行（表结构）
+
+### 总新增代码：~1,985 行
+
+## 🎯 v0.3.0 完成度
+
+**已完成**: 100% ✅
+- ✅ 行为分析（25%）
+- ✅ 冲突检测（25%）
+- ✅ 主动问答（25%）
+- ✅ 模式学习（25%）
+
+---
+
+**v0.3.0开发完成！** 🎉
+
+---
+
+# v0.4.0 开发进度 - Action层
+
+## ✅ 已完成功能
+
+### 1. 工具调用框架（Tool Framework）
+- [x] `tool_manager.py` - 工具管理核心（~300行）
+  - Tool基类和ToolParameter参数定义
+  - ToolRegistry注册中心
+  - 统一的参数验证和错误处理
+  - 执行追踪和数据库记录
+- [x] `tool_executions` 表结构（ToolExecution模型）
+
+### 2. 系统工具（System Tools）
+- [x] `tools/system_tool.py` - 系统操作工具（~250行）
+  - SystemInfoTool: CPU、内存、磁盘信息查询
+  - TimeTool: 时间日期查询
+  - CalculatorTool: 数学计算（支持math模块函数）
+
+### 3. 天气工具（Weather Tool）
+- [x] `tools/weather_tool.py` - 天气查询工具（~280行）
+  - 集成和风天气API
+  - 实时天气查询（now）
+  - 天气预报查询（3天/7天）
+  - 自动城市Location ID获取
+
+### 4. Agent集成
+- [x] 修改`agent.py`，添加工具注册中心
+- [x] `_register_tools()` 方法自动注册所有工具
+
+### 5. API端点
+- [x] `/tools/list` - 列出所有可用工具
+- [x] `/tools/execute` - 执行指定工具
+- [x] `/tools/history` - 查询工具执行历史
+
+### 6. 测试脚本
+- [x] `test_tools.py` - 工具系统集成测试
+
+### 7. 依赖更新
+- [x] requirements.txt 添加 `psutil`, `aiohttp`
+
+## 📊 v0.4.0 代码统计
+
+### 核心代码文件
+- `tool_manager.py`: ~300行
+- `tools/weather_tool.py`: ~280行
+- `tools/system_tool.py`: ~250行
+- `test_tools.py`: ~170行
+- 新增API端点: ~70行
+- 总新增代码：**~1,140行**
+
+## 🎯 v0.4.0 完成度
+
+**已完成**: 100% ✅
+- ✅ 工具调用框架（100%）
+- ✅ 系统工具（100%）
+- ✅ 天气工具（100%）
+- ✅ Agent集成（100%）
+- ✅ API端点（100%）
+- ✅ 智能工具选择（100%）
+- ✅ 前端展示（100%）
+- ⏸️ 搜索工具（0% - 延后到v0.5.0）
+
+---
+
+**v0.4.0 完成！** 🎉
+
+## 📝 v0.4.0 新增功能总结
+
+### 1. 智能工具调用系统
+- 工具管理框架：统一接口、参数验证、执行追踪
+- AI意图识别：DeepSeek自动分析用户意图
+- 记忆集成：从memory中提取上下文信息
+- 异步执行：asyncio.run()处理异步工具
+
+### 2. 核心工具实现
+- **天气工具**：Open-Meteo API，支持32个城市，实时+预报
+- **系统工具**：CPU/内存/磁盘信息查询
+- **时间工具**：当前时间/日期查询
+- **计算器**：数学表达式计算
+
+### 3. 前端工具面板
+- **工具管理**：列表展示、详细信息、参数说明
+- **执行历史**：记录展示、时间统计、状态可视化
+- **UI优化**：现代化设计、响应式布局、颜色编码
+
+### 4. 技术亮点
+- 记忆系统集成到参数提取
+- Open-Meteo免费API（无需key）
+- 完整的错误处理和日志
+- RESTful API设计
+
+---
+
+下一步：v0.5.0 - Active Perception层
+
+````
