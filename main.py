@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from agent import XiaoLeAgent
 from conflict_detector import ConflictDetector
+from proactive_qa import ProactiveQA  # v0.3.0 主动问答
 
 app = FastAPI(
     title="小乐AI管家",
@@ -24,6 +25,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 xiaole = XiaoLeAgent()
 conflict_detector = ConflictDetector()  # v0.3.0 冲突检测器
+proactive_qa = ProactiveQA()  # v0.3.0 主动问答分析器
 
 
 @app.get("/")
@@ -167,3 +169,43 @@ def get_conflict_report():
     """获取可读的冲突报告"""
     report = conflict_detector.generate_conflict_report()
     return {"report": report}
+
+
+# v0.3.0 主动问答 API
+@app.get("/proactive/pending/{session_id}")
+def get_pending_followups(session_id: str, limit: int = 5):
+    """获取待追问的问题列表"""
+    questions = proactive_qa.get_pending_followups(session_id, limit)
+    return {
+        "session_id": session_id,
+        "pending_count": len(questions),
+        "questions": questions
+    }
+
+
+@app.get("/proactive/history")
+def get_followup_history(
+    session_id: str = None,
+    user_id: str = None,
+    limit: int = 20
+):
+    """获取追问历史记录"""
+    history = proactive_qa.get_followup_history(session_id, user_id, limit)
+    return {
+        "total": len(history),
+        "history": history
+    }
+
+
+@app.post("/proactive/mark_asked/{question_id}")
+def mark_followup_asked(question_id: int):
+    """标记追问已发送"""
+    proactive_qa.mark_followup_asked(question_id)
+    return {"message": "Followup marked as asked"}
+
+
+@app.get("/proactive/analyze/{session_id}")
+def analyze_session(session_id: str, user_id: str = "default_user"):
+    """分析会话，返回需要追问的问题"""
+    analysis = proactive_qa.analyze_conversation(session_id, user_id)
+    return analysis

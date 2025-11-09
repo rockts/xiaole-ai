@@ -1,4 +1,6 @@
-from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime
+from sqlalchemy import (
+    create_engine, Column, Integer, String, Text, DateTime, Boolean
+)
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime
@@ -75,6 +77,30 @@ class UserBehavior(Base):
     topics = Column(Text)  # JSON格式存储话题列表
     # 记录时间
     created_at = Column(DateTime, default=datetime.now)
+
+
+class ProactiveQuestion(Base):
+    """主动问答记录表 - v0.3.0 Learning层"""
+    __tablename__ = "proactive_questions"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(String(50), index=True)
+    session_id = Column(String(100), index=True)
+    # 原始问题
+    original_question = Column(Text)  # 用户原始提问
+    question_type = Column(String(50))  # 问题类型：incomplete/clarification/summary
+    # 问答状态
+    is_answered = Column(Boolean, default=False)  # 是否已完整回答
+    need_followup = Column(Boolean, default=True)  # 是否需要追问
+    # 追问内容
+    followup_question = Column(Text)  # AI生成的追问内容
+    followup_asked = Column(Boolean, default=False)  # 是否已经追问
+    # 分析结果
+    missing_info = Column(Text)  # 缺失的信息点（JSON格式）
+    confidence_score = Column(Integer, default=0)  # 判断置信度（0-100）
+    # 时间记录
+    created_at = Column(DateTime, default=datetime.now)
+    asked_at = Column(DateTime)  # 追问时间
+    answered_at = Column(DateTime)  # 回答时间
 
 
 Base.metadata.create_all(engine)

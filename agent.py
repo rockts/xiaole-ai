@@ -1,6 +1,7 @@
 from memory import MemoryManager
 from conversation import ConversationManager
 from behavior_analytics import BehaviorAnalyzer
+from proactive_qa import ProactiveQA  # v0.3.0 主动问答
 from error_handler import (
     retry_with_backoff, log_execution, handle_api_errors,
     APITimeoutError, APIRateLimitError, APIConnectionError,
@@ -20,6 +21,7 @@ class XiaoLeAgent:
         self.memory = MemoryManager()
         self.conversation = ConversationManager()
         self.behavior_analyzer = BehaviorAnalyzer()  # v0.3.0 行为分析器
+        self.proactive_qa = ProactiveQA()  # v0.3.0 主动问答分析器
 
         # 支持多个AI平台
         self.api_type = os.getenv("AI_API_TYPE", "deepseek")
@@ -311,10 +313,51 @@ class XiaoLeAgent:
         except Exception as e:
             logger.warning(f"行为数据记录失败: {e}")
 
-        return {
+        # v0.3.0: 主动问答分析（检测是否需要追问）
+        followup_info = None
+        try:
+            analysis = self.proactive_qa.analyze_conversation(
+                session_id, user_id
+            )
+            if analysis.get("needs_followup"):
+                questions = analysis.get("questions", [])
+                if questions:
+                    # 取置信度最高的问题
+                    best_question = max(
+                        questions, key=lambda x: x.get("confidence", 0)
+                    )
+                    # 生成追问
+                    followup = self.proactive_qa.generate_followup_question(
+                        best_question["question"],
+                        best_question["missing_info"],
+                        best_question.get("ai_response", "")
+                    )
+                    # 保存追问记录
+                    question_id = self.proactive_qa.save_proactive_question(
+                        session_id=session_id,
+                        user_id=user_id,
+                        original_question=best_question["question"],
+                        question_type=best_question["type"],
+                        missing_info=best_question["missing_info"],
+                        confidence=best_question["confidence"],
+                        followup_question=followup
+                    )
+                    followup_info = {
+                        "id": question_id,
+                        "followup": followup,
+                        "confidence": best_question["confidence"]
+                    }
+        except Exception as e:
+            logger.warning(f"主动问答分析失败: {e}")
+
+        result = {
             "session_id": session_id,
             "reply": reply
         }
+        if followup_info:
+            result["followup"] = followup_info
+
+        return result
 
     def _think_with_context(self, prompt, history):
         """带上下文的思考方法（同时使用会话历史和长期记忆）"""
