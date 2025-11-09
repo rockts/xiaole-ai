@@ -495,6 +495,29 @@
                 opacity: 0;
             }
         }
+
+        /* 追问提示动画 */
+        @keyframes slideInUp {
+            from {
+                transform: translate(-50%, 20px);
+                opacity: 0;
+            }
+            to {
+                transform: translate(-50%, 0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideOutDown {
+            from {
+                transform: translate(-50%, 0);
+                opacity: 1;
+            }
+            to {
+                transform: translate(-50%, 20px);
+                opacity: 0;
+            }
+        }
     </style>
     <!-- Markdown 解析库 -->
     <script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js"></script>
@@ -802,6 +825,11 @@
                 if (response.ok) {
                     currentSessionId = data.session_id;
                     addMessage('assistant', data.reply);
+                    
+                    // 检查是否有主动追问建议
+                    if (data.followup) {
+                        showFollowupSuggestion(data.followup);
+                    }
                 } else {
                     addMessage('assistant', '抱歉，出现错误：' + (data.detail || '未知错误'));
                 }
@@ -2502,6 +2530,103 @@
                     tag: 'proactive-chat',
                     requireInteraction: false
                 });
+            }
+        }
+
+        // 显示追问提示
+        function showFollowupSuggestion(followupInfo) {
+            // 创建追问提示卡片
+            const notification = document.createElement('div');
+            notification.className = 'followup-suggestion';
+            notification.style.cssText = `
+                position: fixed;
+                bottom: 30px;
+                left: 50%;
+                transform: translateX(-50%);
+                max-width: 500px;
+                background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+                color: white;
+                padding: 18px 24px;
+                border-radius: 12px;
+                box-shadow: 0 8px 24px rgba(245, 87, 108, 0.4);
+                z-index: 10000;
+                animation: slideInUp 0.3s ease-out;
+                cursor: pointer;
+            `;
+
+            notification.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div style="font-size: 24px;">🤔</div>
+                    <div style="flex: 1;">
+                        <div style="font-size: 13px; opacity: 0.9; margin-bottom: 4px;">
+                            💡 小乐有个疑问
+                        </div>
+                        <div style="font-size: 15px; font-weight: 500; line-height: 1.5;">
+                            ${followupInfo.followup}
+                        </div>
+                    </div>
+                    <div style="font-size: 12px; opacity: 0.8;">
+                        点击回答
+                    </div>
+                </div>
+            `;
+
+            // 点击发送追问
+            notification.onclick = async () => {
+                notification.remove();
+                
+                // 自动发送追问作为用户消息
+                const input = document.getElementById('messageInput');
+                input.textContent = followupInfo.followup;
+                
+                // 发送消息
+                await sendMessageFromDiv();
+                
+                // 标记追问已发送
+                try {
+                    await fetch(`${API_BASE}/proactive_qa/${followupInfo.id}/mark_asked`, {
+                        method: 'POST'
+                    });
+                } catch (error) {
+                    console.error('标记追问失败:', error);
+                }
+            };
+
+            document.body.appendChild(notification);
+
+            // 播放提示音
+            playFollowupSound();
+
+            // 8秒后自动消失
+            setTimeout(() => {
+                if (notification.parentElement) {
+                    notification.style.animation = 'slideOutDown 0.3s ease-out';
+                    setTimeout(() => notification.remove(), 300);
+                }
+            }, 8000);
+        }
+
+        // 播放追问提示音
+        function playFollowupSound() {
+            try {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+
+                oscillator.frequency.value = 800;  // 更高音调
+                oscillator.type = 'sine';
+
+                gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+                gainNode.gain.linearRampToValueAtTime(0.1, audioContext.currentTime + 0.01);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
+
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.15);
+            } catch (error) {
+                console.error('播放追问提示音失败:', error);
             }
         }
 
