@@ -485,12 +485,12 @@
         </div>
 
         <div class="tabs">
-            <div class="tab active" onclick="switchTab('chat')">💬 聊天</div>
-            <div class="tab" onclick="switchTab('sessions')">📋 会话</div>
-            <div class="tab" onclick="switchTab('memory')">🧠 记忆</div>
-            <div class="tab" onclick="switchTab('analytics')">📊 行为分析</div>
-            <div class="tab" onclick="switchTab('reminders')">🔔 提醒</div>
-            <div class="tab" onclick="switchTab('tools')">🔧 工具管理</div>
+            <div class="tab active" onclick="switchTab('chat', event)">💬 聊天</div>
+            <div class="tab" onclick="switchTab('sessions', event)">📋 会话</div>
+            <div class="tab" onclick="switchTab('memory', event)">🧠 记忆</div>
+            <div class="tab" onclick="switchTab('analytics', event)">📊 行为分析</div>
+            <div class="tab" onclick="switchTab('reminders', event)">🔔 提醒</div>
+            <div class="tab" onclick="switchTab('tools', event)">🔧 工具管理</div>
         </div>
 
         <!-- 聊天界面 -->
@@ -707,13 +707,26 @@
         const API_BASE = '';
 
         // 切换标签页
-        function switchTab(tabName) {
+        function switchTab(tabName, event) {
+            // 移除所有tab和内容的active状态
             document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
 
-            event.target.classList.add('active');
+            // 激活对应的tab按钮（如果是通过点击触发）
+            if (event && event.target) {
+                event.target.classList.add('active');
+            } else {
+                // 如果是程序调用，查找对应的tab按钮并激活
+                const tabButton = document.querySelector(`.tab[onclick*="${tabName}"]`);
+                if (tabButton) {
+                    tabButton.classList.add('active');
+                }
+            }
+            
+            // 激活对应的内容区域
             document.getElementById(tabName).classList.add('active');
 
+            // 加载对应tab的数据
             if (tabName === 'sessions') loadSessions();
             if (tabName === 'memory') loadMemoryStats();
             if (tabName === 'analytics') {
