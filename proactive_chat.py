@@ -92,9 +92,9 @@ class ProactiveChat:
         
         pending = session.query(ProactiveQuestion).filter(
             ProactiveQuestion.user_id == user_id,
-            ProactiveQuestion.followup_asked == False,
+            ProactiveQuestion.followup_asked.is_(False),
             ProactiveQuestion.created_at >= time_threshold
-        ).order_by(ProactiveQuestion.confidence.desc()).first()
+        ).order_by(ProactiveQuestion.confidence_score.desc()).first()
         
         if pending:
             # 构造自然的追问
@@ -299,7 +299,7 @@ class ProactiveChat:
             # 统计待追问的问题数
             pending_count = session.query(func.count(ProactiveQuestion.id)).filter(
                 ProactiveQuestion.user_id == user_id,
-                ProactiveQuestion.followup_asked == False
+                ProactiveQuestion.followup_asked.is_(False)
             ).scalar()
             
             # 获取最后活动时间
