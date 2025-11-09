@@ -2,7 +2,7 @@
 网络搜索工具
 使用 DuckDuckGo 进行网络搜索
 """
-from tool_manager import Tool
+from tool_manager import Tool, ToolParameter
 from duckduckgo_search import DDGS
 import asyncio
 from typing import List, Dict
@@ -19,19 +19,21 @@ class SearchTool(Tool):
             "适用场景：查询实时信息、新闻、百科知识等。"
             "返回搜索结果的标题、摘要和链接。"
         )
-        self.parameters = {
-            "query": {
-                "type": "string",
-                "description": "搜索关键词或问题",
-                "required": True
-            },
-            "max_results": {
-                "type": "integer",
-                "description": "最大返回结果数量，默认5条",
-                "required": False,
-                "default": 5
-            }
-        }
+        self.parameters = [
+            ToolParameter(
+                name="query",
+                param_type="string",
+                description="搜索关键词或问题",
+                required=True
+            ),
+            ToolParameter(
+                name="max_results",
+                param_type="integer",
+                description="最大返回结果数量，默认5条",
+                required=False,
+                default=5
+            )
+        ]
 
     async def execute(self, **kwargs) -> Dict:
         """

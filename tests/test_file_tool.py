@@ -1,14 +1,13 @@
 """
 测试文件工具功能
 """
+from tools.file_tool import file_tool
 import asyncio
 import os
 import sys
 
 # 添加项目根目录到路径
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from tools.file_tool import file_tool
 
 
 async def test_write_file():
@@ -81,21 +80,21 @@ async def test_search_files():
 async def test_json_file():
     """测试JSON文件操作"""
     print("\n=== 测试5: JSON文件 ===")
-    
+
     # 写入JSON
     json_content = """{
   "name": "小乐AI",
   "version": "0.5.0",
   "features": ["提醒", "搜索", "文件操作"]
 }"""
-    
+
     result = await file_tool.execute(
         operation="write",
         path="config.json",
         content=json_content
     )
     assert result["success"], "写入JSON文件失败"
-    
+
     # 读取JSON
     result = await file_tool.execute(
         operation="read",
@@ -109,7 +108,7 @@ async def test_json_file():
 async def test_security_path():
     """测试路径安全限制"""
     print("\n=== 测试6: 路径安全限制 ===")
-    
+
     # 尝试访问不允许的路径
     result = await file_tool.execute(
         operation="read",
@@ -124,7 +123,7 @@ async def test_security_path():
 async def test_security_extension():
     """测试文件类型限制"""
     print("\n=== 测试7: 文件类型限制 ===")
-    
+
     # 尝试写入不支持的文件类型
     result = await file_tool.execute(
         operation="write",
@@ -140,7 +139,7 @@ async def test_security_extension():
 async def test_markdown_file():
     """测试Markdown文件"""
     print("\n=== 测试8: Markdown文件 ===")
-    
+
     md_content = """# 小乐AI测试文档
 
 ## 功能列表
@@ -153,14 +152,14 @@ async def test_markdown_file():
 - 文件类型限制
 - 大小限制
 """
-    
+
     result = await file_tool.execute(
         operation="write",
         path="README.md",
         content=md_content
     )
     assert result["success"], "写入Markdown文件失败"
-    
+
     result = await file_tool.execute(
         operation="read",
         path="README.md"
@@ -174,26 +173,26 @@ async def main():
     """运行所有测试"""
     print("开始测试文件工具...")
     print(f"工作目录: {file_tool.ALLOWED_DIRS[0]}")
-    
+
     try:
         # 基础功能测试
         await test_write_file()
         await test_read_file()
         await test_list_files()
         await test_search_files()
-        
+
         # 特定格式测试
         await test_json_file()
         await test_markdown_file()
-        
+
         # 安全测试
         await test_security_path()
         await test_security_extension()
-        
+
         print("\n" + "="*50)
         print("✅ 所有测试通过！")
         print("="*50)
-        
+
     except AssertionError as e:
         print(f"\n❌ 测试失败: {e}")
         return False
@@ -202,7 +201,7 @@ async def main():
         import traceback
         traceback.print_exc()
         return False
-    
+
     return True
 
 

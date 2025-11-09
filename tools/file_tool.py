@@ -8,7 +8,7 @@ import glob
 import aiofiles
 from pathlib import Path
 from typing import Dict, Any, Optional
-from tool_manager import Tool
+from tool_manager import Tool, ToolParameter
 
 
 class FileTool(Tool):
@@ -33,37 +33,43 @@ class FileTool(Tool):
         super().__init__()
         self.name = "file"
         self.description = "文件操作工具，支持读取、写入、列表、搜索文件"
-        self.parameters = {
-            "operation": {
-                "type": "string",
-                "description": (
+        self.parameters = [
+            ToolParameter(
+                name="operation",
+                param_type="string",
+                description=(
                     "操作类型: read(读取), write(写入), "
                     "list(列表), search(搜索)"
                 ),
-                "required": True
-            },
-            "path": {
-                "type": "string",
-                "description": "文件或目录路径（相对于允许的目录）",
-                "required": True
-            },
-            "content": {
-                "type": "string",
-                "description": "写入的内容（仅用于write操作）",
-                "required": False
-            },
-            "pattern": {
-                "type": "string",
-                "description": "搜索模式（仅用于search操作，支持通配符如*.txt）",
-                "required": False
-            },
-            "recursive": {
-                "type": "boolean",
-                "description": "是否递归搜索（仅用于list和search操作）",
-                "required": False,
-                "default": False
-            }
-        }
+                required=True,
+                enum=["read", "write", "list", "search"]
+            ),
+            ToolParameter(
+                name="path",
+                param_type="string",
+                description="文件或目录路径（相对于允许的目录）",
+                required=True
+            ),
+            ToolParameter(
+                name="content",
+                param_type="string",
+                description="写入的内容（仅用于write操作）",
+                required=False
+            ),
+            ToolParameter(
+                name="pattern",
+                param_type="string",
+                description="搜索模式（仅用于search操作，支持通配符如*.txt）",
+                required=False
+            ),
+            ToolParameter(
+                name="recursive",
+                param_type="boolean",
+                description="是否递归搜索（仅用于list和search操作）",
+                required=False,
+                default=False
+            )
+        ]
 
         # 确保默认工作目录存在
         self._ensure_default_dir()

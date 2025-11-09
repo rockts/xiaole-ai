@@ -605,9 +605,21 @@ class XiaoLeAgent:
 
             # v0.4.0: 如果有工具执行结果，添加到系统提示词
             if tool_result and tool_result.get('success'):
+                # 格式化工具结果
+                tool_data = tool_result.get('data') or tool_result
+                if isinstance(tool_data, dict):
+                    # 去除不需要显示的字段
+                    display_data = {
+                        k: v for k, v in tool_data.items()
+                        if k not in ['success', 'user_id', 'session_id']
+                    }
+                    tool_info_text = str(display_data)
+                else:
+                    tool_info_text = str(tool_data)
+                
                 tool_info = (
                     f"\n\n📊 工具执行结果：\n"
-                    f"{tool_result.get('result', '无结果')}\n"
+                    f"{tool_info_text}\n"
                     f"请根据这个工具结果，用自然友好的语言回答用户的问题。"
                 )
                 system_prompt += tool_info
