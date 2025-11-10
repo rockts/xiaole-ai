@@ -485,6 +485,7 @@
             box-shadow: 0 2px 5px var(--shadow-light);
             transition: all 0.3s;
             border: 1px solid var(--card-border);
+            position: relative;
         }
 
         .session-item:hover {
@@ -492,9 +493,66 @@
             box-shadow: 0 4px 10px var(--shadow-medium);
         }
 
+        .session-item:hover .session-actions {
+            opacity: 1;
+            pointer-events: all;
+        }
+
         .session-item.active {
             border-left: 4px solid var(--button-gradient-start);
             background: var(--input-bg);
+        }
+
+        /* 会话操作按钮 */
+        .session-actions {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            gap: 8px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+        }
+
+        .session-action-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            transition: all 0.2s;
+            background: var(--card-bg);
+            box-shadow: 0 2px 5px var(--shadow-light);
+        }
+
+        .session-action-btn:hover {
+            transform: scale(1.1);
+        }
+
+        .session-action-btn.export-md {
+            color: #10b981;
+            border: 2px solid #10b981;
+        }
+
+        .session-action-btn.export-md:hover {
+            background: #10b981;
+            color: white;
+        }
+
+        .session-action-btn.export-json {
+            color: #3b82f6;
+            border: 2px solid #3b82f6;
+        }
+
+        .session-action-btn.export-json:hover {
+            background: #3b82f6;
+            color: white;
         }
 
         .session-title {
@@ -1459,6 +1517,18 @@
                             <div class="session-time">
                                 创建: ${session.created_at} | 更新: ${session.updated_at}
                             </div>
+                            <div class="session-actions">
+                                <button class="session-action-btn export-md" 
+                                        onclick="exportSession('${session.session_id}', 'markdown'); event.stopPropagation();"
+                                        title="导出为Markdown">
+                                    📝
+                                </button>
+                                <button class="session-action-btn export-json" 
+                                        onclick="exportSession('${session.session_id}', 'json'); event.stopPropagation();"
+                                        title="导出为JSON">
+                                    📦
+                                </button>
+                            </div>
                         </div>
                     `).join('');
 
@@ -1479,6 +1549,133 @@
                 console.error('加载会话失败:', error);
                 container.innerHTML = `<div class="error">加载失败: ${error.message}</div>`;
             }
+        }
+
+        // ===== 会话导出功能 =====
+        
+        /**
+         * 导出会话为指定格式
+         * @param {string} sessionId - 会话ID
+         * @param {string} format - 导出格式 ('markdown' 或 'json')
+         */
+        async function exportSession(sessionId, format) {
+            try {
+                console.log(`导出会话 ${sessionId} 为 ${format} 格式`);
+                
+                // 获取会话数据
+                const response = await fetch(`${API_BASE}/session/${sessionId}`);
+                if (!response.ok) {
+                    throw new Error(`获取会话失败: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                const messages = data.messages || [];
+                const title = data.title || '未命名会话';
+                const createdAt = data.created_at || new Date().toISOString();
+                
+                let content, filename, mimeType;
+                
+                if (format === 'markdown') {
+                    // 生成Markdown格式
+                    content = generateMarkdown(title, createdAt, messages);
+                    filename = `${sanitizeFilename(title)}_${getTimestamp()}.md`;
+                    mimeType = 'text/markdown';
+                } else if (format === 'json') {
+                    // 生成JSON格式
+                    content = JSON.stringify({
+                        session_id: sessionId,
+                        title: title,
+                        created_at: createdAt,
+                        exported_at: new Date().toISOString(),
+                        message_count: messages.length,
+                        messages: messages.map(msg => ({
+                            role: msg.role,
+                            content: msg.content,
+                            timestamp: msg.timestamp || msg.created_at
+                        }))
+                    }, null, 2);
+                    filename = `${sanitizeFilename(title)}_${getTimestamp()}.json`;
+                    mimeType = 'application/json';
+                } else {
+                    throw new Error('不支持的导出格式');
+                }
+                
+                // 下载文件
+                downloadFile(content, filename, mimeType);
+                showToast(`✅ 导出成功: ${filename}`, 'success');
+                
+            } catch (error) {
+                console.error('导出失败:', error);
+                showToast(`❌ 导出失败: ${error.message}`, 'error');
+            }
+        }
+        
+        /**
+         * 生成Markdown格式的会话内容
+         */
+        function generateMarkdown(title, createdAt, messages) {
+            let md = `# ${title}\n\n`;
+            md += `**创建时间**: ${createdAt}\n`;
+            md += `**导出时间**: ${new Date().toLocaleString('zh-CN')}\n`;
+            md += `**消息数量**: ${messages.length}\n\n`;
+            md += `---\n\n`;
+            
+            messages.forEach((msg, index) => {
+                const role = msg.role === 'user' ? '👤 用户' : '🤖 小乐AI';
+                const timestamp = msg.timestamp || msg.created_at || '';
+                
+                md += `## ${role}\n\n`;
+                if (timestamp) {
+                    md += `*${timestamp}*\n\n`;
+                }
+                md += `${msg.content}\n\n`;
+                
+                if (index < messages.length - 1) {
+                    md += `---\n\n`;
+                }
+            });
+            
+            return md;
+        }
+        
+        /**
+         * 清理文件名（移除非法字符）
+         */
+        function sanitizeFilename(name) {
+            return name
+                .replace(/[<>:"/\\|?*]/g, '') // 移除Windows非法字符
+                .replace(/\s+/g, '_')         // 空格替换为下划线
+                .substring(0, 50);            // 限制长度
+        }
+        
+        /**
+         * 获取时间戳字符串（用于文件名）
+         */
+        function getTimestamp() {
+            const now = new Date();
+            return now.toISOString()
+                .replace(/[:.]/g, '-')
+                .replace('T', '_')
+                .substring(0, 19);
+        }
+        
+        /**
+         * 下载文件到本地
+         */
+        function downloadFile(content, filename, mimeType) {
+            const blob = new Blob([content], { type: mimeType });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
         }
 
         // 加载指定会话
