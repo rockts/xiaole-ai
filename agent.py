@@ -4,6 +4,7 @@ from behavior_analytics import BehaviorAnalyzer
 from proactive_qa import ProactiveQA  # v0.3.0 主动问答
 from pattern_learning import PatternLearner  # v0.3.0 模式学习
 from tool_manager import get_tool_registry  # v0.4.0 工具管理
+from enhanced_intent import EnhancedToolSelector, ContextEnhancer  # v0.6.0
 from error_handler import (
     retry_with_backoff, log_execution, handle_api_errors,
     logger
@@ -26,6 +27,10 @@ class XiaoLeAgent:
         self.proactive_qa = ProactiveQA()  # v0.3.0 主动问答分析器
         self.pattern_learner = PatternLearner()  # v0.3.0 模式学习器
         self.tool_registry = get_tool_registry()  # v0.4.0 工具注册中心
+        
+        # v0.6.0 Phase 3: AI能力增强
+        self.enhanced_selector = EnhancedToolSelector(self.tool_registry)
+        self.context_enhancer = ContextEnhancer(self.memory, self.conversation)
 
         # 注册工具
         self._register_tools()
