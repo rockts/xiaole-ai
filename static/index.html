@@ -6,6 +6,78 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>小乐 AI 管家 v0.5.0</title>
     <style>
+        /* CSS 变量 - 亮色主题 */
+        :root {
+            --bg-gradient-start: #667eea;
+            --bg-gradient-end: #764ba2;
+            --container-bg: #ffffff;
+            --text-primary: #333333;
+            --text-secondary: #666666;
+            --text-tertiary: #999999;
+            --border-color: #dddddd;
+            --tab-bg: #f5f5f5;
+            --tab-hover: #e8e8e8;
+            --tab-active-bg: #ffffff;
+            --input-bg: #f8f8f8;
+            --input-border: #ddd;
+            --button-gradient-start: #667eea;
+            --button-gradient-end: #764ba2;
+            --message-user-bg: #667eea;
+            --message-ai-bg: #f0f0f0;
+            --message-ai-text: #333333;
+            --shadow-light: rgba(0, 0, 0, 0.1);
+            --shadow-medium: rgba(0, 0, 0, 0.2);
+            --shadow-heavy: rgba(0, 0, 0, 0.3);
+            --card-bg: #ffffff;
+            --card-border: #e0e0e0;
+            --code-bg: #f5f5f5;
+            --code-text: #d63384;
+            --success-bg: #f0fdf4;
+            --success-border: #10b981;
+            --warning-bg: #fef3c7;
+            --warning-border: #f59e0b;
+            --info-bg: #f8f4ff;
+            --info-border: #764ba2;
+            --danger-bg: #fff5f5;
+            --danger-border: #ff6b6b;
+        }
+
+        /* 暗色主题 */
+        [data-theme="dark"] {
+            --bg-gradient-start: #1a1a2e;
+            --bg-gradient-end: #16213e;
+            --container-bg: #1f1f1f;
+            --text-primary: #e0e0e0;
+            --text-secondary: #b0b0b0;
+            --text-tertiary: #808080;
+            --border-color: #3a3a3a;
+            --tab-bg: #2a2a2a;
+            --tab-hover: #333333;
+            --tab-active-bg: #1f1f1f;
+            --input-bg: #2a2a2a;
+            --input-border: #3a3a3a;
+            --button-gradient-start: #667eea;
+            --button-gradient-end: #764ba2;
+            --message-user-bg: #667eea;
+            --message-ai-bg: #2a2a2a;
+            --message-ai-text: #e0e0e0;
+            --shadow-light: rgba(0, 0, 0, 0.3);
+            --shadow-medium: rgba(0, 0, 0, 0.5);
+            --shadow-heavy: rgba(0, 0, 0, 0.7);
+            --card-bg: #2a2a2a;
+            --card-border: #3a3a3a;
+            --code-bg: #1a1a1a;
+            --code-text: #ff6b9d;
+            --success-bg: #1a2e22;
+            --success-border: #10b981;
+            --warning-bg: #2e2414;
+            --warning-border: #f59e0b;
+            --info-bg: #25213a;
+            --info-border: #764ba2;
+            --danger-bg: #2e1a1a;
+            --danger-border: #ff6b6b;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -14,39 +86,68 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
             height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
             padding: 20px;
+            transition: background 0.3s ease;
         }
 
         .container {
-            background: white;
+            background: var(--container-bg);
             border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 20px 60px var(--shadow-heavy);
             width: 100%;
             max-width: 900px;
             height: 90vh;
             display: flex;
             flex-direction: column;
             overflow: hidden;
+            transition: background 0.3s ease, box-shadow 0.3s ease;
         }
 
         .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, var(--button-gradient-start) 0%, var(--button-gradient-end) 100%);
             color: white;
             padding: 20px;
-            text-align: center;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-title {
             font-size: 24px;
             font-weight: bold;
+            flex: 1;
+            text-align: center;
+        }
+
+        .theme-toggle {
+            cursor: pointer;
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+            font-size: 20px;
+        }
+
+        .theme-toggle:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: rotate(20deg);
         }
 
         .tabs {
             display: flex;
-            background: #f5f5f5;
-            border-bottom: 1px solid #ddd;
+            background: var(--tab-bg);
+            border-bottom: 1px solid var(--border-color);
+            transition: background 0.3s ease, border-color 0.3s ease;
         }
 
         .tab {
@@ -56,16 +157,17 @@
             cursor: pointer;
             transition: all 0.3s;
             border-bottom: 3px solid transparent;
+            color: var(--text-secondary);
         }
 
         .tab:hover {
-            background: #e8e8e8;
+            background: var(--tab-hover);
         }
 
         .tab.active {
-            background: white;
-            border-bottom: 3px solid #667eea;
-            color: #667eea;
+            background: var(--tab-active-bg);
+            border-bottom: 3px solid var(--button-gradient-start);
+            color: var(--button-gradient-start);
             font-weight: bold;
         }
 
@@ -82,10 +184,11 @@
 
         /* 会话信息栏 */
         .session-info {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, var(--button-gradient-start) 0%, var(--button-gradient-end) 100%);
             color: white;
             padding: 12px 20px;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 2px 5px var(--shadow-light);
+            transition: box-shadow 0.3s ease;
         }
 
         .session-title-display {
@@ -99,7 +202,8 @@
             flex: 1;
             overflow-y: auto;
             padding: 20px;
-            background: #fafafa;
+            background: var(--container-bg);
+            transition: background 0.3s ease;
         }
 
         .message {
@@ -129,17 +233,34 @@
             padding: 12px 16px;
             border-radius: 18px;
             word-wrap: break-word;
+            transition: background 0.3s ease, color 0.3s ease;
         }
 
         .message.user .message-content {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: var(--message-user-bg);
             color: white;
         }
 
+        .message.ai .message-content {
+            background: var(--message-ai-bg);
+            color: var(--message-ai-text);
+        }
+
+        .message-content code {
+            background: var(--code-bg);
+            color: var(--code-text);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            transition: background 0.3s ease, color 0.3s ease;
+        }
+
         .message.assistant .message-content {
-            background: white;
-            color: #333;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            background: var(--message-ai-bg);
+            color: var(--message-ai-text);
+            box-shadow: 0 2px 5px var(--shadow-light);
+            transition: background 0.3s ease, color 0.3s ease, box-shadow 0.3s ease;
         }
 
         /* Markdown 样式 */
@@ -148,7 +269,7 @@
         }
 
         .message.assistant .message-content strong {
-            color: #667eea;
+            color: var(--button-gradient-start);
             font-weight: bold;
         }
 
@@ -163,15 +284,16 @@
         }
 
         .message.assistant .message-content code {
-            background: #f5f5f5;
+            background: var(--code-bg);
             padding: 2px 6px;
             border-radius: 4px;
             font-family: 'Monaco', 'Courier New', monospace;
             font-size: 0.9em;
+            color: var(--code-text);
         }
 
         .message.assistant .message-content pre {
-            background: #f5f5f5;
+            background: var(--code-bg);
             padding: 10px;
             border-radius: 8px;
             overflow-x: auto;
@@ -179,44 +301,47 @@
         }
 
         .message.assistant .message-content blockquote {
-            border-left: 3px solid #667eea;
+            border-left: 3px solid var(--button-gradient-start);
             padding-left: 10px;
             margin: 0.5em 0;
-            color: #666;
+            color: var(--text-secondary);
         }
 
         .message.assistant .message-content h1,
         .message.assistant .message-content h2,
         .message.assistant .message-content h3 {
             margin: 0.8em 0 0.4em 0;
-            color: #667eea;
+            color: var(--button-gradient-start);
         }
 
         .input-container {
             padding: 20px;
-            background: white;
-            border-top: 1px solid #ddd;
+            background: var(--container-bg);
+            border-top: 1px solid var(--border-color);
             display: flex;
             gap: 10px;
+            transition: background 0.3s ease, border-color 0.3s ease;
         }
 
         #messageInput {
             flex: 1;
             padding: 12px;
-            border: 2px solid #ddd;
+            border: 2px solid var(--input-border);
             border-radius: 25px;
             font-size: 14px;
             outline: none;
             transition: border-color 0.3s;
+            background: var(--input-bg);
+            color: var(--text-primary);
         }
 
         #messageInput:focus {
-            border-color: #667eea;
+            border-color: var(--button-gradient-start);
         }
 
         #messageInput:empty:before {
             content: attr(data-placeholder);
-            color: #999;
+            color: var(--text-tertiary);
         }
 
         #messageInput:focus:before {
@@ -225,7 +350,7 @@
 
         button {
             padding: 12px 24px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, var(--button-gradient-start) 0%, var(--button-gradient-end) 100%);
             color: white;
             border: none;
             border-radius: 25px;
@@ -253,52 +378,59 @@
             flex: 1;
             overflow-y: auto;
             padding: 20px;
+            background: var(--container-bg);
+            transition: background 0.3s ease;
         }
 
         .session-item {
-            background: white;
+            background: var(--card-bg);
             padding: 15px;
             margin-bottom: 10px;
             border-radius: 10px;
             cursor: pointer;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 2px 5px var(--shadow-light);
             transition: all 0.3s;
+            border: 1px solid var(--card-border);
         }
 
         .session-item:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+            box-shadow: 0 4px 10px var(--shadow-medium);
         }
 
         .session-item.active {
-            border-left: 4px solid #667eea;
-            background: #f0f4ff;
+            border-left: 4px solid var(--button-gradient-start);
+            background: var(--input-bg);
         }
 
         .session-title {
             font-weight: bold;
             margin-bottom: 5px;
-            color: #333;
+            color: var(--text-primary);
         }
 
         .session-time {
             font-size: 12px;
-            color: #999;
+            color: var(--text-tertiary);
         }
 
         /* 记忆查看 */
         .memory-container {
             flex: 1;
             overflow-y: auto;
+            background: var(--container-bg);
+            transition: background 0.3s ease;
             padding: 20px;
         }
 
         .stats-card {
-            background: white;
+            background: var(--card-bg);
             padding: 20px;
             border-radius: 10px;
             margin-bottom: 20px;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 2px 5px var(--shadow-light);
+            border: 1px solid var(--card-border);
+            transition: all 0.3s ease;
         }
 
         .stats-grid {
@@ -311,19 +443,20 @@
         .stat-item {
             text-align: center;
             padding: 15px;
-            background: #f5f5f5;
+            background: var(--input-bg);
             border-radius: 10px;
+            transition: background 0.3s ease;
         }
 
         .stat-number {
             font-size: 28px;
             font-weight: bold;
-            color: #667eea;
+            color: var(--button-gradient-start);
         }
 
         .stat-label {
             font-size: 12px;
-            color: #666;
+            color: var(--text-secondary);
             margin-top: 5px;
         }
 
@@ -334,21 +467,23 @@
         }
 
         .memory-item {
-            background: white;
+            background: var(--card-bg);
             padding: 15px;
             margin-bottom: 10px;
             border-radius: 10px;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 2px 5px var(--shadow-light);
+            border: 1px solid var(--card-border);
+            transition: all 0.3s ease;
         }
 
         .memory-content {
-            color: #333;
+            color: var(--text-primary);
             margin-bottom: 8px;
         }
 
         .memory-meta {
             font-size: 12px;
-            color: #999;
+            color: var(--text-tertiary);
             display: flex;
             gap: 15px;
         }
@@ -356,15 +491,17 @@
         .loading {
             text-align: center;
             padding: 40px;
-            color: #999;
+            color: var(--text-tertiary);
         }
 
         .error {
-            background: #fee;
-            color: #c33;
+            background: var(--message-ai-bg);
+            color: #ff6b6b;
             padding: 15px;
             border-radius: 10px;
             margin: 10px;
+            border: 1px solid #ff6b6b;
+            transition: all 0.3s ease;
         }
 
         /* WebSocket提醒弹窗样式 */
@@ -373,13 +510,14 @@
             top: 80px;
             right: 20px;
             width: 350px;
-            background: white;
+            background: var(--card-bg);
             border-radius: 12px;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 8px 24px var(--shadow-heavy);
             z-index: 10000;
             animation: slideIn 0.3s ease-out;
             opacity: 1;
-            transition: opacity 0.3s;
+            transition: opacity 0.3s, background 0.3s ease, box-shadow 0.3s ease;
+            border: 1px solid var(--card-border);
         }
 
         @keyframes slideIn {
@@ -413,14 +551,14 @@
             flex: 1;
             font-weight: bold;
             font-size: 16px;
-            color: #333;
+            color: var(--text-primary);
         }
 
         .reminder-notification-close {
             background: none;
             border: none;
             font-size: 20px;
-            color: #999;
+            color: var(--text-tertiary);
             cursor: pointer;
             padding: 0;
             width: 24px;
@@ -429,15 +567,16 @@
             align-items: center;
             justify-content: center;
             border-radius: 4px;
+            transition: all 0.3s ease;
         }
 
         .reminder-notification-close:hover {
-            background: #f0f0f0;
-            color: #333;
+            background: var(--input-bg);
+            color: var(--text-primary);
         }
 
         .reminder-notification-body {
-            color: #666;
+            color: var(--text-secondary);
             font-size: 14px;
             line-height: 1.5;
             margin-bottom: 12px;
@@ -454,9 +593,9 @@
         .reminder-notification-actions button {
             padding: 6px 16px;
             border-radius: 6px;
-            border: 1px solid #ddd;
-            background: white;
-            color: #666;
+            border: 1px solid var(--border-color);
+            background: var(--card-bg);
+            color: var(--text-secondary);
             font-size: 13px;
             cursor: pointer;
             transition: all 0.2s;
@@ -530,8 +669,14 @@
 <body>
     <div class="container">
         <div class="header">
-            🤖 小乐 AI 管家
-            <span style="font-size: 12px; opacity: 0.8; margin-left: 10px;">v0.5.0</span>
+            <button class="theme-toggle" onclick="toggleTheme()" title="切换主题">
+                <span id="themeIcon">🌙</span>
+            </button>
+            <div class="header-title">
+                🤖 小乐 AI 管家
+                <span style="font-size: 12px; opacity: 0.8; margin-left: 10px;">v0.5.0</span>
+            </div>
+            <div style="width: 40px;"></div> <!-- 占位保持居中 -->
         </div>
 
         <div class="tabs">
@@ -772,23 +917,28 @@
         transition: opacity 0.3s;
     ">
         <span style="display: flex; align-items: center; gap: 5px;">
-            <kbd style="background: white; padding: 2px 6px; border-radius: 4px; border: 1px solid #ccc; font-family: monospace; font-size: 11px;">Ctrl+Enter</kbd>
+            <kbd
+                style="background: white; padding: 2px 6px; border-radius: 4px; border: 1px solid #ccc; font-family: monospace; font-size: 11px;">Ctrl+Enter</kbd>
             发送
         </span>
         <span style="display: flex; align-items: center; gap: 5px;">
-            <kbd style="background: white; padding: 2px 6px; border-radius: 4px; border: 1px solid #ccc; font-family: monospace; font-size: 11px;">Esc</kbd>
+            <kbd
+                style="background: white; padding: 2px 6px; border-radius: 4px; border: 1px solid #ccc; font-family: monospace; font-size: 11px;">Esc</kbd>
             清空
         </span>
         <span style="display: flex; align-items: center; gap: 5px;">
-            <kbd style="background: white; padding: 2px 6px; border-radius: 4px; border: 1px solid #ccc; font-family: monospace; font-size: 11px;">Ctrl+K</kbd>
+            <kbd
+                style="background: white; padding: 2px 6px; border-radius: 4px; border: 1px solid #ccc; font-family: monospace; font-size: 11px;">Ctrl+K</kbd>
             新对话
         </span>
         <span style="display: flex; align-items: center; gap: 5px;">
-            <kbd style="background: white; padding: 2px 6px; border-radius: 4px; border: 1px solid #ccc; font-family: monospace; font-size: 11px;">Ctrl+/</kbd>
+            <kbd
+                style="background: white; padding: 2px 6px; border-radius: 4px; border: 1px solid #ccc; font-family: monospace; font-size: 11px;">Ctrl+/</kbd>
             聊天
         </span>
         <span style="display: flex; align-items: center; gap: 5px;">
-            <kbd style="background: white; padding: 2px 6px; border-radius: 4px; border: 1px solid #ccc; font-family: monospace; font-size: 11px;">Ctrl+1-6</kbd>
+            <kbd
+                style="background: white; padding: 2px 6px; border-radius: 4px; border: 1px solid #ccc; font-family: monospace; font-size: 11px;">Ctrl+1-6</kbd>
             切换标签
         </span>
     </div>
@@ -799,6 +949,39 @@
     <script>
         let currentSessionId = null;
         const API_BASE = '';
+
+        // 主题切换功能
+        function toggleTheme() {
+            const html = document.documentElement;
+            const currentTheme = html.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            const themeIcon = document.getElementById('themeIcon');
+            
+            html.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            
+            // 更新图标
+            themeIcon.textContent = newTheme === 'dark' ? '☀️' : '🌙';
+        }
+
+        // 初始化主题
+        function initTheme() {
+            const html = document.documentElement;
+            const themeIcon = document.getElementById('themeIcon');
+            
+            // 检查用户偏好
+            const savedTheme = localStorage.getItem('theme');
+            const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            
+            // 确定使用的主题
+            const theme = savedTheme || (systemPrefersDark ? 'dark' : 'light');
+            
+            html.setAttribute('data-theme', theme);
+            themeIcon.textContent = theme === 'dark' ? '☀️' : '🌙';
+        }
+
+        // 页面加载时初始化主题
+        document.addEventListener('DOMContentLoaded', initTheme);
 
         // 切换标签页
         function switchTab(tabName, event) {
