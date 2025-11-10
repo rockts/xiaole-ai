@@ -1,8 +1,8 @@
 # 小乐 AI 管家
 
-> v0.4.0 - Action层开发中 | v0.3.0 - Learning层完成 | v0.2.0 - 语义搜索
+> v0.5.0 - Active Perception层完成 ✅ | v0.4.0 - Action层完成 | v0.3.0 - Learning层完成
 
-个人 AI 助手，支持长期记忆、对话管理、用户行为学习、**工具调用和任务执行**。
+个人 AI 助手，支持长期记忆、对话管理、用户行为学习、工具调用和任务执行、**主动提醒和实时推送**。
 
 ## 功能特性
 
@@ -49,10 +49,48 @@
 - **天气工具**：
   - 实时天气查询
   - 3天/7天天气预报
-  - 和风天气API集成
+  - Open-Meteo API集成（免费）
+- **搜索工具**：
+  - DuckDuckGo网络搜索
+  - 搜索结果解析和展示
+- **文件工具**：
+  - 文件读写操作
+  - 文件列表和搜索
+  - 安全权限控制（路径白名单、类型限制、大小限制）
 - **工具执行历史**：
   - 完整的执行记录和结果追踪
   - 性能指标统计
+
+✅ **Active Perception层 - 主动感知与响应** (v0.5.0) 🆕
+- **主动提醒系统** 🔔：
+  - 4种触发类型（时间、天气、行为、习惯）
+  - 聊天自动创建提醒（ReminderTool）
+  - 智能时间解析（12种格式）
+  - 稍后提醒功能（5分钟延迟）
+  - 提醒优先级系统（1-5级）
+  - 重复提醒支持
+- **WebSocket实时推送** 🌐：
+  - 服务端连接池管理
+  - 自动重连机制（5秒间隔）
+  - 实时弹窗通知
+  - 浏览器原生通知
+  - 提醒声音（双响"叮咚"）
+- **定时任务调度** ⏰：
+  - APScheduler集成
+  - 提醒定时检查（每分钟）
+  - 行为提醒检查
+  - 后台任务管理
+- **主动对话发起** 💬：
+  - 4种触发场景（待追问、长时间未聊天、活跃时间、有趣话题）
+  - 优先级系统（2-5级）
+  - 渐变紫色通知卡片
+  - 滑入/滑出动画
+  - 每小时检查一次
+- **追问提示** 🤔：
+  - 实时追问提示（粉色渐变卡片）
+  - 点击自动发送追问
+  - 800Hz提示音
+  - 8秒后自动消失
 
 ✅ **远程数据存储**
 - 使用 NAS PostgreSQL 存储数据
@@ -120,23 +158,33 @@ xiaole-ai/
 ├── agent.py                # AI 代理核心逻辑
 ├── memory.py               # 记忆管理器
 ├── conversation.py         # 对话管理器
-├── behavior_analytics.py   # 用户行为分析器
-├── conflict_detector.py    # 记忆冲突检测器
-├── proactive_qa.py         # 主动问答分析器
-├── pattern_learning.py     # 模式学习器
+├── behavior_analytics.py   # 用户行为分析器 (v0.3.0)
+├── conflict_detector.py    # 记忆冲突检测器 (v0.3.0)
+├── proactive_qa.py         # 主动问答分析器 (v0.3.0)
+├── pattern_learning.py     # 模式学习器 (v0.3.0)
 ├── tool_manager.py         # 工具调用管理器 (v0.4.0)
+├── reminder_manager.py     # 提醒管理器 (v0.5.0) 🆕
+├── scheduler.py            # 定时任务调度器 (v0.5.0) 🆕
+├── proactive_chat.py       # 主动对话管理器 (v0.5.0) 🆕
 ├── semantic_search.py      # 语义搜索引擎
 ├── error_handler.py        # 错误处理装饰器
 ├── db_setup.py             # 数据库模型定义
 ├── main.py                 # FastAPI 应用入口
 ├── requirements.txt        # Python 依赖
-├── tools/                  # 工具模块 (v0.4.0)
+├── tools/                  # 工具模块 (v0.4.0+)
 │   ├── __init__.py
 │   ├── weather_tool.py     # 天气查询工具
-│   └── system_tool.py      # 系统操作工具
+│   ├── system_tool.py      # 系统操作工具
+│   ├── search_tool.py      # 网络搜索工具 🆕
+│   ├── file_tool.py        # 文件操作工具 🆕
+│   └── reminder_tool.py    # 提醒工具 🆕
 ├── static/                 # 前端静态文件
-│   └── index.html          # Web 界面
+│   └── index.html          # Web 界面（含WebSocket推送）
 ├── docs/                   # 文档
+│   ├── v0.5.0_PLAN.md      # v0.5.0开发计划 🆕
+│   ├── v0.5.0_COMPLETED.md # v0.5.0完成报告 🆕
+│   ├── v0.6.0_PLAN.md      # v0.6.0开发计划 🆕
+│   └── FOLLOWUP_TEST_GUIDE.md  # 追问测试指南 🆕
 ├── tests/                  # 测试文件
 ├── scripts/                # 启动脚本
 └── logs/                   # 日志文件
