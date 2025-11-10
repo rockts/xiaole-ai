@@ -1667,9 +1667,13 @@
             input.style.height = 'auto';
 
             try {
+                // v0.6.0: 获取用户设置的响应风格
+                const settings = getSettings();
+                const responseStyle = settings.responseStyle || 'balanced';
+                
                 const url = currentSessionId
-                    ? `${API_BASE}/chat?prompt=${encodeURIComponent(message)}&session_id=${currentSessionId}`
-                    : `${API_BASE}/chat?prompt=${encodeURIComponent(message)}`;
+                    ? `${API_BASE}/chat?prompt=${encodeURIComponent(message)}&session_id=${currentSessionId}&response_style=${responseStyle}`
+                    : `${API_BASE}/chat?prompt=${encodeURIComponent(message)}&response_style=${responseStyle}`;
 
                 // 设置60秒超时以处理复杂问题
                 const controller = new AbortController();

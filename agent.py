@@ -314,10 +314,16 @@ class XiaoLeAgent:
 
         return thought
 
-    def chat(self, prompt, session_id=None, user_id="default_user"):
+    def chat(self, prompt, session_id=None, user_id="default_user",
+             response_style="balanced"):
         """
-        支持上下文的对话方法
-        session_id: 会话ID（None则创建新会话）
+        v0.6.0: 支持上下文的对话方法（支持响应风格）
+
+        Args:
+            prompt: 用户消息
+            session_id: 会话ID（None则创建新会话）
+            user_id: 用户ID
+            response_style: 响应风格 (concise/balanced/detailed/professional)
         """
         # 如果没有session_id，创建新会话
         if not session_id:
@@ -347,8 +353,10 @@ class XiaoLeAgent:
         except Exception as e:
             logger.warning(f"工具调用失败: {e}")
 
-        # 调用 AI 生成回复（带上下文和工具结果）
-        reply = self._think_with_context(prompt, history, tool_result)
+        # v0.6.0: 调用 AI 生成回复（带上下文、工具结果和响应风格）
+        reply = self._think_with_context(
+            prompt, history, tool_result, response_style
+        )
 
         # v0.5.0: 如果有未读提醒，在回复前插入提醒
         if pending_reminders:
@@ -439,6 +447,140 @@ class XiaoLeAgent:
 
         return result
 
+    def _quick_intent_match(self, prompt):
+        """
+        v0.6.0: 快速意图匹配 - 无需AI调用的常见模式识别
+        
+        返回: None 或 {"needs_tool": bool, "tool_name": str, "parameters": dict}
+        """
+        prompt_lower = prompt.lower().strip()
+        
+        # 1. 时间查询 - 直接模式
+        time_patterns = ['现在几点', '几点了', '当前时间', '现在时间', '今天日期', '今天几号']
+        if any(p in prompt_lower for p in time_patterns):
+            return {
+                "needs_tool": True,
+                "tool_name": "time",
+                "parameters": {"format": "full"}
+            }
+        
+        # 2. 系统信息 - 直接模式
+        if any(word in prompt_lower for word in ['cpu', '内存', '磁盘', '系统信息']):
+            info_type = "all"
+            if 'cpu' in prompt_lower:
+                info_type = "cpu"
+            elif '内存' in prompt_lower:
+                info_type = "memory"
+            elif '磁盘' in prompt_lower:
+                info_type = "disk"
+            
+            return {
+                "needs_tool": True,
+                "tool_name": "system_info",
+                "parameters": {"info_type": info_type}
+            }
+        
+        # 3. 计算器 - 简单数学表达式检测
+        import re
+        # 检测数学表达式 (数字 + 运算符)
+        math_pattern = r'[\d\+\-\*/\(\)\s]+'
+        if re.match(r'^\s*' + math_pattern + r'\s*[=?]?\s*$', prompt) and \
+           any(op in prompt for op in ['+', '-', '*', '/', '×', '÷']):
+            # 清理表达式
+            expression = prompt.replace('=', '').replace('?', '').strip()
+            expression = expression.replace('×', '*').replace('÷', '/')
+            return {
+                "needs_tool": True,
+                "tool_name": "calculator",
+                "parameters": {"expression": expression}
+            }
+        
+        # 4. 搜索 - 明显的搜索意图
+        search_keywords = ['搜索', '查询', '查一下', '搜一下', '找一下', '百度', '谷歌']
+        if any(kw in prompt_lower for kw in search_keywords):
+            # 提取搜索关键词（去除触发词）
+            query = prompt
+            for kw in search_keywords:
+                query = query.replace(kw, '')
+            query = query.strip()
+            
+            if query:  # 有实际搜索内容
+                return {
+                    "needs_tool": True,
+                    "tool_name": "search",
+                    "parameters": {"query": query, "max_results": 5}
+                }
+        
+        # 5. 提醒 - 明确的提醒请求
+        reminder_keywords = ['提醒我', '记得', '别忘了', '设置提醒', '定时提醒']
+        if any(kw in prompt_lower for kw in reminder_keywords):
+            # 需要AI解析时间和内容，返回None让AI处理
+            return None
+        
+        # 6. 天气 - 需要提取城市，让AI处理
+        if '天气' in prompt_lower:
+            return None
+        
+        # 7. 文件操作 - 需要AI精确解析
+        file_keywords = ['读取文件', '写入文件', '文件列表', '搜索文件']
+        if any(kw in prompt_lower for kw in file_keywords):
+            return None
+        
+        # 无匹配 - 可能是普通对话或需要AI分析
+        return None
+
+    def _get_style_instruction(self, style):
+        """
+        v0.6.0: 获取响应风格的指令
+        
+        Args:
+            style: 响应风格 (concise/balanced/detailed/professional)
+            
+        Returns:
+            str: 风格指令
+        """
+        styles = {
+            'concise': '7. 响应风格：简洁模式 - 使用1-2句话简短回答，直接切中要点',
+            'balanced': '7. 响应风格：均衡模式 - 提供适中长度的回答，既清晰又完整',
+            'detailed': '7. 响应风格：详细模式 - 提供详细全面的解答，包含背景信息和例子',
+            'professional': '7. 响应风格：专业模式 - 使用正式专业的语气，结构化表达'
+        }
+        return styles.get(style, styles['balanced'])
+
+    def _get_llm_parameters(self, style):
+        """
+        v0.6.0: 根据响应风格获取LLM调用参数
+        
+        Args:
+            style: 响应风格
+            
+        Returns:
+            dict: {temperature, max_tokens, top_p}
+        """
+        params = {
+            'concise': {
+                'temperature': 0.3,  # 更确定性
+                'max_tokens': 256,   # 更短
+                'top_p': 0.8
+            },
+            'balanced': {
+                'temperature': 0.5,  # 适中
+                'max_tokens': 512,   # 适中
+                'top_p': 0.9
+            },
+            'detailed': {
+                'temperature': 0.7,  # 更创造性
+                'max_tokens': 1024,  # 更长
+                'top_p': 0.95
+            },
+            'professional': {
+                'temperature': 0.4,  # 较确定性
+                'max_tokens': 768,   # 较长
+                'top_p': 0.85
+            }
+        }
+        return params.get(style, params['balanced'])
+
     def _auto_call_tool(self, prompt, user_id, session_id):
         """
         v0.4.0: 智能工具调用
@@ -475,9 +617,23 @@ class XiaoLeAgent:
 
     def _analyze_intent(self, prompt):
         """
+        v0.6.0: 优化的意图识别算法
         使用AI分析用户消息，判断是否需要调用工具及具体参数
+
+        改进点：
+        1. 更清晰的工具分类和优先级
+        2. 精简prompt减少token消耗
+        3. 添加快速规则匹配（减少AI调用）
+        4. 改进参数提取逻辑
+
         返回: {"needs_tool": bool, "tool_name": str, "parameters": dict}
         """
+        # v0.6.0: 快速规则匹配 - 常见模式直接识别，无需AI
+        quick_match = self._quick_intent_match(prompt)
+        if quick_match:
+            logger.info(f"✅ 快速规则匹配: {quick_match['tool_name']}")
+            return quick_match
+
         # 获取可用工具列表
         tools_info = []
         for tool_name in self.tool_registry.get_tool_names():
@@ -508,66 +664,35 @@ class XiaoLeAgent:
         except Exception as e:
             logger.warning(f"获取用户位置信息失败: {e}")
 
-        analysis_prompt = f"""分析用户消息，判断是否需要调用工具。
+        # v0.6.0: 精简的意图分析 prompt（减少50% token消耗）
+        analysis_prompt = f"""用户: "{prompt}"{user_context}
 
-用户消息："{prompt}"{user_context}
+工具: {chr(10).join(tools_info)}
 
-可用工具：
-{chr(10).join(tools_info)}
+规则:
+1. weather工具 - 需要城市名: city(城市名), query_type(now/3d/7d)
+2. system_info - info_type(cpu/memory/disk/all)
+3. time - format(full/date/time)
+4. calculator - expression(数学表达式)
+5. reminder - content(内容), time_desc(时间), title(可选)
+6. search - query(关键词), max_results(可选)
+7. file - operation(read/write/list/search), path(路径),
+   content(写入内容), pattern(搜索模式), recursive(可选)
+8. 普通对话 -> needs_tool=false
 
-请分析用户意图：
-1. 如果用户请求天气查询 -> 使用 weather 工具
-2. 如果用户请求系统信息/CPU/内存/磁盘 -> 使用 system_info 工具
-3. 如果用户询问时间/日期 -> 使用 time 工具
-4. 如果用户请求数学计算 -> 使用 calculator 工具
-5. 如果用户请求创建提醒/定时提醒 -> 使用 reminder 工具
-6. 如果用户请求搜索信息/查询资料/百科知识 -> 使用 search 工具
-7. 如果用户请求文件操作（读取/写入/列表/搜索文件） -> 使用 file 工具
-8. 如果只是普通对话 -> 不需要工具
+天气规则:
+- 用户指定城市 -> 使用该城市
+- 从位置信息提取城市名（只提取城市名如"深圳"）
+- 无城市信息 -> needs_tool=false
+- query_type: "明天"/"后天"=3d, "未来几天"/"本周"=7d, 其他=now
 
-**重要规则：**
-- 天气查询需要城市名称：
-  - 如果用户在消息中指定了城市（如"北京天气"） -> 使用该城市
-  - 如果用户位置信息中包含城市 -> 从中提取城市名（只提取城市名，如"深圳"、"上海"）
-  - 如果两者都没有 -> 返回needs_tool=false
-- 参数值必须是具体的城市名（如"深圳"、"北京"），不能是完整句子
-- 对于预报查询，根据上下文判断query_type：
-  - 问"明天"/"后天" -> 使用3d
-  - 问"未来几天"/"本周" -> 使用7d
-  - 其他情况 -> 使用now
-- 提醒识别规则：
-  - 如果用户说"提醒我..."、"记得..."、"别忘了..."等 -> 使用 reminder 工具
-  - 提取时间描述（如：明天下午3点、2小时后）和提醒内容
-  - 可选：提取标题
-- 搜索识别规则：
-  - 如果用户询问实时信息、新闻、百科知识 -> 使用 search 工具
-  - 如果用户说"搜索..."、"查一下..."、"帮我找..." -> 使用 search 工具
-  - 提取搜索关键词
-- 文件操作识别规则：
-  - 如果用户说"读取文件"、"写入文件"、"列出文件"、"搜索文件" -> 使用 file 工具
-  - operation: read(读取)/write(写入)/list(列表)/search(搜索文件)
-  - path: 文件或目录路径（相对于项目files目录，会自动保存到项目下）
-  - content: 写入内容（仅write操作需要）
-  - pattern: 搜索模式（仅search操作需要，如*.txt）
-  - recursive: 是否递归（可选，默认false）
-
-请以JSON格式返回（不要markdown代码块）：
+返回JSON（无markdown）:
 {{
-  "needs_tool": true/false,
-  "tool_name": "工具名称或null",
-  "parameters": {{"参数名": "参数值"}},
-  "reason": "判断理由"
-}}
-
-注意：
-- weather工具参数: city(城市名，只要城市名，如"深圳"), query_type(now/3d/7d)
-- system_info工具参数: info_type(cpu/memory/disk/all)
-- time工具参数: format(full/date/time/timestamp)
-- calculator工具参数: expression(数学表达式)
-- reminder工具参数: content(提醒内容), time_desc(时间描述，如"明天下午3点"、"2小时后"), title(可选，提醒标题)
-- search工具参数: query(搜索关键词), max_results(可选，默认5)
-- file工具参数: operation(read/write/list/search), path(文件路径),
-  content(仅write需要), pattern(仅search需要), recursive(可选)"""
+  "needs_tool": bool,
+  "tool_name": "工具名或null",
+  "parameters": {{"参数": "值"}},
+  "reason": "简短理由"
+}}"""
 
         try:
             if self.api_type == "deepseek":
@@ -599,23 +724,32 @@ class XiaoLeAgent:
             logger.warning(f"意图分析失败: {e}")
             return {"needs_tool": False}
 
-    def _think_with_context(self, prompt, history, tool_result=None):
-        """带上下文的思考方法（同时使用会话历史、长期记忆和工具结果）"""
+    def _think_with_context(self, prompt, history, tool_result=None,
+                            response_style="balanced"):
+        """
+        v0.6.0: 带上下文的思考方法（支持响应风格）
+
+        同时使用会话历史、长期记忆、工具结果和响应风格配置
+        """
         if not self.client:
             return f"（占位模式）你说的是：{prompt}"
 
         try:
             current_datetime = datetime.now().strftime("%Y年%m月%d日 %H:%M")
 
+            # v0.6.0: 根据响应风格调整系统提示词
+            style_instructions = self._get_style_instruction(response_style)
+
             system_prompt = (
-                "你是小乐AI管家，一个诚实、友好的个人助手。\n\n"
-                "核心原则：\n"
-                "1. 你是对话助手，没有连接智能设备（无手环/摄像头/传感器）\n"
-                "2. 优先使用对话历史中的上下文信息\n"
-                "3. 同时参考下方记忆库中的长期信息（用户的基本资料、喜好等）\n"
-                "4. 记忆库按时间倒序排列，最新信息在前，优先使用最新信息\n"
-                "5. 如果记忆库和对话历史都没有相关信息，诚实说'您还没告诉我'\n"
-                "6. 绝不编造数据、假装有设备、或推测未知信息\n"
+                f"你是小乐AI管家，一个诚实、友好的个人助手。\n\n"
+                f"核心原则：\n"
+                f"1. 你是对话助手，没有连接智能设备（无手环/摄像头/传感器）\n"
+                f"2. 优先使用对话历史中的上下文信息\n"
+                f"3. 同时参考下方记忆库中的长期信息（用户的基本资料、喜好等）\n"
+                f"4. 记忆库按时间倒序排列，最新信息在前，优先使用最新信息\n"
+                f"5. 如果记忆库和对话历史都没有相关信息，诚实说'您还没告诉我'\n"
+                f"6. 绝不编造数据、假装有设备、或推测未知信息\n"
+                f"{style_instructions}\n"
                 f"当前时间：{current_datetime}\n"
             )
 
@@ -699,14 +833,14 @@ class XiaoLeAgent:
                 })
             messages.append({"role": "user", "content": prompt})
 
-            # 根据API类型调用
+            # v0.6.0: 根据API类型调用（传递响应风格）
             if self.api_type == "deepseek":
                 return self._call_deepseek_with_history(
-                    system_prompt, messages
+                    system_prompt, messages, response_style
                 )
             elif self.api_type == "claude":
                 return self._call_claude_with_history(
-                    system_prompt, messages
+                    system_prompt, messages, response_style
                 )
 
         except Exception as e:
@@ -719,9 +853,16 @@ class XiaoLeAgent:
     )
     @handle_api_errors
     @log_execution
-    def _call_deepseek_with_history(self, system_prompt, messages):
-        """DeepSeek API 多轮对话"""
+    def _call_deepseek_with_history(
+        self, system_prompt, messages, response_style="balanced"
+    ):
+        """
+        v0.6.0: DeepSeek API 多轮对话（支持响应风格）
+        """
         logger.info(f"调用 DeepSeek 多轮对话 - 消息数: {len(messages)}")
+
+        # v0.6.0: 获取风格参数
+        llm_params = self._get_llm_parameters(response_style)
 
         headers = {
             "Authorization": f"Bearer {self.deepseek_key}",
@@ -733,21 +874,25 @@ class XiaoLeAgent:
             "messages": [
                 {"role": "system", "content": system_prompt}
             ] + messages,
-            "temperature": 0.5,
-            "max_tokens": 512
+            "temperature": llm_params['temperature'],
+            "max_tokens": llm_params['max_tokens'],
+            "top_p": llm_params.get('top_p', 0.9)
         }
 
         response = requests.post(
             self.deepseek_url,
             headers=headers,
             json=data,
-            timeout=60  # 增加超时时间以处理复杂问题
+            timeout=60
         )
 
         response.raise_for_status()
         result = response.json()
         reply = result["choices"][0]["message"]["content"]
-        logger.info(f"DeepSeek 多轮对话响应成功 - 回复长度: {len(reply)}")
+        logger.info(
+            f"DeepSeek 多轮对话响应成功 - 回复长度: {len(reply)}, "
+            f"风格: {response_style}"
+        )
         return reply
 
     def _format_reminders(self, reminders: list) -> str:
@@ -792,16 +937,35 @@ class XiaoLeAgent:
     )
     @handle_api_errors
     @log_execution
-    def _call_claude_with_history(self, system_prompt, messages):
-        """Claude API 多轮对话"""
+    @retry_with_backoff(
+        max_retries=3,
+        initial_delay=1.0,
+        exceptions=(Exception,)
+    )
+    @handle_api_errors
+    @log_execution
+    def _call_claude_with_history(
+        self, system_prompt, messages, response_style="balanced"
+    ):
+        """
+        v0.6.0: Claude API 多轮对话（支持响应风格）
+        """
         logger.info(f"调用 Claude 多轮对话 - 消息数: {len(messages)}")
+
+        # v0.6.0: 获取风格参数
+        llm_params = self._get_llm_parameters(response_style)
 
         response = self.client.messages.create(
             model=self.model,
-            max_tokens=1024,
+            max_tokens=llm_params['max_tokens'],
+            temperature=llm_params['temperature'],
+            top_p=llm_params.get('top_p', 0.9),
             system=system_prompt,
             messages=messages
         )
         reply = response.content[0].text
-        logger.info(f"Claude 多轮对话响应成功 - 回复长度: {len(reply)}")
+        logger.info(
+            f"Claude 多轮对话响应成功 - 回复长度: {len(reply)}, "
+            f"风格: {response_style}"
+        )
         return reply

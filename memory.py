@@ -43,10 +43,23 @@ class MemoryManager:
         else:
             self.semantic_search = None
 
-    def remember(self, content, tag="general"):
-        mem = Memory(content=content, tag=tag)
+    def remember(self, content, tag="general", initial_importance=0.5):
+        """
+        存储记忆（v0.6.0: 支持初始重要性分数）
+
+        Args:
+            content: 记忆内容
+            tag: 标签
+            initial_importance: 初始重要性分数 (0-1)
+        """
+        mem = Memory(
+            content=content,
+            tag=tag,
+            importance_score=initial_importance
+        )
         self.session.add(mem)
         self.session.commit()
+        return mem.id
 
     def recall(self, tag="general", keyword=None, limit=None):
         """
@@ -190,6 +203,10 @@ class MemoryManager:
                 Memory.id.in_(result_ids)
             ).all()
 
+            # v0.6.0: 更新访问记录
+            for mem in matched_memories:
+                self._update_access(mem.id)
+
             # 按相似度排序并返回
             memories_with_scores = [
                 {
@@ -210,3 +227,215 @@ class MemoryManager:
             print(f"⚠️ 语义搜索失败: {e}，降级到关键词搜索")
             keywords = query.split()
             return self.recall_by_keywords(keywords, tag=tag, limit=limit)
+
+    def _update_access(self, memory_id):
+        """
+        v0.6.0: 更新记忆访问记录
+
+        Args:
+            memory_id: 记忆ID
+        """
+        mem = self.session.query(Memory).filter(
+            Memory.id == memory_id
+        ).first()
+
+        if mem:
+            mem.access_count = (mem.access_count or 0) + 1
+            mem.last_accessed_at = datetime.now()
+            self.session.commit()
+
+    def calculate_importance(self, memory_id):
+        """
+        v0.6.0: 计算记忆的重要性分数
+
+        考虑因素:
+        1. 访问频率 (40%)
+        2. 时间衰减 (30%)
+        3. 标签类型 (30%)
+
+        Returns:
+            float: 重要性分数 (0-1)
+        """
+        mem = self.session.query(Memory).filter(
+            Memory.id == memory_id
+        ).first()
+
+        if not mem:
+            return 0.0
+
+        # 1. 访问频率分数 (0-1)
+        # 访问次数越多越重要，使用对数函数避免线性增长
+        import math
+        access_score = min(
+            math.log(mem.access_count + 1) / math.log(100),
+            1.0
+        )
+
+        # 2. 时间衰减分数 (0-1)
+        # 最近的记忆更重要，使用指数衰减
+        days_ago = (datetime.now() - mem.created_at).days
+        time_score = math.exp(-days_ago / 30.0)  # 30天半衰期
+
+        # 3. 标签权重 (0-1)
+        tag_weights = {
+            'facts': 1.0,      # 用户明确告知的事实最重要
+            'task': 0.8,       # 任务记录次重要
+            'general': 0.5,    # 普通对话中等重要
+            'system': 0.3      # 系统日志较不重要
+        }
+        tag_score = tag_weights.get(mem.tag, 0.5)
+
+        # 综合计算（加权平均）
+        importance = (
+            access_score * 0.4 +
+            time_score * 0.3 +
+            tag_score * 0.3
+        )
+
+        # 更新数据库
+        mem.importance_score = importance
+        self.session.commit()
+
+        return importance
+
+    def update_all_importance_scores(self):
+        """
+        v0.6.0: 批量更新所有记忆的重要性分数
+
+        Returns:
+            int: 更新的记忆数量
+        """
+        all_memories = self.session.query(Memory).filter(
+            Memory.is_archived == False  # noqa: E712
+        ).all()
+
+        updated_count = 0
+        for mem in all_memories:
+            self.calculate_importance(mem.id)
+            updated_count += 1
+
+        print(f"✅ 已更新 {updated_count} 条记忆的重要性分数")
+        return updated_count
+
+    def get_top_memories(self, limit=20, tag=None):
+        """
+        v0.6.0: 获取最重要的记忆
+
+        Args:
+            limit: 返回数量
+            tag: 可选标签过滤
+
+        Returns:
+            [{content, tag, importance_score, access_count}]
+        """
+        query = self.session.query(Memory).filter(
+            Memory.is_archived == False  # noqa: E712
+        )
+
+        if tag:
+            query = query.filter(Memory.tag == tag)
+
+        query = query.order_by(
+            Memory.importance_score.desc()
+        ).limit(limit)
+
+        memories = query.all()
+
+        return [{
+            'content': m.content,
+            'tag': m.tag,
+            'importance_score': m.importance_score,
+            'access_count': m.access_count,
+            'created_at': m.created_at.strftime('%Y-%m-%d %H:%M:%S')
+        } for m in memories]
+
+    def auto_archive_low_importance(self, threshold=0.1, min_age_days=30):
+        """
+        v0.6.0: 自动归档低重要性记忆
+
+        归档策略:
+        - 重要性分数 < threshold
+        - 创建时间 > min_age_days 天
+        - 访问次数 <= 1
+
+        Args:
+            threshold: 重要性阈值 (0-1)
+            min_age_days: 最小年龄（天）
+
+        Returns:
+            int: 归档数量
+        """
+        from datetime import timedelta
+
+        cutoff_date = datetime.now() - timedelta(days=min_age_days)
+
+        # 查找需要归档的记忆
+        low_importance_memories = self.session.query(Memory).filter(
+            Memory.is_archived == False,  # noqa: E712
+            Memory.importance_score < threshold,
+            Memory.created_at < cutoff_date,
+            Memory.access_count <= 1
+        ).all()
+
+        archived_count = 0
+        for mem in low_importance_memories:
+            mem.is_archived = True
+            archived_count += 1
+
+        self.session.commit()
+
+        if archived_count > 0:
+            print(f"✅ 已归档 {archived_count} 条低重要性记忆")
+
+        return archived_count
+
+    def get_memory_stats(self):
+        """
+        v0.6.0: 获取记忆统计信息（包含重要性分析）
+
+        Returns:
+            dict: 统计信息
+        """
+        # 基础统计
+        total = self.session.query(func.count(Memory.id)).scalar()
+        archived = self.session.query(func.count(Memory.id)).filter(
+            Memory.is_archived == True  # noqa: E712
+        ).scalar()
+        active = total - archived
+
+        # 按标签统计
+        tag_stats = self.session.query(
+            Memory.tag,
+            func.count(Memory.id)
+        ).filter(
+            Memory.is_archived == False  # noqa: E712
+        ).group_by(Memory.tag).all()
+
+        # 重要性分布
+        high_importance = self.session.query(func.count(Memory.id)).filter(
+            Memory.is_archived == False,  # noqa: E712
+            Memory.importance_score >= 0.7
+        ).scalar()
+
+        medium_importance = self.session.query(func.count(Memory.id)).filter(
+            Memory.is_archived == False,  # noqa: E712
+            Memory.importance_score >= 0.3,
+            Memory.importance_score < 0.7
+        ).scalar()
+
+        low_importance = self.session.query(func.count(Memory.id)).filter(
+            Memory.is_archived == False,  # noqa: E712
+            Memory.importance_score < 0.3
+        ).scalar()
+
+        return {
+            "total": total,
+            "active": active,
+            "archived": archived,
+            "by_tag": {tag: count for tag, count in tag_stats},
+            "importance_distribution": {
+                "high (≥0.7)": high_importance,
+                "medium (0.3-0.7)": medium_importance,
+                "low (<0.3)": low_importance
+            }
+        }

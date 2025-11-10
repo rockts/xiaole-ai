@@ -173,9 +173,22 @@ def memory_stats():
 
 # 对话会话管理 API
 @app.post("/chat")
-def chat(prompt: str, session_id: str = None, user_id: str = "default_user"):
-    """支持上下文的对话接口"""
-    return xiaole.chat(prompt, session_id, user_id)
+def chat(
+    prompt: str,
+    session_id: str = None,
+    user_id: str = "default_user",
+    response_style: str = "balanced"  # v0.6.0: 响应风格
+):
+    """
+    支持上下文的对话接口
+
+    Args:
+        prompt: 用户消息
+        session_id: 会话ID (None则创建新会话)
+        user_id: 用户ID
+        response_style: 响应风格 (concise/balanced/detailed/professional)
+    """
+    return xiaole.chat(prompt, session_id, user_id, response_style)
 
 
 @app.get("/sessions")
