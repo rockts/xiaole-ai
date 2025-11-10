@@ -2,11 +2,11 @@
 """
 检查最近的对话是否触发追问分析
 """
+import psycopg2
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import psycopg2
 
 # 使用与db_setup.py相同的连接参数
 conn = psycopg2.connect(
@@ -37,7 +37,7 @@ for session_id, user_id, created_at in sessions:
     print(f"📝 Session: {session_id}")
     print(f"   用户: {user_id}")
     print(f"   时间: {created_at}")
-    
+
     # 查询消息
     cursor.execute("""
         SELECT role, content
@@ -46,13 +46,13 @@ for session_id, user_id, created_at in sessions:
         ORDER BY timestamp DESC
         LIMIT 3
     """, (session_id,))
-    
+
     messages = cursor.fetchall()
     print(f"   消息数: {len(messages)}")
     for role, content in messages[:2]:
         preview = content[:50].replace('\n', ' ')
         print(f"   [{role}] {preview}...")
-    
+
     # 查询是否有追问记录
     cursor.execute("""
         SELECT id, followup_question, confidence, followup_asked
@@ -61,7 +61,7 @@ for session_id, user_id, created_at in sessions:
         ORDER BY created_at DESC
         LIMIT 1
     """, (session_id,))
-    
+
     followup = cursor.fetchone()
     if followup:
         fid, fq, conf, asked = followup
@@ -69,7 +69,7 @@ for session_id, user_id, created_at in sessions:
         print(f"      {fq[:60]}...")
     else:
         print(f"   ⚠️  无追问记录")
-    
+
     print()
 
 conn.close()

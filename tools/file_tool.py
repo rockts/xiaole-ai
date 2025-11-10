@@ -15,9 +15,12 @@ class FileTool(Tool):
     """文件操作工具"""
 
     # 安全配置
+    # 获取项目根目录
+    PROJECT_ROOT = Path(__file__).parent.parent
+
     ALLOWED_DIRS = [
-        "/tmp/xiaole_files",  # 默认工作目录
-        # 可以通过配置添加更多允许的目录
+        str(PROJECT_ROOT / "files"),  # 项目下的files目录
+        "/tmp/xiaole_files",  # 备用临时目录
     ]
 
     ALLOWED_EXTENSIONS = [

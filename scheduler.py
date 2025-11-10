@@ -182,13 +182,13 @@ class ReminderScheduler:
 
             for user_id in users:
                 result = self.proactive_chat.should_initiate_chat(user_id)
-                
+
                 if result["should_chat"]:
                     logger.info(
                         f"Proactive chat triggered for {user_id}: "
                         f"{result['reason']} (priority: {result['priority']})"
                     )
-                    
+
                     # 通过WebSocket推送主动对话
                     if self.reminder_manager.websocket_callback:
                         await self.reminder_manager.websocket_callback({
@@ -199,14 +199,14 @@ class ReminderScheduler:
                             "priority": result["priority"],
                             "metadata": result.get("metadata", {})
                         })
-                        
+
                         # 标记已发起
                         self.proactive_chat.mark_chat_initiated(
                             user_id,
                             result["reason"],
                             result["message"]
                         )
-                        
+
                         logger.info(f"Proactive chat sent to {user_id}")
 
         except Exception as e:

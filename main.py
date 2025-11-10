@@ -11,8 +11,8 @@ from scheduler import get_scheduler  # v0.5.0 定时调度
 
 app = FastAPI(
     title="小乐AI管家",
-    version="0.5.0-dev",
-    description="支持主动提醒的AI助手 - Active Perception层开发中"
+    version="0.5.0",
+    description="支持主动提醒的AI助手 - Active Perception层已完成"
 )
 
 # 配置CORS，允许网页访问API

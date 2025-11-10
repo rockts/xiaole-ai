@@ -36,7 +36,7 @@ class ProactiveQA:
 
     # 问题关键词模式
     QUESTION_PATTERNS = [
-        r'(什么|啥|哪|谁|多少|怎么|为什么|如何)',  # 疑问词
+        r'(什么|啥|什么时候|哪里|哪个|哪种|哪|谁|多少|几个|怎么|为什么|如何|怎样)',  # 疑问词
         r'(吗|呢|啊)\s*\??$',  # 句尾语气词
         r'\?',  # 问号
     ]
@@ -300,12 +300,34 @@ class ProactiveQA:
     def get_pending_followups(
         self, session_id: str, limit: int = 5
     ) -> list:
-        """获取待追问的问题列表"""
+        """获取待追问的问题列表（按user_id去重，避免跨会话重复）"""
         session = SessionLocal()
         try:
+            # 先获取该会话的user_id
+            from db_setup import Message
+            msg = session.query(Message).filter_by(
+                session_id=session_id).first()
+            user_id = msg.user_id if msg else "default_user"
+
+            # 查询该用户的待追问问题（不限定session_id，避免跨会话重复显示）
+            # 使用子查询去重：每个original_question只保留最新的一条
+            from sqlalchemy import func
+            subquery = (
+                session.query(
+                    ProactiveQuestion.original_question,
+                    func.max(ProactiveQuestion.id).label('max_id')
+                )
+                .filter_by(user_id=user_id, followup_asked=False)
+                .group_by(ProactiveQuestion.original_question)
+                .subquery()
+            )
+
             records = (
                 session.query(ProactiveQuestion)
-                .filter_by(session_id=session_id, followup_asked=False)
+                .join(
+                    subquery,
+                    ProactiveQuestion.id == subquery.c.max_id
+                )
                 .order_by(ProactiveQuestion.confidence_score.desc())
                 .limit(limit)
                 .all()
@@ -339,21 +361,52 @@ class ProactiveQA:
     def get_followup_history(
         self, session_id: str = None, user_id: str = None, limit: int = 20
     ) -> list:
-        """获取追问历史记录"""
+        """获取追问历史记录（去重显示，每个问题只显示最新一条）"""
         session = SessionLocal()
         try:
-            query = session.query(ProactiveQuestion)
+            # 如果没有指定user_id，尝试从session_id获取
+            if not user_id and session_id:
+                from db_setup import Message
+                msg = session.query(Message).filter_by(
+                    session_id=session_id
+                ).first()
+                if msg:
+                    user_id = msg.user_id
 
-            if session_id:
-                query = query.filter_by(session_id=session_id)
+            # 使用user_id查询，避免session_id限制导致的重复
             if user_id:
-                query = query.filter_by(user_id=user_id)
+                # 子查询：每个问题保留最新的一条记录
+                from sqlalchemy import func
+                subquery = (
+                    session.query(
+                        ProactiveQuestion.original_question,
+                        func.max(ProactiveQuestion.id).label('max_id')
+                    )
+                    .filter_by(user_id=user_id)
+                    .group_by(ProactiveQuestion.original_question)
+                    .subquery()
+                )
 
-            records = (
-                query.order_by(ProactiveQuestion.created_at.desc())
-                .limit(limit)
-                .all()
-            )
+                records = (
+                    session.query(ProactiveQuestion)
+                    .join(
+                        subquery,
+                        ProactiveQuestion.id == subquery.c.max_id
+                    )
+                    .order_by(ProactiveQuestion.created_at.desc())
+                    .limit(limit)
+                    .all()
+                )
+            else:
+                # 没有user_id，使用原逻辑（不去重）
+                query = session.query(ProactiveQuestion)
+                if session_id:
+                    query = query.filter_by(session_id=session_id)
+                records = (
+                    query.order_by(ProactiveQuestion.created_at.desc())
+                    .limit(limit)
+                    .all()
+                )
 
             result = []
             for record in records:

@@ -479,6 +479,7 @@
                 transform: translateX(100%);
                 opacity: 0;
             }
+
             to {
                 transform: translateX(0);
                 opacity: 1;
@@ -490,6 +491,7 @@
                 transform: translateX(0);
                 opacity: 1;
             }
+
             to {
                 transform: translateX(100%);
                 opacity: 0;
@@ -502,6 +504,7 @@
                 transform: translate(-50%, 20px);
                 opacity: 0;
             }
+
             to {
                 transform: translate(-50%, 0);
                 opacity: 1;
@@ -513,6 +516,7 @@
                 transform: translate(-50%, 0);
                 opacity: 1;
             }
+
             to {
                 transform: translate(-50%, 20px);
                 opacity: 0;
@@ -778,6 +782,9 @@
             if (tabName === 'analytics') {
                 // 自动加载行为分析数据
                 loadBehaviorAnalytics();
+                // 自动加载主动问答历史
+                const userId = 'default_user';
+                loadProactiveQA(userId);
             }
             if (tabName === 'reminders') {
                 // 自动加载提醒列表
@@ -825,7 +832,7 @@
                 if (response.ok) {
                     currentSessionId = data.session_id;
                     addMessage('assistant', data.reply);
-                    
+
                     // 检查是否有主动追问建议
                     if (data.followup) {
                         showFollowupSuggestion(data.followup);
@@ -1424,6 +1431,14 @@
                             ? '<span style="background: #51cf66; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px;">已追问</span>'
                             : '<span style="background: #999; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px;">待追问</span>';
 
+                        // 待追问的记录显示发送按钮
+                        const actionButton = !item.followup_asked
+                            ? `<button class="send-followup-btn" data-id="${item.id}" data-text="${item.followup_question.replace(/"/g, '&quot;')}" data-user="${userId}"
+                                style="margin-top: 8px; padding: 6px 12px; background: #764ba2; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 12px;">
+                                📤 发送追问
+                               </button>`
+                            : '';
+
                         html += `
                             <div style="margin: 10px 0; padding: 12px; background: white; border-left: 3px solid #764ba2; border-radius: 5px;">
                                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
@@ -1447,11 +1462,22 @@
                                     创建时间: ${new Date(item.created_at).toLocaleString('zh-CN')}
                                     ${item.asked_at ? ` | 追问时间: ${new Date(item.asked_at).toLocaleString('zh-CN')}` : ''}
                                 </div>
+                                ${actionButton}
                             </div>
                         `;
                     });
 
                     container.innerHTML = html;
+
+                    // 为所有发送按钮添加事件监听器
+                    container.querySelectorAll('.send-followup-btn').forEach(btn => {
+                        btn.addEventListener('click', function () {
+                            const id = this.getAttribute('data-id');
+                            const text = this.getAttribute('data-text');
+                            const user = this.getAttribute('data-user');
+                            sendFollowupFromHistory(id, text, user);
+                        });
+                    });
                 } else {
                     container.innerHTML = '<div style="color: #999; text-align: center;">暂无追问记录</div>';
                 }
@@ -2574,19 +2600,21 @@
             // 点击发送追问
             notification.onclick = async () => {
                 notification.remove();
-                
+
                 // 自动发送追问作为用户消息
                 const input = document.getElementById('messageInput');
                 input.textContent = followupInfo.followup;
-                
+
                 // 发送消息
                 await sendMessageFromDiv();
-                
+
                 // 标记追问已发送
                 try {
-                    await fetch(`${API_BASE}/proactive_qa/${followupInfo.id}/mark_asked`, {
+                    await fetch(`${API_BASE}/proactive/mark_asked/${followupInfo.id}`, {
                         method: 'POST'
                     });
+                    // 刷新主动问答列表
+                    loadProactiveQA('default_user');
                 } catch (error) {
                     console.error('标记追问失败:', error);
                 }
@@ -2627,6 +2655,27 @@
                 oscillator.stop(audioContext.currentTime + 0.15);
             } catch (error) {
                 console.error('播放追问提示音失败:', error);
+            }
+        }
+
+        // 从历史记录发送追问
+        async function sendFollowupFromHistory(questionId, followupText, userId) {
+            // 自动填充到输入框
+            const input = document.getElementById('messageInput');
+            input.textContent = followupText;
+
+            // 发送消息
+            await sendMessageFromDiv();
+
+            // 标记为已追问
+            try {
+                await fetch(`${API_BASE}/proactive/mark_asked/${questionId}`, {
+                    method: 'POST'
+                });
+                // 刷新主动问答列表
+                setTimeout(() => loadProactiveQA(userId), 1000);
+            } catch (error) {
+                console.error('标记追问失败:', error);
             }
         }
 

@@ -530,7 +530,7 @@ class XiaoLeAgent:
 - 文件操作识别规则：
   - 如果用户说"读取文件"、"写入文件"、"列出文件"、"搜索文件" -> 使用 file 工具
   - operation: read(读取)/write(写入)/list(列表)/search(搜索文件)
-  - path: 文件或目录路径（相对于/tmp/xiaole_files）
+  - path: 文件或目录路径（相对于项目files目录，会自动保存到项目下）
   - content: 写入内容（仅write操作需要）
   - pattern: 搜索模式（仅search操作需要，如*.txt）
   - recursive: 是否递归（可选，默认false）

@@ -2,12 +2,12 @@
 """
 测试追问提示功能
 """
+import json
+import requests
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import requests
-import json
 
 API_BASE = "http://localhost:8000"
 
