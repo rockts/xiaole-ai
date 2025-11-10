@@ -813,6 +813,121 @@
                 opacity: 0;
             }
         }
+
+        /* 设置面板样式 v0.6.0 */
+        .settings-section {
+            margin: 25px 0;
+            padding: 20px;
+            background: var(--card-bg);
+            border-radius: 12px;
+            border: 1px solid var(--card-border);
+        }
+
+        .settings-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid var(--button-gradient-start);
+        }
+
+        .setting-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 0;
+            border-bottom: 1px solid var(--card-border);
+        }
+
+        .setting-item:last-child {
+            border-bottom: none;
+        }
+
+        .setting-label {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .setting-name {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .setting-desc {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .setting-select {
+            padding: 8px 15px;
+            border: 2px solid var(--card-border);
+            border-radius: 8px;
+            background: var(--input-bg);
+            color: var(--text-primary);
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            outline: none;
+        }
+
+        .setting-select:hover {
+            border-color: var(--button-gradient-start);
+        }
+
+        .setting-select:focus {
+            border-color: var(--button-gradient-start);
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        /* 开关按钮样式 */
+        .setting-switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 26px;
+        }
+
+        .setting-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .switch-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: 0.3s;
+            border-radius: 26px;
+        }
+
+        .switch-slider:before {
+            position: absolute;
+            content: "";
+            height: 20px;
+            width: 20px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: 0.3s;
+            border-radius: 50%;
+        }
+
+        .setting-switch input:checked+.switch-slider {
+            background: linear-gradient(135deg, var(--button-gradient-start), var(--button-gradient-end));
+        }
+
+        .setting-switch input:checked+.switch-slider:before {
+            transform: translateX(24px);
+        }
     </style>
     <!-- Markdown 解析库 -->
     <script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js"></script>
@@ -838,6 +953,7 @@
             <div class="tab" onclick="switchTab('analytics', event)">📊 行为分析</div>
             <div class="tab" onclick="switchTab('reminders', event)">🔔 提醒</div>
             <div class="tab" onclick="switchTab('tools', event)">🔧 工具管理</div>
+            <div class="tab" onclick="switchTab('settings', event)">⚙️ 设置</div>
         </div>
 
         <!-- 聊天界面 -->
@@ -1047,6 +1163,130 @@
                 </div>
             </div>
         </div>
+
+        <!-- 设置面板 v0.6.0 Phase 2 -->
+        <div id="settings" class="tab-content">
+            <div class="memory-container">
+                <div class="stats-card">
+                    <h3>⚙️ 用户设置 <span style="font-size: 12px; color: #667eea; font-weight: normal;">v0.6.0 用户体验</span>
+                    </h3>
+
+                    <!-- 外观设置 -->
+                    <div class="settings-section">
+                        <h4 class="settings-title">🎨 外观设置</h4>
+
+                        <div class="setting-item">
+                            <div class="setting-label">
+                                <span class="setting-name">主题模式</span>
+                                <span class="setting-desc">选择界面主题偏好</span>
+                            </div>
+                            <select id="themePreference" class="setting-select"
+                                onchange="updateThemePreference(this.value)">
+                                <option value="system">跟随系统</option>
+                                <option value="light">始终亮色</option>
+                                <option value="dark">始终暗色</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- 交互设置 -->
+                    <div class="settings-section">
+                        <h4 class="settings-title">⌨️ 交互设置</h4>
+
+                        <div class="setting-item">
+                            <div class="setting-label">
+                                <span class="setting-name">快捷键</span>
+                                <span class="setting-desc">启用/禁用键盘快捷键功能</span>
+                            </div>
+                            <label class="setting-switch">
+                                <input type="checkbox" id="keyboardShortcuts" checked
+                                    onchange="toggleKeyboardShortcuts(this.checked)">
+                                <span class="switch-slider"></span>
+                            </label>
+                        </div>
+
+                        <div class="setting-item">
+                            <div class="setting-label">
+                                <span class="setting-name">快捷键提示栏</span>
+                                <span class="setting-desc">显示/隐藏底部快捷键提示</span>
+                            </div>
+                            <label class="setting-switch">
+                                <input type="checkbox" id="shortcutHintsEnabled" checked
+                                    onchange="toggleShortcutHints(this.checked)">
+                                <span class="switch-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- AI响应设置 -->
+                    <div class="settings-section">
+                        <h4 class="settings-title">🤖 AI响应设置</h4>
+
+                        <div class="setting-item">
+                            <div class="setting-label">
+                                <span class="setting-name">回复风格</span>
+                                <span class="setting-desc">选择AI的回复详细程度</span>
+                            </div>
+                            <select id="responseStyle" class="setting-select"
+                                onchange="updateResponseStyle(this.value)">
+                                <option value="concise">简洁模式</option>
+                                <option value="balanced" selected>平衡模式</option>
+                                <option value="detailed">详细模式</option>
+                                <option value="professional">专业模式</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- 通知设置 -->
+                    <div class="settings-section">
+                        <h4 class="settings-title">🔔 通知设置</h4>
+
+                        <div class="setting-item">
+                            <div class="setting-label">
+                                <span class="setting-name">主动问答提示</span>
+                                <span class="setting-desc">显示追问建议提示</span>
+                            </div>
+                            <label class="setting-switch">
+                                <input type="checkbox" id="proactiveQA" checked
+                                    onchange="toggleProactiveQA(this.checked)">
+                                <span class="switch-slider"></span>
+                            </label>
+                        </div>
+
+                        <div class="setting-item">
+                            <div class="setting-label">
+                                <span class="setting-name">提醒通知</span>
+                                <span class="setting-desc">启用提醒弹窗通知</span>
+                            </div>
+                            <label class="setting-switch">
+                                <input type="checkbox" id="reminderNotifications" checked
+                                    onchange="toggleReminderNotifications(this.checked)">
+                                <span class="switch-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- 重置按钮 -->
+                    <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; text-align: center;">
+                        <button onclick="resetSettings()" style="
+                            padding: 12px 30px;
+                            background: #ff6b6b;
+                            color: white;
+                            border: none;
+                            border-radius: 8px;
+                            cursor: pointer;
+                            font-size: 14px;
+                            transition: all 0.2s;
+                        ">
+                            🔄 重置所有设置
+                        </button>
+                        <p style="margin-top: 10px; font-size: 12px; color: #999;">
+                            将恢复所有设置为默认值
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- v0.6.0 快捷键提示栏 -->
@@ -1134,6 +1374,161 @@
 
         // 页面加载时初始化主题
         document.addEventListener('DOMContentLoaded', initTheme);
+
+        // ===== 设置管理功能 v0.6.0 =====
+
+        // 设置项默认值
+        const DEFAULT_SETTINGS = {
+            themePreference: 'system',
+            keyboardShortcuts: true,
+            shortcutHintsEnabled: true,
+            responseStyle: 'balanced',
+            proactiveQA: true,
+            reminderNotifications: true
+        };
+
+        // 初始化设置
+        function initSettings() {
+            const settings = getSettings();
+
+            // 应用所有设置
+            document.getElementById('themePreference').value = settings.themePreference;
+            document.getElementById('keyboardShortcuts').checked = settings.keyboardShortcuts;
+            document.getElementById('shortcutHintsEnabled').checked = settings.shortcutHintsEnabled;
+            document.getElementById('responseStyle').value = settings.responseStyle;
+            document.getElementById('proactiveQA').checked = settings.proactiveQA;
+            document.getElementById('reminderNotifications').checked = settings.reminderNotifications;
+
+            // 应用主题偏好
+            applyThemePreference(settings.themePreference);
+
+            // 应用快捷键提示
+            if (settings.shortcutHintsEnabled) {
+                showShortcutHints();
+            }
+        }
+
+        // 获取设置
+        function getSettings() {
+            const saved = localStorage.getItem('userSettings');
+            return saved ? JSON.parse(saved) : DEFAULT_SETTINGS;
+        }
+
+        // 保存设置
+        function saveSettings(settings) {
+            localStorage.setItem('userSettings', JSON.stringify(settings));
+        }
+
+        // 更新主题偏好
+        function updateThemePreference(value) {
+            const settings = getSettings();
+            settings.themePreference = value;
+            saveSettings(settings);
+            applyThemePreference(value);
+            showToast(`✅ 主题偏好已设置为：${getThemeLabel(value)}`, 'success');
+        }
+
+        // 应用主题偏好
+        function applyThemePreference(preference) {
+            const html = document.documentElement;
+            const themeIcon = document.getElementById('themeIcon');
+
+            if (preference === 'system') {
+                // 跟随系统
+                const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                const theme = systemPrefersDark ? 'dark' : 'light';
+                html.setAttribute('data-theme', theme);
+                themeIcon.textContent = theme === 'dark' ? '☀️' : '🌙';
+            } else {
+                // 固定主题
+                html.setAttribute('data-theme', preference);
+                themeIcon.textContent = preference === 'dark' ? '☀️' : '🌙';
+                localStorage.setItem('theme', preference);
+            }
+        }
+
+        // 获取主题标签
+        function getThemeLabel(value) {
+            const labels = {
+                'system': '跟随系统',
+                'light': '始终亮色',
+                'dark': '始终暗色'
+            };
+            return labels[value] || value;
+        }
+
+        // 切换快捷键功能
+        function toggleKeyboardShortcuts(enabled) {
+            const settings = getSettings();
+            settings.keyboardShortcuts = enabled;
+            saveSettings(settings);
+            showToast(enabled ? '✅ 快捷键已启用' : '⚠️ 快捷键已禁用', enabled ? 'success' : 'warning');
+        }
+
+        // 切换快捷键提示栏
+        function toggleShortcutHints(enabled) {
+            const settings = getSettings();
+            settings.shortcutHintsEnabled = enabled;
+            saveSettings(settings);
+
+            const hints = document.getElementById('shortcutHints');
+            if (enabled) {
+                showShortcutHints();
+            } else {
+                hints.style.opacity = '0';
+                setTimeout(() => {
+                    hints.style.display = 'none';
+                }, 300);
+            }
+            showToast(enabled ? '✅ 快捷键提示已显示' : '⚠️ 快捷键提示已隐藏', enabled ? 'success' : 'warning');
+        }
+
+        // 更新AI响应风格
+        function updateResponseStyle(style) {
+            const settings = getSettings();
+            settings.responseStyle = style;
+            saveSettings(settings);
+
+            const labels = {
+                'concise': '简洁模式',
+                'balanced': '平衡模式',
+                'detailed': '详细模式',
+                'professional': '专业模式'
+            };
+            showToast(`✅ AI响应风格已设置为：${labels[style]}`, 'success');
+        }
+
+        // 切换主动问答
+        function toggleProactiveQA(enabled) {
+            const settings = getSettings();
+            settings.proactiveQA = enabled;
+            saveSettings(settings);
+            showToast(enabled ? '✅ 主动问答提示已启用' : '⚠️ 主动问答提示已禁用', enabled ? 'success' : 'warning');
+        }
+
+        // 切换提醒通知
+        function toggleReminderNotifications(enabled) {
+            const settings = getSettings();
+            settings.reminderNotifications = enabled;
+            saveSettings(settings);
+            showToast(enabled ? '✅ 提醒通知已启用' : '⚠️ 提醒通知已禁用', enabled ? 'success' : 'warning');
+        }
+
+        // 重置所有设置
+        function resetSettings() {
+            if (confirm('确定要重置所有设置为默认值吗？')) {
+                localStorage.removeItem('userSettings');
+                localStorage.removeItem('theme');
+                initSettings();
+                applyThemePreference('system');
+                showToast('✅ 所有设置已重置为默认值', 'success');
+            }
+        }
+
+        // 页面加载时初始化设置
+        document.addEventListener('DOMContentLoaded', function () {
+            initSettings();
+        });
 
         // 切换标签页
         function switchTab(tabName, event) {
@@ -1552,7 +1947,7 @@
         }
 
         // ===== 会话导出功能 =====
-        
+
         /**
          * 导出会话为指定格式
          * @param {string} sessionId - 会话ID
@@ -1561,24 +1956,24 @@
         async function exportSession(sessionId, format) {
             try {
                 console.log(`导出会话 ${sessionId} 为 ${format} 格式`);
-                
+
                 // 获取会话数据
                 const response = await fetch(`${API_BASE}/session/${sessionId}`);
                 if (!response.ok) {
                     throw new Error(`获取会话失败: ${response.status}`);
                 }
-                
+
                 const data = await response.json();
                 if (data.error) {
                     throw new Error(data.error);
                 }
-                
+
                 const messages = data.messages || [];
                 const title = data.title || '未命名会话';
                 const createdAt = data.created_at || new Date().toISOString();
-                
+
                 let content, filename, mimeType;
-                
+
                 if (format === 'markdown') {
                     // 生成Markdown格式
                     content = generateMarkdown(title, createdAt, messages);
@@ -1603,17 +1998,17 @@
                 } else {
                     throw new Error('不支持的导出格式');
                 }
-                
+
                 // 下载文件
                 downloadFile(content, filename, mimeType);
                 showToast(`✅ 导出成功: ${filename}`, 'success');
-                
+
             } catch (error) {
                 console.error('导出失败:', error);
                 showToast(`❌ 导出失败: ${error.message}`, 'error');
             }
         }
-        
+
         /**
          * 生成Markdown格式的会话内容
          */
@@ -1623,25 +2018,25 @@
             md += `**导出时间**: ${new Date().toLocaleString('zh-CN')}\n`;
             md += `**消息数量**: ${messages.length}\n\n`;
             md += `---\n\n`;
-            
+
             messages.forEach((msg, index) => {
                 const role = msg.role === 'user' ? '👤 用户' : '🤖 小乐AI';
                 const timestamp = msg.timestamp || msg.created_at || '';
-                
+
                 md += `## ${role}\n\n`;
                 if (timestamp) {
                     md += `*${timestamp}*\n\n`;
                 }
                 md += `${msg.content}\n\n`;
-                
+
                 if (index < messages.length - 1) {
                     md += `---\n\n`;
                 }
             });
-            
+
             return md;
         }
-        
+
         /**
          * 清理文件名（移除非法字符）
          */
@@ -1651,7 +2046,7 @@
                 .replace(/\s+/g, '_')         // 空格替换为下划线
                 .substring(0, 50);            // 限制长度
         }
-        
+
         /**
          * 获取时间戳字符串（用于文件名）
          */
@@ -1662,7 +2057,7 @@
                 .replace('T', '_')
                 .substring(0, 19);
         }
-        
+
         /**
          * 下载文件到本地
          */
@@ -3372,6 +3767,12 @@
 
         // 全局快捷键监听
         document.addEventListener('keydown', (event) => {
+            // 检查快捷键是否启用
+            const settings = getSettings();
+            if (!settings.keyboardShortcuts) {
+                return; // 快捷键已禁用，直接返回
+            }
+
             const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
             const ctrlKey = isMac ? event.metaKey : event.ctrlKey;
 
