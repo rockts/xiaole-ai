@@ -377,7 +377,7 @@ class XiaoLeAgent:
         except Exception as e:
             logger.warning(f"行为数据记录失败: {e}")
 
-        # v0.3.0: 主动问答分析（检测是否需要追问）
+        # v0.6.0: 主动问答分析（检测是否需要追问）
         followup_info = None
         try:
             analysis = self.proactive_qa.analyze_conversation(
@@ -390,27 +390,44 @@ class XiaoLeAgent:
                     best_question = max(
                         questions, key=lambda x: x.get("confidence", 0)
                     )
-                    # 生成追问
-                    followup = self.proactive_qa.generate_followup_question(
-                        best_question["question"],
-                        best_question["missing_info"],
-                        best_question.get("ai_response", "")
-                    )
-                    # 保存追问记录
-                    question_id = self.proactive_qa.save_proactive_question(
-                        session_id=session_id,
-                        user_id=user_id,
-                        original_question=best_question["question"],
-                        question_type=best_question["type"],
-                        missing_info=best_question["missing_info"],
-                        confidence=best_question["confidence"],
-                        followup_question=followup
-                    )
-                    followup_info = {
-                        "id": question_id,
-                        "followup": followup,
-                        "confidence": best_question["confidence"]
-                    }
+                    
+                    # v0.6.0: 检查置信度是否达到阈值
+                    confidence = best_question["confidence"]
+                    threshold = self.proactive_qa.confidence_threshold
+                    
+                    if confidence >= threshold:
+                        # 生成追问
+                        followup = (
+                            self.proactive_qa.generate_followup_question(
+                                best_question["question"],
+                                best_question["missing_info"],
+                                best_question.get("ai_response", "")
+                            )
+                        )
+                        # 保存追问记录
+                        question_id = (
+                            self.proactive_qa.save_proactive_question(
+                                session_id=session_id,
+                                user_id=user_id,
+                                original_question=best_question["question"],
+                                question_type=best_question["type"],
+                                missing_info=best_question["missing_info"],
+                                confidence=confidence,
+                                followup_question=followup
+                            )
+                        )
+                        followup_info = {
+                            "id": question_id,
+                            "followup": followup,
+                            "confidence": confidence
+                        }
+                        logger.info(
+                            f"触发追问 (置信度: {confidence}% >= {threshold}%)"
+                        )
+                    else:
+                        logger.debug(
+                            f"置信度不足 ({confidence}% < {threshold}%)，跳过追问"
+                        )
         except Exception as e:
             logger.warning(f"主动问答分析失败: {e}")
 
