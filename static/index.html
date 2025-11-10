@@ -201,6 +201,7 @@
         .chat-container {
             flex: 1;
             overflow-y: auto;
+            overflow-x: hidden;
             padding: 20px;
             background: var(--container-bg);
             transition: background 0.3s ease;
@@ -1670,7 +1671,7 @@
                 // v0.6.0: 获取用户设置的响应风格
                 const settings = getSettings();
                 const responseStyle = settings.responseStyle || 'balanced';
-                
+
                 const url = currentSessionId
                     ? `${API_BASE}/chat?prompt=${encodeURIComponent(message)}&session_id=${currentSessionId}&response_style=${responseStyle}`
                     : `${API_BASE}/chat?prompt=${encodeURIComponent(message)}&response_style=${responseStyle}`;
@@ -2106,8 +2107,9 @@
                 sessionInfo.style.display = 'block';
 
                 // 加载历史消息
-                if (data.history && data.history.length > 0) {
-                    data.history.forEach(msg => {
+                const messages = data.messages || data.history || [];
+                if (messages.length > 0) {
+                    messages.forEach(msg => {
                         addMessage(msg.role, msg.content);
                     });
                 }

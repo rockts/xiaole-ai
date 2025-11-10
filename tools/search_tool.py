@@ -1,10 +1,11 @@
 """
-网络搜索工具 (v0.6.0 优化版)
+网络搜索工具 (v0.6.1 优化版)
 使用 DuckDuckGo 进行网络搜索
-新增功能：错误重试、结果缓存、搜索历史
+新增功能：错误重试、结果缓存、搜索历史、多策略搜索
+v0.6.1: 升级到ddgs包,改进搜索稳定性
 """
 from tool_manager import Tool, ToolParameter
-from ddgs import DDGS
+from ddgs import DDGS  # v0.6.1: 使用新的ddgs包
 import asyncio
 import time
 from typing import List, Dict
@@ -17,8 +18,13 @@ class SearchTool(Tool):
         super().__init__()
         self.name = "search"
         self.description = (
-            "在互联网上搜索信息。"
-            "适用场景：查询实时信息、新闻、百科知识等。"
+            "网络搜索工具 - 使用DuckDuckGo获取实时信息。"
+            "必须使用的场景："
+            "1.用户明确要求搜索(搜索/查一下/帮我找)；"
+            "2.询问最新产品信息(iPhone17/16等2024年后产品)；"
+            "3.询问实时新闻、价格、发布时间；"
+            "4.涉及2024年9月后的信息；"
+            "5.AI知识可能过时的内容。"
             "返回搜索结果的标题、摘要和链接。"
         )
         self.parameters = [
@@ -82,11 +88,20 @@ class SearchTool(Tool):
                 results = await self._search_ddg(query, max_results)
 
                 if not results:
+                    # 搜索失败或无结果
                     result = {
-                        "success": True,
-                        "data": "未找到相关结果",
+                        "success": False,
+                        "data": (
+                            f"搜索'{query}'未找到结果。\n"
+                            "可能原因:\n"
+                            "1. DuckDuckGo搜索API暂时不可用\n"
+                            "2. 查询关键词过于具体或罕见\n"
+                            "3. 网络连接问题\n\n"
+                            "建议: 基于已有知识回答,并说明信息可能不是最新的。"
+                        ),
                         "results": [],
-                        "count": 0
+                        "count": 0,
+                        "error": "搜索无结果"
                     }
                 else:
                     # 格式化结果
@@ -102,7 +117,7 @@ class SearchTool(Tool):
                 self._cache_result(query, result)
 
                 # === v0.6.0 新增：记录历史 ===
-                self._add_to_history(query, True)
+                self._add_to_history(query, len(results) > 0)
 
                 return result
 
@@ -118,8 +133,12 @@ class SearchTool(Tool):
 
                     return {
                         "success": False,
-                        "error": f"搜索失败（已重试{self.max_retries}次）: {error_msg}",
-                        "suggestion": "请检查网络连接或稍后再试"
+                        "error": f"搜索服务暂时不可用: {error_msg[:100]}",
+                        "data": (
+                            "网络搜索暂时失败,无法获取最新信息。\n"
+                            "建议: 使用已有知识回答,并明确告知用户信息可能过时,建议自行验证。"
+                        ),
+                        "suggestion": "基于训练数据回答,并说明可能不准确"
                     }
 
                 # 还有重试机会
@@ -250,6 +269,8 @@ class SearchTool(Tool):
         """
         执行实际的搜索（同步方法）
 
+        v0.6.1: 使用新的ddgs包API,改进搜索稳定性
+
         Args:
             query: 搜索关键词
             max_results: 最大结果数
@@ -257,16 +278,58 @@ class SearchTool(Tool):
         Returns:
             List[Dict]: 搜索结果
         """
+        import time
+
+        # 策略1: 直接搜索
         try:
-            with DDGS() as ddgs:
-                results = list(ddgs.text(
-                    query,
-                    max_results=max_results
-                ))
+            print(f"🔍 尝试搜索: {query}")
+            ddgs = DDGS()
+            results = ddgs.text(query, max_results=max_results)
+            if results:
+                print(f"✅ 找到 {len(results)} 条结果")
                 return results
+            print("⚠️  策略1返回空结果")
         except Exception as e:
-            print(f"DuckDuckGo 搜索失败: {e}")
-            return []
+            print(f"⚠️  策略1失败: {str(e)[:100]}")
+
+        # 策略2: 简化查询后重试
+        time.sleep(1)
+        try:
+            simplified_query = query.replace(
+                '什么时候', '').replace('发布', ' 发布时间').strip()
+            print(f"🔍 尝试简化查询: {simplified_query}")
+
+            ddgs = DDGS()
+            results = ddgs.text(simplified_query, max_results=max_results)
+            if results:
+                print(f"✅ 简化查询找到 {len(results)} 条结果")
+                return results
+            print("⚠️  策略2返回空结果")
+        except Exception as e:
+            print(f"⚠️  策略2失败: {str(e)[:100]}")
+
+        # 策略3: 使用英文关键词(如果是产品查询)
+        time.sleep(1)
+        try:
+            if 'iphone' in query.lower():
+                import re
+                match = re.search(r'iphone\s*\d+', query.lower())
+                if match:
+                    product = match.group()
+                    en_query = f"{product} release date 2025"
+                    print(f"🔍 尝试英文查询: {en_query}")
+
+                    ddgs = DDGS()
+                    results = ddgs.text(en_query, max_results=max_results)
+                    if results:
+                        print(f"✅ 英文查询找到 {len(results)} 条结果")
+                        return results
+                    print("⚠️  策略3返回空结果")
+        except Exception as e:
+            print(f"⚠️  策略3失败: {str(e)[:100]}")
+
+        print("❌ 所有搜索策略均失败")
+        return []
 
     def _format_results(self, results: List[Dict]) -> str:
         """

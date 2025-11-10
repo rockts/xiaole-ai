@@ -36,11 +36,11 @@ class Memory(Base):
     content = Column(Text)
     tag = Column(String(50))
     created_at = Column(DateTime, default=datetime.now)
-    # v0.6.0: 记忆重要性评分系统
-    importance_score = Column(Float, default=0.0)  # 重要性分数(0-1)
-    access_count = Column(Integer, default=0)  # 访问次数
-    last_accessed_at = Column(DateTime, default=datetime.now)  # 最后访问时间
-    is_archived = Column(Boolean, default=False)  # 是否已归档
+    # v0.6.0 Phase 3字段: 需要数据库迁移后启用
+    # importance_score = Column(Float, default=0.0)  # 重要性分数(0-1)
+    # access_count = Column(Integer, default=0)  # 访问次数
+    # last_accessed_at = Column(DateTime, default=datetime.now)  # 最后访问时间
+    # is_archived = Column(Boolean, default=False)  # 是否已归档
 
 
 class Conversation(Base):

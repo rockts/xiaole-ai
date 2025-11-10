@@ -450,11 +450,11 @@ class XiaoLeAgent:
     def _quick_intent_match(self, prompt):
         """
         v0.6.0: 快速意图匹配 - 无需AI调用的常见模式识别
-        
+
         返回: None 或 {"needs_tool": bool, "tool_name": str, "parameters": dict}
         """
         prompt_lower = prompt.lower().strip()
-        
+
         # 1. 时间查询 - 直接模式
         time_patterns = ['现在几点', '几点了', '当前时间', '现在时间', '今天日期', '今天几号']
         if any(p in prompt_lower for p in time_patterns):
@@ -463,7 +463,7 @@ class XiaoLeAgent:
                 "tool_name": "time",
                 "parameters": {"format": "full"}
             }
-        
+
         # 2. 系统信息 - 直接模式
         if any(word in prompt_lower for word in ['cpu', '内存', '磁盘', '系统信息']):
             info_type = "all"
@@ -473,13 +473,13 @@ class XiaoLeAgent:
                 info_type = "memory"
             elif '磁盘' in prompt_lower:
                 info_type = "disk"
-            
+
             return {
                 "needs_tool": True,
                 "tool_name": "system_info",
                 "parameters": {"info_type": info_type}
             }
-        
+
         # 3. 计算器 - 简单数学表达式检测
         import re
         # 检测数学表达式 (数字 + 运算符)
@@ -494,48 +494,82 @@ class XiaoLeAgent:
                 "tool_name": "calculator",
                 "parameters": {"expression": expression}
             }
-        
+
         # 4. 搜索 - 明显的搜索意图
-        search_keywords = ['搜索', '查询', '查一下', '搜一下', '找一下', '百度', '谷歌']
-        if any(kw in prompt_lower for kw in search_keywords):
-            # 提取搜索关键词（去除触发词）
-            query = prompt
-            for kw in search_keywords:
-                query = query.replace(kw, '')
-            query = query.strip()
-            
-            if query:  # 有实际搜索内容
+        search_keywords = [
+            '搜索', '查询', '查一下', '搜一下', '找一下',
+            '百度', '谷歌', '帮我找', '帮我查'
+        ]
+
+        # 扩展: 实时信息关键词 (需要上网查询的内容)
+        realtime_keywords = [
+            'iphone 17', 'iphone17', 'iphone 16', 'iphone16',
+            '最新', '新闻', '消息', '资讯',
+            '什么时候发布', '何时发布', '上市时间', '发售时间',
+            '最新价格', '现在价格',
+            '2025年', '2024年9月', '今年',
+        ]
+
+        # 检查是否包含搜索关键词
+        has_search_keyword = any(kw in prompt_lower for kw in search_keywords)
+
+        # 检查是否包含实时信息关键词
+        has_realtime_keyword = any(
+            kw in prompt_lower for kw in realtime_keywords
+        )
+
+        # 调试日志
+        if has_search_keyword or has_realtime_keyword:
+            logger.info(
+                f"🔍 快速规则匹配: 搜索={has_search_keyword}, "
+                f"实时={has_realtime_keyword}, prompt='{prompt[:50]}'"
+            )
+
+        if has_search_keyword or has_realtime_keyword:
+            # 如果是明确搜索,去除触发词;如果是实时信息,保留完整prompt
+            if has_search_keyword and not has_realtime_keyword:
+                query = prompt
+                for kw in search_keywords:
+                    query = query.replace(kw, '')
+                query = query.strip()
+            else:
+                query = prompt.strip()
+
+            # 确保有实际搜索内容
+            if query and len(query) > 2:
+                logger.info(f"✅ 触发搜索工具, query='{query[:50]}'")
                 return {
                     "needs_tool": True,
                     "tool_name": "search",
                     "parameters": {"query": query, "max_results": 5}
                 }
-        
-        # 5. 提醒 - 明确的提醒请求
+            else:
+                logger.warning(f"⚠️  搜索query太短或为空: '{query}'")
+                return None        # 5. 提醒 - 明确的提醒请求
         reminder_keywords = ['提醒我', '记得', '别忘了', '设置提醒', '定时提醒']
         if any(kw in prompt_lower for kw in reminder_keywords):
             # 需要AI解析时间和内容，返回None让AI处理
             return None
-        
+
         # 6. 天气 - 需要提取城市，让AI处理
         if '天气' in prompt_lower:
             return None
-        
+
         # 7. 文件操作 - 需要AI精确解析
         file_keywords = ['读取文件', '写入文件', '文件列表', '搜索文件']
         if any(kw in prompt_lower for kw in file_keywords):
             return None
-        
+
         # 无匹配 - 可能是普通对话或需要AI分析
         return None
 
     def _get_style_instruction(self, style):
         """
         v0.6.0: 获取响应风格的指令
-        
+
         Args:
             style: 响应风格 (concise/balanced/detailed/professional)
-            
+
         Returns:
             str: 风格指令
         """
@@ -550,10 +584,10 @@ class XiaoLeAgent:
     def _get_llm_parameters(self, style):
         """
         v0.6.0: 根据响应风格获取LLM调用参数
-        
+
         Args:
             style: 响应风格
-            
+
         Returns:
             dict: {temperature, max_tokens, top_p}
         """
@@ -679,6 +713,13 @@ class XiaoLeAgent:
 7. file - operation(read/write/list/search), path(路径),
    content(写入内容), pattern(搜索模式), recursive(可选)
 8. 普通对话 -> needs_tool=false
+
+**search工具优先级最高** - 以下情况必须使用:
+- 用户明确要求"搜索"、"查一下"、"帮我找"
+- 询问最新/实时信息(产品发布、新闻、价格)
+- 涉及2024年9月后的信息(iPhone 17/16等新产品)
+- 询问"什么时候发布"、"上市时间"等
+- 你的知识可能过时的内容
 
 天气规则:
 - 用户指定城市 -> 使用该城市

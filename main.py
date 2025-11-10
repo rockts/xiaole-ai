@@ -213,7 +213,7 @@ def get_session(session_id: str):
         "message_count": stats["message_count"],
         "created_at": stats["created_at"],
         "updated_at": stats["updated_at"],
-        "history": history
+        "messages": history  # 改为messages，与前端期望的字段名一致
     }
 
 

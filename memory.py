@@ -203,9 +203,9 @@ class MemoryManager:
                 Memory.id.in_(result_ids)
             ).all()
 
-            # v0.6.0: 更新访问记录
-            for mem in matched_memories:
-                self._update_access(mem.id)
+            # v0.6.0: 更新访问记录 (需要数据库迁移后启用)
+            # for mem in matched_memories:
+            #     self._update_access(mem.id)
 
             # 按相似度排序并返回
             memories_with_scores = [
@@ -228,21 +228,32 @@ class MemoryManager:
             keywords = query.split()
             return self.recall_by_keywords(keywords, tag=tag, limit=limit)
 
-    def _update_access(self, memory_id):
-        """
-        v0.6.0: 更新记忆访问记录
-
-        Args:
-            memory_id: 记忆ID
-        """
-        mem = self.session.query(Memory).filter(
-            Memory.id == memory_id
-        ).first()
-
-        if mem:
-            mem.access_count = (mem.access_count or 0) + 1
-            mem.last_accessed_at = datetime.now()
-            self.session.commit()
+    # v0.6.0 Phase 3方法: 需要数据库迁移后启用
+    # def _update_access(self, memory_id):
+    #     """更新记忆访问记录"""
+    #     mem = self.session.query(Memory).filter(
+    #         Memory.id == memory_id
+    #     ).first()
+    #     if mem:
+    #         mem.access_count = (mem.access_count or 0) + 1
+    #         mem.last_accessed_at = datetime.now()
+    #         self.session.commit()
+    #
+    # def calculate_importance(self, memory_id):
+    #     """计算记忆的重要性分数"""
+    #     ...
+    #
+    # def update_all_importance_scores(self):
+    #     """批量更新所有记忆的重要性分数"""
+    #     ...
+    #
+    # def get_top_memories(self, limit=20, tag=None):
+    #     """获取最重要的记忆"""
+    #     ...
+    #
+    # def auto_archive_low_importance(self, threshold=0.1, min_age_days=30):
+    #     """自动归档低重要性记忆"""
+    #     ...
 
     def calculate_importance(self, memory_id):
         """

@@ -96,7 +96,12 @@ class ConversationManager:
         messages.reverse()
 
         return [
-            {"role": m.role, "content": m.content}
+            {
+                "role": m.role,
+                "content": m.content,
+                "timestamp": m.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                "created_at": m.created_at.strftime('%Y-%m-%d %H:%M:%S')
+            }
             for m in messages
         ]
 
