@@ -6,7 +6,6 @@ from pattern_learning import PatternLearner  # v0.3.0 模式学习
 from tool_manager import get_tool_registry  # v0.4.0 工具管理
 from error_handler import (
     retry_with_backoff, log_execution, handle_api_errors,
-    APITimeoutError, APIRateLimitError, APIConnectionError,
     logger
 )
 import os
@@ -81,7 +80,7 @@ class XiaoLeAgent:
         if self.api_type == "deepseek":
             if not self.deepseek_key or \
                self.deepseek_key == "your_deepseek_api_key_here":
-                print(f"⚠️  警告: 未配置 DEEPSEEK_API_KEY，使用占位模式")
+                print("⚠️  警告: 未配置 DEEPSEEK_API_KEY，使用占位模式")
                 return None
             print(f"✅ 使用 DeepSeek API ({self.model})")
             return "deepseek"
@@ -110,7 +109,6 @@ class XiaoLeAgent:
 
         try:
             # 获取当前日期和时间
-            current_date = datetime.now().strftime("%Y年%m月%d日")
             current_datetime = datetime.now().strftime("%Y年%m月%d日 %H:%M")
 
             # 构建系统提示
@@ -293,7 +291,8 @@ class XiaoLeAgent:
                 )
 
             # 如果提取到了有效信息（不是"无"），存储到记忆
-            if result and result.strip() not in ["无", "无。", "None", "none", ""]:
+            invalid_results = ["无", "无。", "None", "none", ""]
+            if result and result.strip() not in invalid_results:
                 self.memory.remember(result.strip(), tag="facts")
                 logger.info(f"✅ 提取并存储关键事实: {result.strip()}")
             else:
@@ -390,11 +389,11 @@ class XiaoLeAgent:
                     best_question = max(
                         questions, key=lambda x: x.get("confidence", 0)
                     )
-                    
+
                     # v0.6.0: 检查置信度是否达到阈值
                     confidence = best_question["confidence"]
                     threshold = self.proactive_qa.confidence_threshold
-                    
+
                     if confidence >= threshold:
                         # 生成追问
                         followup = (

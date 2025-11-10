@@ -42,7 +42,7 @@ class ProactiveQA:
 
     # v0.6.0: 可配置的置信度阈值
     CONFIDENCE_THRESHOLD = int(os.getenv('PROACTIVE_QA_THRESHOLD', '65'))
-    
+
     # 问题关键词模式
     QUESTION_PATTERNS = [
         r'(什么|啥|什么时候|哪里|哪个|哪种|哪|谁|多少|几个|怎么|为什么|如何|怎样)',  # 疑问词
@@ -60,7 +60,7 @@ class ProactiveQA:
     def __init__(self, confidence_threshold=None):
         """
         初始化
-        
+
         Args:
             confidence_threshold: 自定义置信度阈值（默认使用环境变量）
         """
@@ -82,7 +82,7 @@ class ProactiveQA:
     def is_incomplete_answer(self, text: str) -> bool:
         """
         判断回答是否不完整
-        
+
         v0.6.0优化:
         - 排除明显完整的回答
         - 减少误判率
@@ -97,7 +97,7 @@ class ProactiveQA:
             '第一', '第二', '首先', '其次', '最后',
             '步骤', '方法如下', '可以这样', '建议'
         ]
-        
+
         # 如果包含完整性指示词且长度>20，认为是完整回答
         if len(text) > 20:
             if any(indicator in text for indicator in complete_indicators):
@@ -234,7 +234,7 @@ class ProactiveQA:
     ) -> int:
         """
         计算判断置信度（0-100）
-        
+
         v0.6.0优化:
         - 调整基础分为40（降低误判）
         - 优化不完整标记权重
@@ -275,7 +275,7 @@ class ProactiveQA:
         # 如果回答中有举例、解释等词，降低置信度
         if any(word in answer for word in ['例如', '比如', '就是', '也就是说', '具体来说']):
             confidence -= 10
-        
+
         # 如果回答中有明确的结论性词汇，降低置信度
         if any(word in answer for word in ['总之', '综上', '因此', '所以说']):
             confidence -= 15
@@ -288,14 +288,14 @@ class ProactiveQA:
     ) -> str:
         """
         生成追问内容
-        
+
         v0.6.0优化:
         - 更自然的表达方式
         - 根据回答内容调整追问策略
         - 添加多样化的追问模板
         """
         import random
-        
+
         # 截取问题（太长则省略）
         question_preview = original_question
         if len(original_question) > 40:
@@ -355,7 +355,7 @@ class ProactiveQA:
                 f"关于「{question_preview}」，我想了解更多细节",
                 f"「{question_preview}」能补充说明一下吗？"
             ]
-        
+
         return random.choice(templates)
 
     def save_proactive_question(

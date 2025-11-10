@@ -21,9 +21,9 @@ def test_confidence_calculation():
     print("=" * 70)
     print("📊 测试置信度计算优化")
     print("=" * 70)
-    
+
     qa = ProactiveQA()
-    
+
     test_cases = [
         {
             "name": "极短回答",
@@ -61,17 +61,17 @@ def test_confidence_calculation():
             "expected_range": (70, 100)
         }
     ]
-    
+
     for case in test_cases:
         confidence = qa._calculate_confidence(
             case["question"],
             case["answer"],
             case["missing"]
         )
-        
+
         min_exp, max_exp = case["expected_range"]
         status = "✅" if min_exp <= confidence <= max_exp else "❌"
-        
+
         print(f"\n{status} {case['name']}")
         print(f"   问题: {case['question']}")
         print(f"   回答: {case['answer']}")
@@ -83,9 +83,9 @@ def test_incomplete_detection():
     print("\n" + "=" * 70)
     print("🔍 测试不完整回答识别优化")
     print("=" * 70)
-    
+
     qa = ProactiveQA()
-    
+
     test_cases = [
         ("不知道", True, "明显不完整"),
         ("可能是这样吧", True, "有标记词"),
@@ -103,11 +103,11 @@ def test_incomplete_detection():
         ),
         ("这个问题比较复杂，建议你先了解基础概念", False, "有'建议'指示词"),
     ]
-    
+
     for text, expected, reason in test_cases:
         result = qa.is_incomplete_answer(text)
         status = "✅" if result == expected else "❌"
-        
+
         print(f"\n{status} {reason}")
         print(f"   文本: {text[:50]}{'...' if len(text) > 50 else ''}")
         print(f"   判断: {result} (预期: {expected})")
@@ -118,28 +118,28 @@ def test_followup_generation():
     print("\n" + "=" * 70)
     print("💬 测试追问生成多样化")
     print("=" * 70)
-    
+
     qa = ProactiveQA()
-    
+
     # 生成同一问题的多个追问，验证多样性
     question = "什么是微服务架构？"
     missing_info = ["具体名称"]
     ai_response = "不太清楚"
-    
+
     print(f"\n原始问题: {question}")
     print(f"AI回答: {ai_response}\n")
     print("生成5个追问（验证多样性）:")
-    
+
     followups = set()
     for i in range(10):
         followup = qa.generate_followup_question(
             question, missing_info, ai_response
         )
         followups.add(followup)
-    
+
     for idx, followup in enumerate(sorted(followups), 1):
         print(f"  {idx}. {followup}")
-    
+
     print(f"\n✅ 生成了 {len(followups)} 种不同的追问表达")
 
 
@@ -148,23 +148,23 @@ def test_configurable_threshold():
     print("\n" + "=" * 70)
     print("⚙️  测试可配置阈值")
     print("=" * 70)
-    
+
     # 测试默认阈值
     qa_default = ProactiveQA()
     print(f"\n默认阈值: {qa_default.confidence_threshold}%")
-    
+
     # 测试自定义阈值
     qa_custom = ProactiveQA(confidence_threshold=80)
     print(f"自定义阈值: {qa_custom.confidence_threshold}%")
-    
+
     # 模拟置信度检查
     test_confidences = [50, 65, 70, 80, 90]
-    
+
     print("\n置信度检查模拟:")
     for conf in test_confidences:
         default_pass = conf >= qa_default.confidence_threshold
         custom_pass = conf >= qa_custom.confidence_threshold
-        
+
         print(f"  置信度 {conf}%:")
         print(f"    默认阈值(65%): {'✅ 通过' if default_pass else '❌ 不通过'}")
         print(f"    自定义(80%): {'✅ 通过' if custom_pass else '❌ 不通过'}")
@@ -173,12 +173,12 @@ def test_configurable_threshold():
 def main():
     """运行所有测试"""
     print("\n🧪 v0.6.0 主动问答优化测试\n")
-    
+
     test_confidence_calculation()
     test_incomplete_detection()
     test_followup_generation()
     test_configurable_threshold()
-    
+
     print("\n" + "=" * 70)
     print("✅ 所有测试完成！")
     print("=" * 70)

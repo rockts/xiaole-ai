@@ -181,7 +181,8 @@ def chat(prompt: str, session_id: str = None, user_id: str = "default_user"):
 @app.get("/sessions")
 def get_sessions(user_id: str = "default_user", limit: int = 10):
     """获取用户的对话会话列表"""
-    return {"sessions": xiaole.conversation.get_recent_sessions(user_id, limit)}
+    sessions = xiaole.conversation.get_recent_sessions(user_id, limit)
+    return {"sessions": sessions}
 
 
 @app.get("/session/{session_id}")
