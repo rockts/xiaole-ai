@@ -107,19 +107,24 @@ class ConversationManager:
 
     def get_recent_sessions(self, user_id="default_user", limit=5):
         """获取最近的对话会话"""
-        sessions = self.session.query(Conversation).filter(
-            Conversation.user_id == user_id
-        ).order_by(Conversation.updated_at.desc()).limit(limit).all()
+        try:
+            sessions = self.session.query(Conversation).filter(
+                Conversation.user_id == user_id
+            ).order_by(Conversation.updated_at.desc()).limit(limit).all()
 
-        return [
-            {
-                "session_id": s.session_id,
-                "title": s.title,
-                "created_at": s.created_at.strftime('%Y-%m-%d %H:%M:%S'),
-                "updated_at": s.updated_at.strftime('%Y-%m-%d %H:%M:%S')
-            }
-            for s in sessions
-        ]
+            return [
+                {
+                    "session_id": s.session_id,
+                    "title": s.title,
+                    "created_at": s.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                    "updated_at": s.updated_at.strftime('%Y-%m-%d %H:%M:%S')
+                }
+                for s in sessions
+            ]
+        except Exception as e:
+            print(f"获取会话列表失败: {e}")
+            self.session.rollback()
+            return []
 
     def delete_session(self, session_id):
         """删除对话会话及其消息"""

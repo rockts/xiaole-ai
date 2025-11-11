@@ -3286,6 +3286,17 @@
         // 播放提醒声音
         function playReminderSound() {
             try {
+                // 用户交互检测和Web Audio API支持
+                if (typeof window.AudioContext !== "function" && typeof window.webkitAudioContext !== "function") {
+                    // 不支持Web Audio API，回退到音频文件
+                    const audio = new Audio('/static/sounds/dingdong.mp3');
+                    audio.volume = 0.8;
+                    audio.play().catch(e => {
+                        console.warn('备用音频播放失败:', e);
+                    });
+                    return;
+                }
+
                 // 创建音频上下文
                 const audioContext = new (window.AudioContext || window.webkitAudioContext)();
 
@@ -3293,43 +3304,55 @@
                 const oscillator = audioContext.createOscillator();
                 const gainNode = audioContext.createGain();
 
-                // 连接节点
                 oscillator.connect(gainNode);
                 gainNode.connect(audioContext.destination);
 
-                // 设置音调和音量
-                oscillator.type = 'sine'; // 正弦波，柔和的声音
-                oscillator.frequency.setValueAtTime(800, audioContext.currentTime); // 800Hz
+                oscillator.type = 'sine';
+                oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
 
-                // 音量渐变效果（避免突兀）
                 gainNode.gain.setValueAtTime(0, audioContext.currentTime);
                 gainNode.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + 0.1);
                 gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.5);
 
-                // 播放声音
                 oscillator.start(audioContext.currentTime);
                 oscillator.stop(audioContext.currentTime + 0.5);
 
+                // 释放资源
+                oscillator.onended = () => {
+                    audioContext.close();
+                };
+
                 // 第二声（双响）
                 setTimeout(() => {
-                    const oscillator2 = audioContext.createOscillator();
-                    const gainNode2 = audioContext.createGain();
+                    const audioContext2 = new (window.AudioContext || window.webkitAudioContext)();
+                    const oscillator2 = audioContext2.createOscillator();
+                    const gainNode2 = audioContext2.createGain();
 
                     oscillator2.connect(gainNode2);
-                    gainNode2.connect(audioContext.destination);
+                    gainNode2.connect(audioContext2.destination);
 
                     oscillator2.type = 'sine';
-                    oscillator2.frequency.setValueAtTime(1000, audioContext.currentTime);
+                    oscillator2.frequency.setValueAtTime(1000, audioContext2.currentTime);
 
-                    gainNode2.gain.setValueAtTime(0, audioContext.currentTime);
-                    gainNode2.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + 0.1);
-                    gainNode2.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.5);
+                    gainNode2.gain.setValueAtTime(0, audioContext2.currentTime);
+                    gainNode2.gain.linearRampToValueAtTime(0.3, audioContext2.currentTime + 0.1);
+                    gainNode2.gain.linearRampToValueAtTime(0, audioContext2.currentTime + 0.5);
 
-                    oscillator2.start(audioContext.currentTime);
-                    oscillator2.stop(audioContext.currentTime + 0.5);
+                    oscillator2.start(audioContext2.currentTime);
+                    oscillator2.stop(audioContext2.currentTime + 0.5);
+
+                    oscillator2.onended = () => {
+                        audioContext2.close();
+                    };
                 }, 200);
 
             } catch (error) {
+                // 回退到音频文件
+                const audio = new Audio('/static/sounds/dingdong.mp3');
+                audio.volume = 0.8;
+                audio.play().catch(e => {
+                    console.warn('备用音频播放失败:', e);
+                });
                 console.error('播放提示音失败:', error);
             }
         }
