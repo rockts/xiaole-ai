@@ -4,7 +4,8 @@ from behavior_analytics import BehaviorAnalyzer
 from proactive_qa import ProactiveQA  # v0.3.0 主动问答
 from pattern_learning import PatternLearner  # v0.3.0 模式学习
 from tool_manager import get_tool_registry  # v0.4.0 工具管理
-from enhanced_intent import EnhancedToolSelector, ContextEnhancer  # v0.6.0
+from enhanced_intent import EnhancedToolSelector, ContextEnhancer
+from dialogue_enhancer import DialogueEnhancer  # v0.6.0
 from error_handler import (
     retry_with_backoff, log_execution, handle_api_errors,
     logger
@@ -31,6 +32,7 @@ class XiaoLeAgent:
         # v0.6.0 Phase 3: AI能力增强
         self.enhanced_selector = EnhancedToolSelector(self.tool_registry)
         self.context_enhancer = ContextEnhancer(self.memory, self.conversation)
+        self.dialogue_enhancer = DialogueEnhancer()  # Day 4: 对话质量
 
         # 注册工具
         self._register_tools()
@@ -361,7 +363,7 @@ class XiaoLeAgent:
                 'session_id': session_id
             }
             tool_calls = self.enhanced_selector.analyze_intent(prompt, context)
-            
+
             if tool_calls:
                 # 执行工具调用（按优先级）
                 for tool_call in tool_calls:
@@ -386,6 +388,14 @@ class XiaoLeAgent:
         reply = self._think_with_context(
             prompt, history, tool_result, response_style
         )
+
+        # v0.6.0 Phase 3 Day 4: 对话质量增强
+        try:
+            reply = self.dialogue_enhancer.enhance_response(
+                reply, prompt, history, response_style
+            )
+        except Exception as e:
+            logger.warning(f"对话质量增强失败: {e}")
 
         # v0.5.0: 如果有未读提醒，在回复前插入提醒
         if pending_reminders:

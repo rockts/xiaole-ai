@@ -67,7 +67,7 @@ class MemoryManager:
             except Exception as e:
                 print(f"添加语义索引失败: {e}")
             tag: 标签
-            initial_importance: 初始重要性分数 (0-1)
+            initial_importance: 初始重要性分数(0-1)
         """
         mem = Memory(
             content=content,
@@ -277,12 +277,12 @@ class MemoryManager:
         v0.6.0: 计算记忆的重要性分数
 
         考虑因素:
-        1. 访问频率 (40%)
-        2. 时间衰减 (30%)
-        3. 标签类型 (30%)
+        1. 访问频率 (40 %)
+        2. 时间衰减 (30 %)
+        3. 标签类型 (30 %)
 
         Returns:
-            float: 重要性分数 (0-1)
+            float: 重要性分数(0-1)
         """
         mem = self.session.query(Memory).filter(
             Memory.id == memory_id
@@ -387,7 +387,7 @@ class MemoryManager:
         - 访问次数 <= 1
 
         Args:
-            threshold: 重要性阈值 (0-1)
+            threshold: 重要性阈值(0-1)
             min_age_days: 最小年龄（天）
 
         Returns:

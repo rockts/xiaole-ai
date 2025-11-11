@@ -14,7 +14,7 @@ engine = create_engine(DB_URL, client_encoding='utf8')
 
 with open('db_migrations/004_memory_importance_v0.6.0.sql', encoding='utf-8') as f:
     sql = f.read()
-    
+
 with engine.connect() as conn:
     # 分开执行DO块和CREATE INDEX
     parts = sql.split('$$;')
