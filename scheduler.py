@@ -13,6 +13,7 @@ from apscheduler.triggers.interval import IntervalTrigger
 from apscheduler.triggers.cron import CronTrigger
 
 from reminder_manager import get_reminder_manager
+from proactive_chat import get_proactive_chat
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +30,7 @@ class ReminderScheduler:
     def __init__(self):
         self.scheduler = AsyncIOScheduler()
         self.reminder_manager = get_reminder_manager()
+        self.proactive_chat = get_proactive_chat()
         self.is_running = False
 
     def start(self):
@@ -61,6 +63,15 @@ class ReminderScheduler:
             trigger=CronTrigger(hour=3, minute=0),
             id='cleanup_expired',
             name='清理过期提醒',
+            replace_existing=True
+        )
+
+        # 任务4: 每小时检查是否需要主动对话
+        self.scheduler.add_job(
+            self.check_proactive_chat,
+            trigger=IntervalTrigger(hours=1),
+            id='check_proactive_chat',
+            name='检查主动对话',
             replace_existing=True
         )
 
@@ -160,6 +171,46 @@ class ReminderScheduler:
 
         except Exception as e:
             logger.error(f"Error cleaning up reminders: {e}")
+
+    async def check_proactive_chat(self):
+        """检查是否需要发起主动对话"""
+        try:
+            logger.info("Checking proactive chat conditions...")
+
+            # TODO: 获取所有活跃用户列表
+            users = ["default_user"]
+
+            for user_id in users:
+                result = self.proactive_chat.should_initiate_chat(user_id)
+
+                if result["should_chat"]:
+                    logger.info(
+                        f"Proactive chat triggered for {user_id}: "
+                        f"{result['reason']} (priority: {result['priority']})"
+                    )
+
+                    # 通过WebSocket推送主动对话
+                    if self.reminder_manager.websocket_callback:
+                        await self.reminder_manager.websocket_callback({
+                            "type": "proactive_chat",
+                            "user_id": user_id,
+                            "reason": result["reason"],
+                            "message": result["message"],
+                            "priority": result["priority"],
+                            "metadata": result.get("metadata", {})
+                        })
+
+                        # 标记已发起
+                        self.proactive_chat.mark_chat_initiated(
+                            user_id,
+                            result["reason"],
+                            result["message"]
+                        )
+
+                        logger.info(f"Proactive chat sent to {user_id}")
+
+        except Exception as e:
+            logger.error(f"Error checking proactive chat: {e}")
 
     def get_jobs(self):
         """获取所有任务信息"""

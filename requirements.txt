@@ -9,3 +9,6 @@ jieba
 psutil
 aiohttp
 apscheduler
+duckduckgo-search
+aiofiles
+python-multipart
