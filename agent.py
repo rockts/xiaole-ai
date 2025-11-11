@@ -354,9 +354,33 @@ class XiaoLeAgent:
         # v0.4.0: 智能工具调用 - 先分析是否需要调用工具
         tool_result = None
         try:
-            tool_result = self._auto_call_tool(prompt, user_id, session_id)
+            # v0.6.0 Phase 3: 使用增强的意图识别
+            context = {
+                'recent_messages': history,
+                'user_id': user_id,
+                'session_id': session_id
+            }
+            tool_calls = self.enhanced_selector.analyze_intent(prompt, context)
+            
+            if tool_calls:
+                # 执行工具调用（按优先级）
+                for tool_call in tool_calls:
+                    result = self.enhanced_selector.execute_with_retry(
+                        tool_call, max_retries=2
+                    )
+                    if result.success:
+                        tool_result = result.data
+                        break
+            else:
+                # 回退到旧的工具调用逻辑
+                tool_result = self._auto_call_tool(prompt, user_id, session_id)
         except Exception as e:
-            logger.warning(f"工具调用失败: {e}")
+            logger.warning(f"增强工具调用失败: {e}")
+            # 回退到旧逻辑
+            try:
+                tool_result = self._auto_call_tool(prompt, user_id, session_id)
+            except Exception as e2:
+                logger.warning(f"旧工具调用也失败: {e2}")
 
         # v0.6.0: 调用 AI 生成回复（带上下文、工具结果和响应风格）
         reply = self._think_with_context(

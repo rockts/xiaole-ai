@@ -135,9 +135,33 @@ class EnhancedToolSelector:
         return any(ind in prompt for ind in indicators)
 
     def _ai_analyze_tools(self, prompt: str, context: Dict[str, Any]) -> List[ToolCall]:
-        """AI深度分析（待实现）"""
-        # TODO: 调用LLM进行深度意图分析
-        return []
+        """AI深度分析工具需求"""
+        try:
+            # 检测多步骤任务
+            result = []
+            if '然后' in prompt or '接着' in prompt:
+                steps = prompt.split('然后')
+                for i, step in enumerate(steps):
+                    if '搜索' in step:
+                        result.append(ToolCall(
+                            tool_name='search',
+                            parameters={'query': step.strip()},
+                            priority=100 - i*10,
+                            confidence=0.85,
+                            depends_on=result[-1].tool_name if result else None
+                        ))
+                    elif '文件' in step or '保存' in step:
+                        result.append(ToolCall(
+                            tool_name='file',
+                            parameters={'operation': 'write'},
+                            priority=90 - i*10,
+                            confidence=0.8,
+                            depends_on=result[-1].tool_name if result else None
+                        ))
+            return result
+        except Exception as e:
+            print(f"AI深度分析失败: {e}")
+            return []
 
     def _deduplicate_tools(self, tool_calls: List[ToolCall]) -> List[ToolCall]:
         """去重工具调用"""
