@@ -45,12 +45,12 @@ class MemoryManager:
 
     def remember(self, content, tag="general", initial_importance=0.5):
         """
-        存储记忆（v0.6.0: 支持初始重要性分数）
+        Store memory with importance score.
 
         Args:
-            content: 记忆内容
-            tag: 标签
-            initial_importance: 初始重要性评分 (0-1)
+            content: memory content
+            tag: tag/category
+            initial_importance: importance score (0-1)
         """
         memory = Memory(
             content=content,
@@ -66,25 +66,11 @@ class MemoryManager:
                 self.semantic_search.add_memory(memory.id, content, tag)
             except Exception as e:
                 print(f"添加语义索引失败: {e}")
-            tag: 标签
-            initial_importance: 初始重要性分数(0-1)
-        """
-        mem = Memory(
-            content=content,
-            tag=tag,
-            importance_score=initial_importance
-        )
-        self.session.add(mem)
-        self.session.commit()
-        return mem.id
+
+        return memory.id
 
     def recall(self, tag="general", keyword=None, limit=None):
-        """
-        召回记忆
-        tag: 记忆标签
-        keyword: 关键词搜索（可选）
-        limit: 限制返回数量（可选）
-        """
+        """Recall memories by tag and keyword"""
         query = self.session.query(Memory).filter(Memory.tag == tag)
 
         # 如果有关键词，进行模糊搜索
@@ -102,12 +88,7 @@ class MemoryManager:
         return [m.content for m in memories]
 
     def recall_recent(self, hours=24, tag=None, limit=10):
-        """
-        召回最近时间段的记忆
-        hours: 最近N小时（默认24小时）
-        tag: 可选标签过滤
-        limit: 返回数量限制
-        """
+        """Recall recent memories within specified hours"""
         time_threshold = datetime.now() - timedelta(hours=hours)
 
         query = self.session.query(Memory).filter(
@@ -122,13 +103,7 @@ class MemoryManager:
         return [m.content for m in memories]
 
     def recall_by_keywords(self, keywords, tag=None, limit=10):
-        """
-        通过多个关键词搜索记忆（OR 逻辑）
-        keywords: 关键词列表
-        tag: 可选标签过滤
-        limit: 返回数量限制
-        返回: 包含完整信息的字典列表
-        """
+        """Search memories by multiple keywords with OR logic"""
         if not keywords:
             return []
 
@@ -153,7 +128,7 @@ class MemoryManager:
         } for m in memories]
 
     def get_stats(self):
-        """获取记忆统计信息"""
+        """Get memory statistics"""
         # 总记忆数
         total = self.session.query(func.count(Memory.id)).scalar()
 
@@ -169,18 +144,7 @@ class MemoryManager:
         }
 
     def semantic_recall(self, query, tag=None, limit=10, min_score=0.15):
-        """
-        语义搜索记忆（基于TF-IDF + 余弦相似度）
-
-        Args:
-            query: 查询文本（例如："我几岁"、"运动爱好"）
-            tag: 可选标签过滤
-            limit: 返回数量限制
-            min_score: 最低相似度阈值（0-1）
-
-        Returns:
-            [{content, tag, timestamp}] 按相似度排序
-        """
+        """Semantic search using TF-IDF and cosine similarity"""
         if not self.enable_vector_search or not self.semantic_search:
             # 降级到关键词搜索
             print("⚠️ 语义搜索不可用，使用关键词搜索")
@@ -313,7 +277,7 @@ class MemoryManager:
         }
         tag_score = tag_weights.get(mem.tag, 0.5)
 
-        # 综合计算（加权平均）
+        # Weighted average calculation
         importance = (
             access_score * 0.4 +
             time_score * 0.3 +
@@ -387,11 +351,11 @@ class MemoryManager:
         - 访问次数 <= 1
 
         Args:
-            threshold: 重要性阈值(0-1)
-            min_age_days: 最小年龄（天）
+            threshold: importance threshold (0-1)
+            min_age_days: minimum age in days
 
         Returns:
-            int: 归档数量
+            int: archived count
         """
         from datetime import timedelta
 
@@ -418,12 +382,7 @@ class MemoryManager:
         return archived_count
 
     def get_memory_stats(self):
-        """
-        v0.6.0: 获取记忆统计信息（包含重要性分析）
-
-        Returns:
-            dict: 统计信息
-        """
+        """Get memory statistics with importance analysis"""
         # 基础统计
         total = self.session.query(func.count(Memory.id)).scalar()
         archived = self.session.query(func.count(Memory.id)).filter(
