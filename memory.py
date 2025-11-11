@@ -50,6 +50,23 @@ class MemoryManager:
         Args:
             content: 记忆内容
             tag: 标签
+            initial_importance: 初始重要性评分 (0-1)
+        """
+        memory = Memory(
+            content=content,
+            tag=tag,
+            importance_score=initial_importance
+        )
+        self.session.add(memory)
+        self.session.commit()
+
+        # 添加到语义搜索索引
+        if self.enable_vector_search and self.semantic_search:
+            try:
+                self.semantic_search.add_memory(memory.id, content, tag)
+            except Exception as e:
+                print(f"添加语义索引失败: {e}")
+            tag: 标签
             initial_importance: 初始重要性分数 (0-1)
         """
         mem = Memory(
