@@ -50,12 +50,12 @@ class MemoryManager:
         Args:
             content: memory content
             tag: tag/category
-            initial_importance: importance score (0-1)
+            initial_importance: importance score (0-1) - 暂时未使用，等待数据库迁移
         """
         memory = Memory(
             content=content,
-            tag=tag,
-            importance_score=initial_importance
+            tag=tag
+            # importance_score 字段需要数据库迁移后才能使用
         )
         self.session.add(memory)
         self.session.commit()
@@ -100,7 +100,14 @@ class MemoryManager:
 
         query = query.order_by(Memory.created_at.desc()).limit(limit)
         memories = query.all()
-        return [m.content for m in memories]
+
+        # 返回完整对象信息，供前端显示
+        return [{
+            'id': m.id,
+            'content': m.content,
+            'tag': m.tag,
+            'timestamp': m.created_at.strftime('%Y-%m-%d %H:%M:%S')
+        } for m in memories]
 
     def recall_by_keywords(self, keywords, tag=None, limit=10):
         """Search memories by multiple keywords with OR logic"""
@@ -122,6 +129,7 @@ class MemoryManager:
 
         # 返回完整的记忆信息
         return [{
+            'id': m.id,
             'content': m.content,
             'tag': m.tag,
             'timestamp': m.created_at.strftime('%Y-%m-%d %H:%M:%S')
@@ -191,6 +199,7 @@ class MemoryManager:
             # 按相似度排序并返回
             memories_with_scores = [
                 {
+                    'id': m.id,
                     'content': m.content,
                     'tag': m.tag,
                     'timestamp': m.created_at.strftime('%Y-%m-%d %H:%M:%S'),

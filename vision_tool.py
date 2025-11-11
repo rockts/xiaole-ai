@@ -25,6 +25,7 @@ class VisionTool:
         self.api_type = os.getenv("AI_API_TYPE", "deepseek")
         self.claude_key = os.getenv("CLAUDE_API_KEY")
         self.openai_key = os.getenv("OPENAI_API_KEY")
+        self.qwen_key = os.getenv("QWEN_API_KEY")
 
         # 支持的图片格式
         self.supported_formats = {'.jpg', '.jpeg',
@@ -73,6 +74,71 @@ class VisionTool:
             return False, f"文件过大: {path.stat().st_size / 1024 / 1024:.1f}MB (最大20MB)"
 
         return True, ""
+
+    def analyze_with_qwen(self, image_path: str, prompt: str = "请详细描述这张图片") -> Dict[str, Any]:
+        """使用通义千问 Qwen-VL 分析图片"""
+        if not self.qwen_key:
+            return {'success': False, 'error': 'Qwen API密钥未配置'}
+
+        valid, error = self.validate_image(image_path)
+        if not valid:
+            return {'success': False, 'error': error}
+
+        base64_image = self.encode_image(image_path)
+        image_format = Path(image_path).suffix[1:]
+        if image_format == 'jpg':
+            image_format = 'jpeg'
+
+        try:
+            url = "https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation"
+            headers = {
+                "Authorization": f"Bearer {self.qwen_key}",
+                "Content-Type": "application/json"
+            }
+
+            data = {
+                "model": "qwen-vl-max",  # 使用 max 版本，识别更准确
+                "input": {
+                    "messages": [{
+                        "role": "user",
+                        "content": [
+                            {"image": f"data:image/{image_format};base64,{base64_image}"},
+                            {"text": prompt}
+                        ]
+                    }]
+                },
+                "parameters": {}
+            }
+
+            response = requests.post(
+                url, headers=headers, json=data, timeout=30)
+            response.raise_for_status()
+            result = response.json()
+
+            if result.get('output') and result['output'].get('choices'):
+                description = result['output']['choices'][0]['message']['content'][0]['text']
+                return {
+                    'success': True,
+                    'description': description,
+                    'model': 'qwen-vl-max',
+                    'timestamp': datetime.now().isoformat()
+                }
+            else:
+                return {'success': False, 'error': f'无法解析API响应: {result}'}
+
+        except requests.exceptions.HTTPError as e:
+            resp_text = ''
+            try:
+                resp_text = e.response.text
+            except Exception:
+                pass
+            return {
+                'success': False,
+                'error': f'API请求失败: {str(e)}',
+                'details': resp_text
+            }
+        except Exception as e:
+            return {'success': False, 'error': f'分析失败: {str(e)}'}
 
     def analyze_with_claude(self, image_path: str, prompt: str = "请详细描述这张图片的内容") -> Dict[str, Any]:
         """
@@ -248,7 +314,7 @@ class VisionTool:
         Args:
             image_path: 图片路径
             prompt: 分析提示语（可选）
-            prefer_model: 优先使用的模型 ("claude", "gpt4v", "auto")
+            prefer_model: 优先使用的模型 ("qwen", "claude", "gpt4v", "auto")
 
         Returns:
             dict: 分析结果
@@ -256,6 +322,34 @@ class VisionTool:
         # 默认提示语
         if prompt is None:
             prompt = "请详细描述这张图片的内容，包括场景、物体、人物、文字等所有可见元素。"
+
+        # 检查密钥是否有效
+        valid_qwen = self.qwen_key and self.qwen_key != "your_qwen_api_key_here"
+        valid_claude = self.claude_key and len(self.claude_key) > 30
+        valid_openai = self.openai_key and self.openai_key != "your_openai_api_key_here"
+
+        # Auto 模式：优先 Qwen（国内可用）
+        if prefer_model == "auto":
+            if valid_qwen:
+                result = self.analyze_with_qwen(image_path, prompt)
+                if result['success']:
+                    return result
+                print(f"⚠️ Qwen失败: {result.get('error')}")
+
+            if valid_claude:
+                result = self.analyze_with_claude(image_path, prompt)
+                if result['success']:
+                    return result
+                print(f"⚠️ Claude失败: {result.get('error')}")
+
+            if valid_openai:
+                return self.analyze_with_gpt4v(image_path, prompt)
+
+            return {'success': False, 'error': '没有配置可用的视觉API (推荐配置 QWEN_API_KEY)'}
+
+        # 指定使用 Qwen
+        if prefer_model == "qwen":
+            return self.analyze_with_qwen(image_path, prompt)
 
         # 根据优先级选择模型
         if prefer_model == "claude" or (prefer_model == "auto" and self.claude_key):
@@ -303,7 +397,9 @@ class VisionTool:
             with open(file_path, 'wb') as f:
                 f.write(file_data)
 
-            return True, str(file_path)
+            # 返回相对路径（用于前端访问）
+            relative_path = f"uploads/{safe_filename}"
+            return True, relative_path
 
         except Exception as e:
             return False, f"保存失败: {str(e)}"

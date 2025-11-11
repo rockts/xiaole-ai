@@ -115,8 +115,12 @@ class XiaoLeAgent:
             return f"（占位模式）你说的是：{prompt}"
 
         try:
-            # 获取当前日期和时间
-            current_datetime = datetime.now().strftime("%Y年%m月%d日 %H:%M")
+            # 获取当前时间和星期
+            now = datetime.now()
+            current_datetime = now.strftime("%Y年%m月%d日 %H:%M")
+            weekday_names = ['周一', '周二', '周三', '周四',
+                             '周五', '周六', '周日']
+            current_weekday = weekday_names[now.weekday()]
 
             # 构建系统提示
             system_prompt = (
@@ -128,7 +132,7 @@ class XiaoLeAgent:
                 "4. 如果记忆库没有相关信息，诚实说'您还没告诉我'\n"
                 "5. 当用户告诉你新信息时，友好确认并记录\n"
                 "6. 绝不编造数据、假装有设备、或推测未知信息\n"
-                f"当前时间：{current_datetime}\n"
+                f"当前时间：{current_datetime}（{current_weekday}）\n"
             )
 
             # 添加历史记忆（智能检索）
@@ -267,7 +271,7 @@ class XiaoLeAgent:
             return  # 占位模式不提取
 
         # 让AI判断是否包含需要记住的关键事实
-        extraction_prompt = f"""分析用户的这句话，判断是否包含需要长期记住的关键个人信息。
+        extraction_prompt = f"""分析用户的这句话，判断是否包含需要长期记住的关键信息。
 
 用户说："{user_message}"
 
@@ -275,13 +279,18 @@ class XiaoLeAgent:
 - 姓名、年龄、生日
 - 明确的爱好、兴趣（例如"我喜欢..."）
 - 职业、工作
-- 家庭成员
+- 家庭成员（**特别注意**：如果是家人的信息，必须明确标注"儿子"、"女儿"、"妻子"等，不要写"用户"）
 - 重要日期
+- **用户的纠正和反馈**（例如"不算晨读"、"不包括..."）
+- **用户的偏好和规则**（例如"我不喜欢..."、"只算..."）
+- **对AI回答的补充说明**（例如"实际上..."、"其实..."）
 
 **重要规则：**
 1. 只提取用户主动告诉的信息，不要推测
 2. 如果只是闲聊（如"今天天气好"、"你好"），返回"无"
-3. 提取格式：简洁的陈述句，例如"用户姓名：张三"、"用户喜欢打篮球"
+3. **特别注意用户的纠正**：如果用户指出AI的错误，这是重要信息
+4. **区分主语**：家人的信息必须标注关系（如"儿子姓名：xxx"），不要写成"用户姓名"
+5. 提取格式：简洁的陈述句，例如"用户姓名：张三"、"儿子学校：逸夫中学"、"统计课程数量时不算晨读"
 
 请直接返回提取结果，如果没有需要记住的信息就返回"无"。"""
 
@@ -308,6 +317,69 @@ class XiaoLeAgent:
         except Exception as e:
             # 提取失败不影响主流程
             logger.warning(f"⚠️ 信息提取失败: {e}")
+
+    def _summarize_conversation(self, session_id, message_count=10):
+        """
+        定期对对话内容生成摘要并存储
+
+        Args:
+            session_id: 会话ID
+            message_count: 每隔多少条消息生成一次摘要
+        """
+        if not self.client:
+            return  # 占位模式不生成摘要
+
+        try:
+            # 获取本次会话的所有历史消息
+            history = self.conversation.get_history(
+                session_id, limit=message_count
+            )
+
+            if len(history) < 3:  # 太少不值得摘要
+                return
+
+            # 构建对话内容
+            conversation_text = "\n".join([
+                f"{'用户' if msg['role'] == 'user' else '小乐'}: {msg['content']}"
+                for msg in history
+            ])
+
+            # 让AI生成对话摘要
+            summary_prompt = f"""请为以下对话生成一个简洁的摘要，重点记录：
+1. 用户的状态和心情（如困、开心、担心等）
+2. 讨论的主要话题
+3. 重要的上下文信息（正在做什么、计划做什么等）
+4. 用户的需求或问题
+
+对话内容：
+{conversation_text}
+
+请用1-3句话总结，格式如："用户表示很困还在聊天，讨论了课程安排的问题。"
+如果对话只是简单问候或没有实质内容，返回"无"。"""
+
+            if self.api_type == "deepseek":
+                summary = self._call_deepseek(
+                    system_prompt="你是对话摘要助手，提取对话中的关键信息。",
+                    user_prompt=summary_prompt
+                )
+            else:
+                summary = self._call_claude(
+                    system_prompt="你是对话摘要助手，提取对话中的关键信息。",
+                    user_prompt=summary_prompt
+                )
+
+            # 存储摘要
+            invalid_results = ["无", "无。", "None", "none", ""]
+            if summary and summary.strip() not in invalid_results:
+                date_str = datetime.now().strftime("%Y-%m-%d")
+                self.memory.remember(
+                    summary.strip(),
+                    tag=f"conversation:{date_str}"
+                )
+                logger.info(f"📝 对话摘要已存储: {summary.strip()[:50]}...")
+
+        except Exception as e:
+            logger.warning(f"⚠️ 对话摘要生成失败: {e}")
 
     def act(self, command):
         """执行任务：思考 -> 记录 -> 输出"""
@@ -476,6 +548,20 @@ class XiaoLeAgent:
                         )
         except Exception as e:
             logger.warning(f"主动问答分析失败: {e}")
+
+        # v0.6.1: 定期生成对话摘要（每5轮对话）
+        try:
+            history = self.conversation.get_history(session_id, limit=1)
+            if history:
+                # 获取当前会话的消息总数（简单估算：历史记录数量）
+                message_count = len(
+                    self.conversation.get_history(session_id, limit=100)
+                )
+                # 每5轮对话（10条消息）生成一次摘要
+                if message_count > 0 and message_count % 10 == 0:
+                    self._summarize_conversation(session_id, message_count=10)
+        except Exception as e:
+            logger.warning(f"对话摘要失败: {e}")
 
         result = {
             "session_id": session_id,
@@ -815,7 +901,12 @@ class XiaoLeAgent:
             return f"（占位模式）你说的是：{prompt}"
 
         try:
-            current_datetime = datetime.now().strftime("%Y年%m月%d日 %H:%M")
+            # 获取当前时间和星期
+            now = datetime.now()
+            current_datetime = now.strftime("%Y年%m月%d日 %H:%M")
+            weekday_names = ['周一', '周二', '周三', '周四',
+                             '周五', '周六', '周日']
+            current_weekday = weekday_names[now.weekday()]
 
             # v0.6.0: 根据响应风格调整系统提示词
             style_instructions = self._get_style_instruction(response_style)
@@ -829,8 +920,14 @@ class XiaoLeAgent:
                 f"4. 记忆库按时间倒序排列，最新信息在前，优先使用最新信息\n"
                 f"5. 如果记忆库和对话历史都没有相关信息，诚实说'您还没告诉我'\n"
                 f"6. 绝不编造数据、假装有设备、或推测未知信息\n"
+                f"7. 【课程表回答规则】：\n"
+                f"   - 时段划分：上午=晨读+第1-4节，下午=第5-7节，晚上=课后辅导\n"
+                f"   - 只列出有课的时段，跳过\"无课\"的节次\n"
+                f"   - 格式：时段+课程名称，例如\"晨读：科学(6)、第4节：科学(5)\"\n"
+                f"   - 如果某个时间段完全没课，明确说明\n"
+                f"   - 示例：\"今天上午有晨读的科学(6)和第4节的科学(5)\"\n"
                 f"{style_instructions}\n"
-                f"当前时间：{current_datetime}\n"
+                f"当前时间：{current_datetime}（{current_weekday}）\n"
             )
 
             # v0.4.0: 如果有工具执行结果，添加到系统提示词
@@ -858,46 +955,99 @@ class XiaoLeAgent:
             # 1. 优先获取 facts 标签的关键事实（用户主动告知的真实信息）
             facts_memories = self.memory.recall(tag="facts", limit=20)
 
-            # 2. 使用语义搜索查找相关记忆（替代关键词搜索）
+            # 2. 使用语义搜索查找相关记忆（不限标签，搜索所有记忆）
             semantic_memories = []
             if hasattr(self.memory, 'semantic_recall'):
-                # 语义搜索用户问题相关的记忆
+                # 语义搜索用户问题相关的记忆（包括图片、事实等所有内容）
                 semantic_memories = self.memory.semantic_recall(
                     query=prompt,
-                    tag="facts",
+                    tag=None,  # 不限制标签，搜索所有记忆
                     limit=10,
-                    min_score=0.3
+                    min_score=0.05  # 降低阈值，增加召回
                 )
 
-            # 3. 获取最近的 general 记忆（补充上下文）
+            # 3. 获取最近的 image 记忆（课程表等重要信息）
+            image_memories = []
+            try:
+                from db_setup import Memory
+                recent_images = self.memory.session.query(Memory).filter(
+                    Memory.tag.like('image:%')
+                ).order_by(Memory.created_at.desc()).limit(3).all()
+                image_memories = [mem.content for mem in recent_images]
+            except Exception as e:
+                logger.warning(f"获取图片记忆失败: {e}")
+
+            # 4. 获取最近的对话摘要（了解之前聊了什么）
+            conversation_memories = []
+            try:
+                from db_setup import Memory
+                recent_conversations = self.memory.session.query(
+                    Memory
+                ).filter(
+                    Memory.tag.like('conversation:%')
+                ).order_by(Memory.created_at.desc()).limit(3).all()
+                conversation_memories = [
+                    mem.content for mem in recent_conversations
+                ]
+            except Exception as e:
+                logger.warning(f"获取对话摘要失败: {e}")
+
+            # 5. 获取最近的 general 记忆（补充上下文）
             recent_memories = self.memory.recall(tag="general", limit=3)
 
-            # 4. 合并去重：facts > 语义相关 > 最近记忆
+            # 6. 合并去重：图片记忆 > facts > 对话摘要 > 语义相关 > 最近记忆
             all_memories = []
             seen = set()
 
-            # 最高优先级：facts 标签（所有关键事实）
-            for mem in facts_memories:
+            # 🔝 最高优先级：图片记忆（课程表等重要信息）- 提到最前面！
+            for mem in image_memories:
                 if mem not in seen:
                     all_memories.append(mem)
                     seen.add(mem)
 
-            # 第二优先级：语义相关记忆（问题相关）
+            # 第二优先级：facts 标签（关键事实，但限制数量）
+            facts_count = 0
+            for mem in facts_memories:
+                if mem not in seen and facts_count < 10:  # 最多10条facts
+                    all_memories.append(mem)
+                    seen.add(mem)
+                    facts_count += 1
+
+            # 第三优先级：对话摘要（了解之前的对话上下文）
+            for mem in conversation_memories:
+                if mem not in seen and len(all_memories) < 30:
+                    all_memories.append(mem)
+                    seen.add(mem)
+
+            # 第四优先级：语义相关记忆（问题相关）
             # semantic_memories可能是字典列表，需要提取content
             for mem in semantic_memories:
                 mem_content = (
                     mem if isinstance(mem, str)
                     else mem.get('content', str(mem))
                 )
-                if mem_content not in seen:
+                if mem_content not in seen and len(all_memories) < 30:
                     all_memories.append(mem_content)
                     seen.add(mem_content)
 
-            # 第三优先级：最近记忆（补充上下文）
+            # 第五优先级：最近记忆（补充上下文）
             for mem in recent_memories:
-                if mem not in seen and len(all_memories) < 20:
+                if mem not in seen and len(all_memories) < 30:
                     all_memories.append(mem)
                     seen.add(mem)
+
+            # 调试：打印召回的记忆
+            logger.info(f"📚 召回了 {len(all_memories)} 条记忆")
+            for i, mem in enumerate(all_memories[:20], 1):  # 打印前20条
+                preview = mem[:150] if isinstance(mem, str) else str(mem)[:150]
+                logger.info(f"  记忆{i}: {preview}...")
+                # 特别标记图片记忆（真正的课程表内容）
+                if isinstance(mem, str) and len(mem) > 200:
+                    # 课程表内容通常很长，且包含多个"节"和"课程"
+                    course_indicators = mem.count('节') + mem.count('科学') + \
+                        mem.count('数学') + mem.count('语文')
+                    if course_indicators >= 3:  # 至少出现3次课程相关词
+                        logger.info(f"    ⭐ [课程表内容]")
 
             if all_memories:
                 context = "记忆库（按时间倒序，最新在前）：\n" + \

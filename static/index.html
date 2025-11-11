@@ -239,6 +239,16 @@
             position: relative;
         }
 
+        .message-image {
+            margin-bottom: 8px;
+        }
+
+        .message-image img {
+            display: block;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
         .message.user .message-content {
             background: var(--message-user-bg);
             color: white;
@@ -994,23 +1004,6 @@
             display: flex;
             gap: 8px;
         }
-
-        .analyze-btn {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 13px;
-            transition: all 0.3s;
-            flex: 1;
-        }
-
-        .analyze-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-        }
     </style>
     <!-- Markdown 解析库 -->
     <script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js"></script>
@@ -1033,8 +1026,9 @@
             <div class="tab active" onclick="switchTab('chat', event)">💬 聊天</div>
             <div class="tab" onclick="switchTab('sessions', event)">📋 会话</div>
             <div class="tab" onclick="switchTab('memory', event)">🧠 记忆</div>
-            <div class="tab" onclick="switchTab('analytics', event)">📊 行为分析</div>
+            <!-- <div class="tab" onclick="switchTab('analytics', event)">📊 行为分析</div> -->
             <div class="tab" onclick="switchTab('reminders', event)">🔔 提醒</div>
+            <div class="tab" onclick="switchTab('schedule', event)">📅 课程表</div>
             <div class="tab" onclick="switchTab('tools', event)">🔧 工具管理</div>
             <div class="tab" onclick="switchTab('settings', event)">⚙️ 设置</div>
         </div>
@@ -1046,7 +1040,9 @@
             </div>
             <div class="chat-container" id="chatContainer"></div>
             <!-- 图片上传输入（隐藏） -->
-            <input type="file" id="imageUpload" accept="image/*" style="display: none;" onchange="handleImageUpload(event)">
+            <input type="file" id="imageUpload" accept="image/*" style="display: none;"
+                onchange="handleImageUpload(event)" onclick="console.log('📂 File input clicked')"
+                oncancel="console.log('❌ File selection cancelled')">
             <div class="input-container">
                 <button onclick="triggerImageUpload()" class="upload-image-btn" title="上传图片">📷</button>
                 <div id="messageInput" contenteditable="true" data-placeholder="输入消息（Enter发送，Shift+Enter换行）..."
@@ -1090,8 +1086,8 @@
             </div>
         </div>
 
-        <!-- 行为分析 -->
-        <div id="analytics" class="tab-content">
+        <!-- 行为分析 - 已隐藏，代码保留 -->
+        <div id="analytics" class="tab-content" style="display: none !important;">
             <div class="memory-container">
                 <div class="stats-card">
                     <h3>📊 用户行为分析 <span style="font-size: 12px; color: #667eea; font-weight: normal;">v0.3.0
@@ -1198,6 +1194,46 @@
                             style="background: #f8f9fa; padding: 15px; border-radius: 10px; min-height: 200px;">
                             <div class="loading">点击"刷新"加载提醒</div>
                         </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 课程表管理 v0.7.0 -->
+        <div id="schedule" class="tab-content">
+            <div class="memory-container">
+                <div class="stats-card">
+                    <h3>📅 课程表管理 <span style="font-size: 12px; color: #667eea; font-weight: normal;">v0.7.0</span></h3>
+
+                    <div style="margin: 15px 0; display: flex; gap: 10px;">
+                        <button onclick="loadSchedule()"
+                            style="padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 8px; cursor: pointer;">
+                            🔄 刷新课程表
+                        </button>
+                        <button onclick="saveSchedule()"
+                            style="padding: 10px 20px; background: #10b981; color: white; border: none; border-radius: 8px; cursor: pointer;">
+                            💾 保存修改
+                        </button>
+                    </div>
+
+                    <!-- 课程表格 -->
+                    <div id="scheduleTable" style="overflow-x: auto; margin-top: 20px;">
+                        <table
+                            style="width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden;">
+                            <thead style="background: #667eea; color: white;">
+                                <tr>
+                                    <th style="padding: 12px; border: 1px solid #ddd;">时段</th>
+                                    <th style="padding: 12px; border: 1px solid #ddd;">周一</th>
+                                    <th style="padding: 12px; border: 1px solid #ddd;">周二</th>
+                                    <th style="padding: 12px; border: 1px solid #ddd;">周三</th>
+                                    <th style="padding: 12px; border: 1px solid #ddd;">周四</th>
+                                    <th style="padding: 12px; border: 1px solid #ddd;">周五</th>
+                                </tr>
+                            </thead>
+                            <tbody id="scheduleBody">
+                                <!-- 将由JavaScript动态生成 -->
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
@@ -1662,7 +1698,12 @@
         async function sendMessageFromDiv() {
             const input = document.getElementById('messageInput');
             const message = input.textContent.trim();
-            if (!message) return;
+
+            // 如果既没有文字也没有图片，直接返回
+            if (!message && !uploadedImagePath) return;
+
+            // 如果有图片但没有文字，使用默认提示词
+            const actualMessage = message || '请详细描述这张图片的内容';
 
             const sendBtn = document.getElementById('sendBtn');
             sendBtn.disabled = true;
@@ -1685,16 +1726,44 @@
                 return;
             }
 
-            // 显示用户消息
-            addMessage('user', message);
+            // 显示用户消息（包含图片）
+            let displayMessage = message || '识别图片';
+            addMessage('user', displayMessage, null, uploadedImagePath);
             input.textContent = '';
 
-            try {
-                const url = currentSessionId
-                    ? `${API_BASE}/chat?prompt=${encodeURIComponent(message)}&session_id=${currentSessionId}`
-                    : `${API_BASE}/chat?prompt=${encodeURIComponent(message)}`;
+            // 保存当前图片路径（用于API调用）
+            const currentImagePath = uploadedImagePath;
 
-                // 设置60秒超时以处理复杂问题
+            // 立即清除图片预览和上传状态
+            removeImagePreview();
+
+            try {
+                // 获取设置
+                const settings = getSettings();
+                const responseStyle = settings.responseStyle || 'balanced';
+
+                // 检测是否包含"记住"等关键词
+                const memorizeKeywords = ['记住', '保存', '记下', '存一下', '记录'];
+                const shouldMemorize = message && memorizeKeywords.some(kw => message.includes(kw));
+
+                // 构建请求 URL（添加图片路径和记忆标志）
+                let url = `${API_BASE}/chat?prompt=${encodeURIComponent(message || '')}&response_style=${responseStyle}`;
+
+                if (currentSessionId) {
+                    url += `&session_id=${currentSessionId}`;
+                }
+
+                if (currentImagePath) {
+                    url += `&image_path=${encodeURIComponent(currentImagePath)}`;
+                }
+
+                if (shouldMemorize) {
+                    url += `&memorize=true`;
+                    console.log('🧠 检测到记忆关键词，将保存图片内容到记忆库');
+                }
+
+                console.log('📤 发送请求:', url);
+
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 60000);
 
@@ -1710,7 +1779,6 @@
                     currentSessionId = data.session_id;
                     addMessage('assistant', data.reply);
 
-                    // 检查是否有主动追问建议
                     if (data.followup) {
                         showFollowupSuggestion(data.followup);
                     }
@@ -1740,44 +1808,114 @@
             }
 
             const message = input.value.trim();
-            if (!message) return;
+
+            // 如果有图片但没有文字，提示用户
+            if (!message && uploadedImagePath) {
+                showNotification('请输入对图片的提问', 'warning');
+                return;
+            }
+
+            if (!message && !uploadedImagePath) return;
 
             const sendBtn = document.getElementById('sendBtn');
             sendBtn.disabled = true;
             input.disabled = true;
 
             // 显示用户消息
-            addMessage('user', message);
+            let displayMessage = message;
+            if (uploadedImagePath) {
+                displayMessage = `📷 [图片]\n${message}`;
+            }
+            addMessage('user', displayMessage);
             input.value = '';
             // 重置textarea高度
             input.style.height = 'auto';
 
             try {
-                // v0.6.0: 获取用户设置的响应风格
-                const settings = getSettings();
-                const responseStyle = settings.responseStyle || 'balanced';
+                // 如果有上传的图片，先调用图片识别API并将分析结果作为上下文发送到聊天接口
+                if (uploadedImagePath) {
+                    console.log('🖼️ 发送图片识别请求:', uploadedImagePath);
+                    const response = await fetch('/api/vision/analyze', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            image_path: uploadedImagePath,
+                            prompt: message || '请详细描述这张图片的内容'
+                        })
+                    });
 
-                const url = currentSessionId
-                    ? `${API_BASE}/chat?prompt=${encodeURIComponent(message)}&session_id=${currentSessionId}&response_style=${responseStyle}`
-                    : `${API_BASE}/chat?prompt=${encodeURIComponent(message)}&response_style=${responseStyle}`;
+                    const result = await response.json();
 
-                // 设置60秒超时以处理复杂问题
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 60000);
+                    if (result.success) {
+                        // 在聊天中显示图片的分析（作为可见的上下文）
+                        addMessage('assistant', `📷 图片分析：${result.description}\n\n_${result.model}_`);
 
-                const response = await fetch(url, {
-                    method: 'POST',
-                    signal: controller.signal
-                });
-                clearTimeout(timeoutId);
+                        // 将用户的文本和图片分析合并，发送到聊天接口，让小乐基于图片与问题作答
+                        const settings = getSettings();
+                        const responseStyle = settings.responseStyle || 'balanced';
 
-                const data = await response.json();
+                        const combinedPrompt = message
+                            ? `${message}\n\n根据上面的图片分析，回答用户的问题。图片分析摘要：${result.description}`
+                            : `请基于图片内容给出详细描述：${result.description}`;
 
-                if (response.ok) {
-                    currentSessionId = data.session_id;
-                    addMessage('assistant', data.reply);
+                        const url = currentSessionId
+                            ? `${API_BASE}/chat?prompt=${encodeURIComponent(combinedPrompt)}&session_id=${currentSessionId}&response_style=${responseStyle}`
+                            : `${API_BASE}/chat?prompt=${encodeURIComponent(combinedPrompt)}&response_style=${responseStyle}`;
+
+                        // 设置60秒超时
+                        const controller = new AbortController();
+                        const timeoutId = setTimeout(() => controller.abort(), 60000);
+
+                        const chatResp = await fetch(url, {
+                            method: 'POST',
+                            signal: controller.signal
+                        });
+                        clearTimeout(timeoutId);
+
+                        const chatData = await chatResp.json();
+
+                        if (chatResp.ok) {
+                            currentSessionId = chatData.session_id;
+                            addMessage('assistant', chatData.reply);
+                        } else {
+                            addMessage('assistant', '抱歉，图片相关的问题处理失败：' + (chatData.detail || chatData.error || '未知错误'));
+                        }
+
+                        // 清理图片预览（保留，如需历史可改为保留）
+                        removeImagePreview();
+                    } else {
+                        addMessage('assistant', `❌ 图片识别失败: ${result.error}`);
+                    }
                 } else {
-                    addMessage('assistant', '抱歉，出现错误：' + (data.detail || '未知错误'));
+                    // 普通文本消息
+                    // v0.6.0: 获取用户设置的响应风格
+                    const settings = getSettings();
+                    const responseStyle = settings.responseStyle || 'balanced';
+
+                    const url = currentSessionId
+                        ? `${API_BASE}/chat?prompt=${encodeURIComponent(message)}&session_id=${currentSessionId}&response_style=${responseStyle}`
+                        : `${API_BASE}/chat?prompt=${encodeURIComponent(message)}&response_style=${responseStyle}`;
+
+                    // 设置60秒超时以处理复杂问题
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 60000);
+
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        signal: controller.signal
+                    });
+                    clearTimeout(timeoutId);
+
+                    const data = await response.json();
+
+                    if (response.ok) {
+                        currentSessionId = data.session_id;
+                        addMessage('assistant', data.reply);
+                    } else {
+                        addMessage('assistant', '抱歉，出现错误：' + (data.detail || '未知错误'));
+                    }
                 }
             } catch (error) {
                 if (error.name === 'AbortError') {
@@ -1793,7 +1931,7 @@
         }
 
         // 添加消息到界面
-        function addMessage(role, content, messageId = null) {
+        function addMessage(role, content, messageId = null, imagePath = null) {
             const container = document.getElementById('chatContainer');
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${role}`;
@@ -1806,11 +1944,21 @@
             const contentDiv = document.createElement('div');
             contentDiv.className = 'message-content';
 
+            // 如果有图片，先显示图片
+            if (imagePath && role === 'user') {
+                const imageDiv = document.createElement('div');
+                imageDiv.className = 'message-image';
+                imageDiv.innerHTML = `<img src="/${imagePath}" alt="上传的图片" style="max-width: 300px; max-height: 300px; border-radius: 8px; margin-bottom: 8px;">`;
+                contentDiv.appendChild(imageDiv);
+            }
+
+            // 添加文本内容
+            const textDiv = document.createElement('div');
             // 如果是助手消息，使用Markdown渲染；用户消息保持纯文本
             if (role === 'assistant') {
-                contentDiv.innerHTML = marked.parse(content);
+                textDiv.innerHTML = marked.parse(content);
             } else {
-                contentDiv.textContent = content;
+                textDiv.textContent = content;
 
                 // 为用户消息添加操作按钮 v0.6.0
                 const actionsDiv = document.createElement('div');
@@ -1843,6 +1991,7 @@
                 messageDiv.appendChild(actionsDiv);
             }
 
+            contentDiv.appendChild(textDiv);
             messageDiv.appendChild(contentDiv);
             container.appendChild(messageDiv);
             container.scrollTop = container.scrollHeight;
@@ -2249,23 +2398,63 @@
 
         // 加载最近记忆
         async function loadRecentMemories() {
+            console.log('📋 loadRecentMemories 函数被调用');
             const container = document.getElementById('memoryList');
+            console.log('📦 容器元素:', container);
             container.innerHTML = '<div class="loading">加载中...</div>';
 
             try {
+                console.log('🌐 发起请求: /memory/recent');
                 const response = await fetch(`${API_BASE}/memory/recent?hours=24&limit=20`);
+                console.log('📡 响应状态:', response.status);
                 const data = await response.json();
+                console.log('📊 返回数据:', data);
 
-                if (data.memories && data.memories.length > 0) {
-                    container.innerHTML = data.memories.map(mem => `
-                        <div class="memory-item">
-                            <div class="memory-content">${mem.content}</div>
+                // API返回的字段是memory，不是memories
+                const memories = data.memory || data.memories || [];
+                console.log('📋 解析到的记忆数量:', memories.length);
+
+                if (memories.length > 0) {
+                    container.innerHTML = memories.map(mem => `
+                        <div class="memory-item" id="memory-${mem.id}">
+                            <div class="memory-content" id="content-${mem.id}">${marked.parse(mem.content)}</div>
                             <div class="memory-meta">
                                 <span>🏷️ ${mem.tag}</span>
                                 <span>🕐 ${mem.timestamp}</span>
                             </div>
+                            <div class="memory-actions" style="margin-top: 10px; display: flex; gap: 8px;">
+                                <button data-memory-id="${mem.id}" data-memory-tag="${mem.tag}" class="edit-memory-btn"
+                                    style="padding: 5px 12px; background: #667eea; color: white; 
+                                           border: none; border-radius: 5px; cursor: pointer; font-size: 12px;">
+                                    ✏️ 编辑
+                                </button>
+                                <button data-memory-id="${mem.id}" class="delete-memory-btn"
+                                    style="padding: 5px 12px; background: #f56565; color: white; 
+                                           border: none; border-radius: 5px; cursor: pointer; font-size: 12px;">
+                                    🗑️ 删除
+                                </button>
+                            </div>
                         </div>
                     `).join('');
+
+                    // 添加事件监听器
+                    console.log('🔗 [loadRecentMemories] 开始绑定事件监听器...');
+                    const editButtons = container.querySelectorAll('.edit-memory-btn');
+                    const deleteButtons = container.querySelectorAll('.delete-memory-btn');
+                    console.log(`✅ 找到 ${editButtons.length} 个编辑按钮, ${deleteButtons.length} 个删除按钮`);
+
+                    editButtons.forEach(btn => {
+                        btn.addEventListener('click', function () {
+                            console.log('✏️ 编辑按钮被点击, ID:', this.dataset.memoryId);
+                            editMemory(this.dataset.memoryId, this.dataset.memoryTag);
+                        });
+                    });
+                    deleteButtons.forEach(btn => {
+                        btn.addEventListener('click', function () {
+                            console.log('🗑️ 删除按钮被点击, ID:', this.dataset.memoryId);
+                            deleteMemory(this.dataset.memoryId);
+                        });
+                    });
                 } else {
                     container.innerHTML = '<div class="loading">没有记忆记录</div>';
                 }
@@ -2293,14 +2482,45 @@
 
                 if (data.memories && data.memories.length > 0) {
                     container.innerHTML = data.memories.map(mem => `
-                        <div class="memory-item">
-                            <div class="memory-content">${mem.content}</div>
+                        <div class="memory-item" id="memory-${mem.id}">
+                            <div class="memory-content" id="content-${mem.id}">${marked.parse(mem.content)}</div>
                             <div class="memory-meta">
                                 <span>🏷️ ${mem.tag}</span>
                                 <span>🕐 ${mem.timestamp}</span>
                             </div>
+                            <div class="memory-actions" style="margin-top: 10px; display: flex; gap: 8px;">
+                                <button data-memory-id="${mem.id}" data-memory-tag="${mem.tag}" class="edit-memory-btn"
+                                    style="padding: 5px 12px; background: #667eea; color: white; 
+                                           border: none; border-radius: 5px; cursor: pointer; font-size: 12px;">
+                                    ✏️ 编辑
+                                </button>
+                                <button data-memory-id="${mem.id}" class="delete-memory-btn"
+                                    style="padding: 5px 12px; background: #f56565; color: white; 
+                                           border: none; border-radius: 5px; cursor: pointer; font-size: 12px;">
+                                    🗑️ 删除
+                                </button>
+                            </div>
                         </div>
                     `).join('');
+
+                    // 添加事件监听器
+                    console.log('🔗 [searchMemories] 绑定事件...');
+                    setTimeout(() => {
+                        const editButtons = container.querySelectorAll('.edit-memory-btn');
+                        const deleteButtons = container.querySelectorAll('.delete-memory-btn');
+                        console.log(`✅ [搜索] 找到 ${editButtons.length} 个编辑, ${deleteButtons.length} 个删除按钮`);
+
+                        editButtons.forEach(btn => {
+                            btn.addEventListener('click', function () {
+                                editMemory(this.dataset.memoryId, this.dataset.memoryTag);
+                            });
+                        });
+                        deleteButtons.forEach(btn => {
+                            btn.addEventListener('click', function () {
+                                deleteMemory(this.dataset.memoryId);
+                            });
+                        });
+                    }, 0);
                 } else {
                     container.innerHTML = '<div class="loading">没有找到相关记忆</div>';
                 }
@@ -2328,15 +2548,46 @@
 
                 if (data.memories && data.memories.length > 0) {
                     container.innerHTML = data.memories.map(mem => `
-                        <div class="memory-item">
-                            <div class="memory-content">${mem.content}</div>
+                        <div class="memory-item" id="memory-${mem.id}">
+                            <div class="memory-content" id="content-${mem.id}">${marked.parse(mem.content)}</div>
                             <div class="memory-meta">
                                 <span>🏷️ ${mem.tag}</span>
                                 <span>🕐 ${mem.timestamp}</span>
                                 <span>📊 相似度: ${(mem.score * 100).toFixed(1)}%</span>
                             </div>
+                            <div class="memory-actions" style="margin-top: 10px; display: flex; gap: 8px;">
+                                <button data-memory-id="${mem.id}" data-memory-tag="${mem.tag}" class="edit-memory-btn"
+                                    style="padding: 5px 12px; background: #667eea; color: white; 
+                                           border: none; border-radius: 5px; cursor: pointer; font-size: 12px;">
+                                    ✏️ 编辑
+                                </button>
+                                <button data-memory-id="${mem.id}" class="delete-memory-btn"
+                                    style="padding: 5px 12px; background: #f56565; color: white; 
+                                           border: none; border-radius: 5px; cursor: pointer; font-size: 12px;">
+                                    🗑️ 删除
+                                </button>
+                            </div>
                         </div>
                     `).join('');
+
+                    // 添加事件监听器
+                    console.log('🔗 [semanticSearch] 绑定事件...');
+                    setTimeout(() => {
+                        const editButtons = container.querySelectorAll('.edit-memory-btn');
+                        const deleteButtons = container.querySelectorAll('.delete-memory-btn');
+                        console.log(`✅ [语义] 找到 ${editButtons.length} 个编辑, ${deleteButtons.length} 个删除按钮`);
+
+                        editButtons.forEach(btn => {
+                            btn.addEventListener('click', function () {
+                                editMemory(this.dataset.memoryId, this.dataset.memoryTag);
+                            });
+                        });
+                        deleteButtons.forEach(btn => {
+                            btn.addEventListener('click', function () {
+                                deleteMemory(this.dataset.memoryId);
+                            });
+                        });
+                    }, 0);
                 } else {
                     container.innerHTML = '<div class="loading">没有找到相关记忆</div>';
                 }
@@ -2344,6 +2595,92 @@
                 container.innerHTML = `<div class="error">搜索失败: ${error.message}</div>`;
             }
         }
+
+        // ============ v0.7.0 记忆管理 CRUD 功能 ============
+
+        // 编辑记忆
+        async function editMemory(memoryId, currentTag) {
+            const contentEl = document.getElementById(`content-${memoryId}`);
+            const currentContent = contentEl.textContent;
+
+            // 创建编辑表单
+            const newContent = prompt('编辑记忆内容:', currentContent);
+            if (newContent === null || newContent.trim() === '') {
+                return;  // 用户取消或内容为空
+            }
+
+            const newTag = prompt('编辑标签 (facts/image/conversation/schedule等):', currentTag);
+            if (newTag === null || newTag.trim() === '') {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/api/memory/${memoryId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        content: newContent.trim(),
+                        tag: newTag.trim()
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showNotification('✅ 记忆更新成功', 'success');
+                    // 刷新列表
+                    loadRecentMemories();
+                } else {
+                    showNotification('❌ 更新失败: ' + (data.error || '未知错误'), 'error');
+                }
+
+            } catch (error) {
+                console.error('编辑记忆失败:', error);
+                showNotification('❌ 更新失败: 网络错误', 'error');
+            }
+        }
+
+        // 删除记忆
+        async function deleteMemory(memoryId) {
+            console.log('🗑️ deleteMemory 被调用, ID:', memoryId);
+
+            if (!confirm('确定要删除这条记忆吗？此操作不可恢复！')) {
+                console.log('⚠️ 用户取消删除');
+                return;
+            }
+
+            console.log('✅ 用户确认删除');
+            console.log('📡 发送删除请求...');
+
+            try {
+                const response = await fetch(`${API_BASE}/api/memory/${memoryId}`, {
+                    method: 'DELETE'
+                });
+
+                console.log('📡 响应状态:', response.status);
+
+                const data = await response.json();
+                console.log('📋 响应数据:', data);
+
+                if (data.success) {
+                    showNotification('✅ 记忆已删除', 'success');
+                    // 从DOM中移除
+                    const memoryEl = document.getElementById(`memory-${memoryId}`);
+                    if (memoryEl) {
+                        memoryEl.style.opacity = '0';
+                        setTimeout(() => memoryEl.remove(), 300);
+                    }
+                } else {
+                    showNotification('❌ 删除失败: ' + (data.error || '未知错误'), 'error');
+                }
+
+            } catch (error) {
+                console.error('删除记忆失败:', error);
+                showNotification('❌ 删除失败: 网络错误', 'error');
+            }
+        }
+
+        // ============ 记忆管理功能结束 ============
 
         // 自动刷新相关变量
         let autoRefreshInterval = null;
@@ -3286,6 +3623,147 @@
 
         // ============ 提醒管理功能结束 ============
 
+        // ============ v0.7.0 课程表管理功能 ============
+
+        // 课程表数据结构
+        let scheduleData = {
+            periods: ['第1节', '第2节', '第3节', '第4节', '第5节', '第6节', '第7节'],
+            weekdays: ['周一', '周二', '周三', '周四', '周五'],
+            courses: {} // {period_day: 'course_name'}
+        };
+
+        // 加载课程表
+        async function loadSchedule() {
+            const tbody = document.getElementById('scheduleBody');
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 20px;">加载中...</td></tr>';
+
+            try {
+                const response = await fetch(`${API_BASE}/api/schedule?user_id=default_user`);
+                const data = await response.json();
+
+                console.log('📅 课程表API响应:', data);
+
+                if (data.success && data.schedule) {
+                    scheduleData = data.schedule;
+                    console.log('✅ 课程表加载成功:', scheduleData);
+                    console.log('📊 课程数量:', Object.keys(scheduleData.courses).length);
+                } else {
+                    console.warn('⚠️ API未返回课程表，尝试从记忆解析');
+                    // 尝试从记忆中解析课程表
+                    await parseScheduleFromMemory();
+                }
+
+                // 渲染课程表
+                renderSchedule();
+                showNotification('✅ 课程表加载成功', 'success');
+
+            } catch (error) {
+                console.error('❌ 加载课程表失败:', error);
+                // 尝试从记忆中解析
+                await parseScheduleFromMemory();
+                renderSchedule();
+            }
+        }
+
+        // 从记忆中解析课程表
+        async function parseScheduleFromMemory() {
+            try {
+                const response = await fetch(`${API_BASE}/memory/search?keywords=课程表`);
+                const data = await response.json();
+
+                if (data.memories && data.memories.length > 0) {
+                    const scheduleMemory = data.memories[0];
+                    const content = scheduleMemory.content;
+
+                    // 解析课程表文本（格式：周一：晨读-科学(5)-...）
+                    const lines = content.split('\n');
+                    scheduleData.courses = {};
+
+                    lines.forEach(line => {
+                        const match = line.match(/^(周[一二三四五])[:：](.*)/);
+                        if (match) {
+                            const day = match[1];
+                            const courses = match[2].split('-');
+
+                            courses.forEach((course, index) => {
+                                if (course && course.trim()) {
+                                    const key = `${index}_${day}`;
+                                    scheduleData.courses[key] = course.trim();
+                                }
+                            });
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error('从记忆解析课程表失败:', error);
+            }
+        }
+
+        // 渲染课程表
+        function renderSchedule() {
+            const tbody = document.getElementById('scheduleBody');
+            let html = '';
+
+            scheduleData.periods.forEach((period, periodIndex) => {
+                html += '<tr>';
+                html += `<td style="font-weight: bold; background: var(--background);">${period}</td>`;
+
+                scheduleData.weekdays.forEach((day, dayIndex) => {
+                    const key = `${periodIndex}_${day}`;
+                    const course = scheduleData.courses[key] || '';
+                    html += `<td><input type="text" value="${course}" 
+                        onchange="updateCourse(${periodIndex}, '${day}', this.value)"
+                        placeholder="无课"
+                        style="width: 100%; padding: 8px; border: 1px solid var(--border-color); 
+                               border-radius: 4px; background: var(--background); color: var(--text-color);">
+                    </td>`;
+                });
+
+                html += '</tr>';
+            });
+
+            tbody.innerHTML = html;
+        }
+
+        // 更新单个课程
+        function updateCourse(periodIndex, day, value) {
+            const key = `${periodIndex}_${day}`;
+            if (value && value.trim()) {
+                scheduleData.courses[key] = value.trim();
+            } else {
+                delete scheduleData.courses[key];
+            }
+            console.log('课程已更新:', key, value);
+        }
+
+        // 保存课程表
+        async function saveSchedule() {
+            try {
+                const response = await fetch(`${API_BASE}/api/schedule`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        user_id: 'default_user',
+                        schedule: scheduleData
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showNotification('✅ 课程表保存成功', 'success');
+                } else {
+                    showNotification('❌ 保存失败: ' + (data.error || '未知错误'), 'error');
+                }
+
+            } catch (error) {
+                console.error('保存课程表失败:', error);
+                showNotification('❌ 保存失败: 网络错误', 'error');
+            }
+        }
+
+        // ============ 课程表管理功能结束 ============
+
         // ============ WebSocket实时推送 ============
         let ws = null;
         let wsReconnectTimer = null;
@@ -3371,14 +3849,28 @@
         // 播放提醒声音
         function playReminderSound() {
             try {
-                // 用户交互检测和Web Audio API支持
+                // 优先使用音频文件（更可靠）
+                const audio = new Audio('/static/sounds/dingdong.mp3');
+                audio.volume = 0.8;
+                audio.play().then(() => {
+                    console.log('✅ 提醒音效播放成功');
+                }).catch(e => {
+                    console.warn('⚠️ 音频播放失败，尝试Web Audio API:', e);
+                    // 回退到Web Audio API
+                    playWebAudioTone();
+                });
+            } catch (error) {
+                console.error('❌ 播放音效失败:', error);
+                // 回退到Web Audio API
+                playWebAudioTone();
+            }
+        }
+
+        function playWebAudioTone() {
+            try {
+                // 检查Web Audio API支持
                 if (typeof window.AudioContext !== "function" && typeof window.webkitAudioContext !== "function") {
-                    // 不支持Web Audio API，回退到音频文件
-                    const audio = new Audio('/static/sounds/dingdong.mp3');
-                    audio.volume = 0.8;
-                    audio.play().catch(e => {
-                        console.warn('备用音频播放失败:', e);
-                    });
+                    console.warn('不支持Web Audio API');
                     return;
                 }
 
@@ -3988,6 +4480,21 @@
             // 显示快捷键提示
             showShortcutHints();
 
+            // 图片上传事件监听器（额外添加以确保捕获）
+            const imageUploadInput = document.getElementById('imageUpload');
+            if (imageUploadInput) {
+                console.log('✅ 图片上传input已找到，添加事件监听器');
+                imageUploadInput.addEventListener('change', (event) => {
+                    console.log('🎯 Change event triggered (addEventListener)');
+                    handleImageUpload(event);
+                });
+                imageUploadInput.addEventListener('cancel', () => {
+                    console.log('❌ 用户取消了文件选择');
+                });
+            } else {
+                console.error('❌ 未找到图片上传input元素！');
+            }
+
             // Enter发送，Shift+Enter换行
             messageInput.addEventListener('keydown', (event) => {
                 if (event.key === 'Enter' && !event.shiftKey) {
@@ -4012,6 +4519,22 @@
 
             // 请求浏览器通知权限
             requestNotificationPermission();
+
+            // 预加载音频（激活音频权限）
+            const preloadAudio = new Audio('/static/sounds/dingdong.mp3');
+            preloadAudio.volume = 0.01; // 极小音量
+            // 在用户第一次点击页面时播放（激活权限）
+            document.addEventListener('click', function initAudio() {
+                preloadAudio.play().then(() => {
+                    console.log('✅ 音频权限已激活');
+                    preloadAudio.pause();
+                    preloadAudio.currentTime = 0;
+                }).catch(e => {
+                    console.warn('音频权限激活失败:', e);
+                });
+                // 只执行一次
+                document.removeEventListener('click', initAudio);
+            }, { once: true });
         };
 
         // ========================================
@@ -4020,59 +4543,120 @@
         let uploadedImagePath = null;
 
         /**
+         * 显示通知消息
+         */
+        function showNotification(message, type = 'info') {
+            console.log(`[${type.toUpperCase()}] ${message}`);
+
+            // 创建通知元素
+            const notification = document.createElement('div');
+            notification.className = `notification notification-${type}`;
+            notification.textContent = message;
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 15px 20px;
+                border-radius: 8px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                z-index: 10000;
+                font-size: 14px;
+                max-width: 300px;
+                animation: slideInRight 0.3s ease-out;
+                ${type === 'success' ? 'background: #10b981; color: white;' : ''}
+                ${type === 'error' ? 'background: #ef4444; color: white;' : ''}
+                ${type === 'info' ? 'background: #3b82f6; color: white;' : ''}
+                ${type === 'warning' ? 'background: #f59e0b; color: white;' : ''}
+            `;
+
+            document.body.appendChild(notification);
+
+            // 3秒后自动移除
+            setTimeout(() => {
+                notification.style.animation = 'slideOutRight 0.3s ease-out';
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+        }
+
+        /**
          * 触发图片上传
          */
         function triggerImageUpload() {
-            document.getElementById('imageUpload').click();
+            console.log('📷 triggerImageUpload called');
+            const uploadInput = document.getElementById('imageUpload');
+            console.log('🔍 Upload input element:', uploadInput);
+            if (uploadInput) {
+                uploadInput.click();
+                console.log('✅ Click triggered');
+            } else {
+                console.error('❌ imageUpload element not found!');
+            }
         }
 
         /**
          * 处理图片上传
          */
         async function handleImageUpload(event) {
+            console.log('🔍 handleImageUpload called', event);
             const file = event.target.files[0];
-            if (!file) return;
+            console.log('📁 Selected file:', file);
+            if (!file) {
+                console.log('❌ No file selected');
+                return;
+            }
 
             // 验证文件类型
             const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+            console.log('🔍 File type:', file.type);
             if (!validTypes.includes(file.type)) {
+                console.log('❌ Invalid file type:', file.type);
                 showNotification('❌ 不支持的图片格式', 'error');
                 return;
             }
 
             // 验证文件大小 (20MB)
+            console.log('📊 File size:', file.size, 'bytes');
             if (file.size > 20 * 1024 * 1024) {
+                console.log('❌ File too large:', file.size);
                 showNotification('❌ 文件过大（最大20MB）', 'error');
                 return;
             }
 
             // 显示上传中状态
+            console.log('📤 Starting upload...');
             showNotification('📤 正在上传图片...', 'info');
 
             try {
                 // 创建FormData
                 const formData = new FormData();
                 formData.append('file', file);
+                console.log('📦 FormData created');
 
                 // 上传图片
+                console.log('🚀 Sending request to /api/vision/upload');
                 const response = await fetch('/api/vision/upload', {
                     method: 'POST',
                     body: formData
                 });
 
+                console.log('📡 Response status:', response.status);
                 const result = await response.json();
+                console.log('📋 Response data:', result);
 
                 if (result.success) {
                     uploadedImagePath = result.file_path;
+                    console.log('✅ Upload successful, path:', uploadedImagePath);
                     showNotification('✅ 图片上传成功', 'success');
 
                     // 显示图片预览
+                    console.log('🖼️ Showing image preview');
                     showImagePreview(file, result.file_path);
                 } else {
+                    console.log('❌ Upload failed:', result.error);
                     showNotification(`❌ 上传失败: ${result.error}`, 'error');
                 }
             } catch (error) {
-                console.error('Upload error:', error);
+                console.error('💥 Upload error:', error);
                 showNotification('❌ 上传失败: 网络错误', 'error');
             }
         }
@@ -4081,8 +4665,10 @@
          * 显示图片预览
          */
         function showImagePreview(file, filePath) {
+            console.log('🖼️ showImagePreview called', { file: file.name, filePath });
             const reader = new FileReader();
             reader.onload = (e) => {
+                console.log('📖 FileReader loaded');
                 // 创建预览容器
                 const previewHtml = `
                     <div class="image-preview" id="imagePreview">
@@ -4092,19 +4678,28 @@
                         </div>
                         <img src="${e.target.result}" alt="预览图" style="max-width: 200px; max-height: 200px; border-radius: 8px;">
                         <div class="image-preview-actions">
-                            <button onclick="analyzeUploadedImage()" class="analyze-btn">🔍 识别图片</button>
+                            <div style="font-size: 13px; color: var(--text-secondary); margin-top: 8px;">
+                                💡 输入问题后点击发送，或直接发送识别图片内容
+                            </div>
                         </div>
                     </div>
                 `;
 
                 // 插入到输入框上方
                 const inputContainer = document.querySelector('.input-container');
+                console.log('🔍 Input container:', inputContainer);
                 const existing = document.getElementById('imagePreview');
                 if (existing) {
+                    console.log('🗑️ Removing existing preview');
                     existing.remove();
                 }
                 inputContainer.insertAdjacentHTML('beforebegin', previewHtml);
+                console.log('✅ Preview inserted');
             };
+            reader.onerror = (error) => {
+                console.error('❌ FileReader error:', error);
+            };
+            console.log('📖 Starting FileReader...');
             reader.readAsDataURL(file);
         }
 
@@ -4127,43 +4722,6 @@
         /**
          * 分析上传的图片
          */
-        async function analyzeUploadedImage() {
-            if (!uploadedImagePath) {
-                showNotification('❌ 没有上传图片', 'error');
-                return;
-            }
-
-            showNotification('🔍 正在分析图片...', 'info');
-
-            try {
-                const response = await fetch('/api/vision/analyze', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        image_path: uploadedImagePath,
-                        prompt: '请详细描述这张图片的内容'
-                    })
-                });
-
-                const result = await response.json();
-
-                if (result.success) {
-                    // 在聊天中显示分析结果
-                    addMessage('assistant', `📷 **图片分析结果：**\n\n${result.description}\n\n_使用模型: ${result.model}_`);
-                    showNotification('✅ 图片识别完成', 'success');
-                    
-                    // 清理预览
-                    removeImagePreview();
-                } else {
-                    showNotification(`❌ 识别失败: ${result.error}`, 'error');
-                }
-            } catch (error) {
-                console.error('Analyze error:', error);
-                showNotification('❌ 识别失败: 网络错误', 'error');
-            }
-        }
     </script>
 </body>
 

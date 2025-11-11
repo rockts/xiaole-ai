@@ -4,6 +4,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import Optional, Dict, Any, List
 from agent import XiaoLeAgent
+from memory import MemoryManager
 from conflict_detector import ConflictDetector
 from proactive_qa import ProactiveQA  # v0.3.0 主动问答
 from reminder_manager import get_reminder_manager  # v0.5.0 主动提醒
@@ -26,6 +27,7 @@ app.add_middleware(
 
 # 挂载静态文件目录
 app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 
 # Pydantic模型 - v0.5.0提醒系统
@@ -171,13 +173,117 @@ def memory_stats():
     return xiaole.memory.get_stats()
 
 
+# ========================================
+# v0.7.0: 记忆管理 CRUD API
+# ========================================
+
+@app.put("/api/memory/{memory_id}")
+async def update_memory(memory_id: int, request: dict):
+    """
+    更新记忆内容
+
+    Args:
+        memory_id: 记忆ID
+        request: 包含content和tag的请求体
+
+    Returns:
+        dict: 更新结果
+    """
+    try:
+        memory_manager = MemoryManager()
+        from db_setup import Memory
+
+        # 查询记忆
+        memory = memory_manager.session.query(Memory).filter(
+            Memory.id == memory_id
+        ).first()
+
+        if not memory:
+            return {
+                "success": False,
+                "error": "记忆不存在"
+            }
+
+        # 更新内容
+        content = request.get("content")
+        tag = request.get("tag")
+
+        if content:
+            memory.content = content
+        if tag:
+            memory.tag = tag
+
+        memory_manager.session.commit()
+
+        return {
+            "success": True,
+            "message": "记忆已更新"
+        }
+
+    except Exception as e:
+        print(f"❌ 更新记忆失败: {e}")
+        import traceback
+        traceback.print_exc()
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
+@app.delete("/api/memory/{memory_id}")
+async def delete_memory(memory_id: int):
+    """
+    删除记忆
+
+    Args:
+        memory_id: 记忆ID
+
+    Returns:
+        dict: 删除结果
+    """
+    try:
+        memory_manager = MemoryManager()
+        from db_setup import Memory
+
+        # 查询记忆
+        memory = memory_manager.session.query(Memory).filter(
+            Memory.id == memory_id
+        ).first()
+
+        if not memory:
+            return {
+                "success": False,
+                "error": "记忆不存在"
+            }
+
+        # 删除记忆
+        memory_manager.session.delete(memory)
+        memory_manager.session.commit()
+
+        return {
+            "success": True,
+            "message": "记忆已删除"
+        }
+
+    except Exception as e:
+        print(f"❌ 删除记忆失败: {e}")
+        import traceback
+        traceback.print_exc()
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
 # 对话会话管理 API
 @app.post("/chat")
 def chat(
     prompt: str,
     session_id: str = None,
     user_id: str = "default_user",
-    response_style: str = "balanced"  # v0.6.0: 响应风格
+    response_style: str = "balanced",  # v0.6.0: 响应风格
+    image_path: str = None,  # 图片路径（可选）
+    memorize: bool = False  # 是否强制记忆（可选）
 ):
     """
     支持上下文的对话接口
@@ -187,7 +293,106 @@ def chat(
         session_id: 会话ID (None则创建新会话)
         user_id: 用户ID
         response_style: 响应风格 (concise/balanced/detailed/professional)
+        image_path: 图片路径（可选，用于图片识别）
+        memorize: 是否强制记忆图片内容（可选）
     """
+    # 如果有图片，先进行图片识别
+    if image_path:
+        from vision_tool import VisionTool
+        vision_tool = VisionTool()
+
+        try:
+            # 调用图片识别 - 使用详细的表格识别prompt
+            ocr_prompt = '''这是一张学生课程表。请仔细识别表格中的内容：
+1. 表头有：星期一、星期二、星期三、星期四、星期五
+2. 左侧行标题有：晨读、第1节、第2节...第7节、午休、课后辅导
+3. 每个格子可能有课程名称（如"科学"）和编号（如"(5)"）
+
+请完整地列出每一天的所有课程，包括空格子（标注"无课"）。
+格式：
+周一：晨读-XX, 第1节-XX, 第2节-XX...
+周二：...
+依此类推。不要省略任何信息。'''
+
+            print(f"\n🔍 图片识别 - 使用表格专用prompt")
+
+            vision_result = vision_tool.analyze_image(
+                image_path=image_path,
+                prompt=ocr_prompt,
+                prefer_model="auto"
+            )
+
+            if vision_result.get('success'):
+                vision_description = vision_result.get('description', '')
+
+                print(f"\n{'='*60}")
+                print(f"🔍 调试：图片识别结果")
+                print(f"识别内容长度: {len(vision_description)} 字符")
+                print(f"前800字符: {vision_description[:800]}")
+                print(f"{'='*60}\n")
+
+                # 构建包含图片识别结果的完整消息
+                if prompt:
+                    combined_prompt = f"[图片内容]: {vision_description}\n\n[用户问题]: {prompt}"
+                else:
+                    combined_prompt = f"[图片内容]: {vision_description}"
+
+                # 智能判断是否需要保存图片记忆
+                # 1. 用户明确要求记住
+                # 2. 用户消息中提到了关系（我的、儿子、家人等）
+                # 3. 图片内容包含重要信息（课程表、证件等）
+                should_memorize = memorize  # 前端传递的参数
+
+                if prompt:
+                    # 检测用户是否明确要求记住
+                    memorize_keywords = ['记住', '保存', '记下', '存一下', '记录']
+                    # 检测是否提到了关系
+                    relation_keywords = ['我的', '我儿子', '我女儿', '我妻子', '我老婆',
+                                         '我老公', '我爸', '我妈', '家人', '孩子', '宝宝']
+
+                    should_memorize = should_memorize or any(
+                        kw in prompt for kw in memorize_keywords)
+                    should_memorize = should_memorize or any(
+                        kw in prompt for kw in relation_keywords)
+
+                # 检测图片内容是否包含重要信息（课程表、表格等结构化数据）
+                if not should_memorize:
+                    important_content_indicators = [
+                        '课程表', '时间表', '日程', '表格', '证件']
+                    should_memorize = any(
+                        ind in vision_description for ind in important_content_indicators)
+
+                if should_memorize:
+                    try:
+                        print(f"💾 保存图片到记忆库，内容长度: {len(vision_description)}")
+                        xiaole.memory.remember(
+                            content=vision_description,
+                            tag=f"image:{image_path.split('/')[-1]}"
+                        )
+                        print(f"✅ 图片记忆已保存: image:{image_path.split('/')[-1]}")
+                        # 在提示中告知小乐这张图片已经保存
+                        combined_prompt += "\n\n[系统提示：这张图片的内容我已经记住了，以后可以回忆]"
+                    except Exception as e:
+                        print(f"⚠️ 保存图片记忆失败: {e}")
+                else:
+                    print(f"ℹ️ 图片不需要记忆（普通照片）")
+
+                # 使用包含图片内容的完整消息进行对话
+                return xiaole.chat(combined_prompt, session_id, user_id, response_style)
+            else:
+                # 图片识别失败，返回错误信息
+                error_msg = vision_result.get('error', '未知错误')
+                return {
+                    'reply': f'❌ 图片识别失败: {error_msg}',
+                    'session_id': session_id or 'error'
+                }
+        except Exception as e:
+            return {
+                'reply': f'❌ 图片处理出错: {str(e)}',
+                'session_id': session_id or 'error'
+            }
+
+    # 没有图片，正常对话
     return xiaole.chat(prompt, session_id, user_id, response_style)
 
 
@@ -660,6 +865,185 @@ def stop_scheduler():
 
 
 # ========================================
+# v0.7.0: 课程表管理
+# ========================================
+
+@app.get("/api/schedule")
+async def get_schedule(user_id: str = "default_user"):
+    """
+    获取用户课程表
+
+    Args:
+        user_id: 用户ID
+
+    Returns:
+        dict: 课程表数据
+    """
+    try:
+        # 尝试从数据库查询课程表记忆
+        memory_manager = MemoryManager()
+
+        # 查询image或facts类型的课程表记忆
+        from db_setup import Memory
+        from sqlalchemy import or_
+
+        # 优先查询image类型的课程表
+        memories = memory_manager.session.query(Memory).filter(
+            Memory.tag.like('image:%'),
+            or_(
+                Memory.content.like('%周一：晨读%'),
+                Memory.content.like('%周一：第1节%'),
+                Memory.content.like('%第1节-无课%')
+            )
+        ).order_by(Memory.created_at.desc()).limit(1).all()
+
+        # 如果没找到image，再查schedule类型
+        if not memories:
+            memories = memory_manager.session.query(Memory).filter(
+                Memory.tag == 'schedule'
+            ).order_by(Memory.created_at.desc()).limit(1).all()
+
+        if memories:
+            content = memories[0].content
+
+            # 解析课程表内容
+            schedule = {
+                "periods": ['第1节', '第2节', '第3节', '第4节', '第5节', '第6节', '第7节'],
+                "weekdays": ['周一', '周二', '周三', '周四', '周五'],
+                "courses": {}
+            }
+
+            # 解析文本（格式：周一：晨读-科学(5), 第1节-无课, ...）
+            lines = content.split('\n')
+            import re
+
+            for line in lines:
+                # 匹配 "周X：..." 格式
+                match = re.match(r'^(周[一二三四五])[:：]\s*(.*)', line)
+                if match:
+                    day = match.group(1)
+                    course_info = match.group(2)
+
+                    # 按逗号分割
+                    items = course_info.split(',')
+
+                    for item in items:
+                        item = item.strip()
+                        # 解析 "第X节-课程" 或 "晨读-课程"
+                        if '第' in item and '节' in item:
+                            # 提取节次
+                            period_match = re.search(r'第(\d+)节', item)
+                            if period_match:
+                                period_num = int(period_match.group(1))
+                                # 提取课程名
+                                course_match = re.search(r'-\s*(.+)', item)
+                                if course_match:
+                                    course_name = course_match.group(1).strip()
+                                    if course_name and course_name != '无课':
+                                        # period_num-1 因为第1节对应index 0
+                                        key = f"{period_num-1}_{day}"
+                                        schedule["courses"][key] = course_name
+
+            return {
+                "success": True,
+                "schedule": schedule
+            }        # 如果没有找到，返回空课程表
+        return {
+            "success": True,
+            "schedule": {
+                "periods": ['第1节', '第2节', '第3节', '第4节', '第5节', '第6节', '第7节'],
+                "weekdays": ['周一', '周二', '周三', '周四', '周五'],
+                "courses": {}
+            }
+        }
+
+    except Exception as e:
+        print(f"❌ 获取课程表失败: {e}")
+        import traceback
+        traceback.print_exc()
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
+@app.post("/api/schedule")
+async def save_schedule(request: dict):
+    """
+    保存用户课程表
+
+    Args:
+        request: 包含user_id和schedule的请求体
+
+    Returns:
+        dict: 保存结果
+    """
+    try:
+        user_id = request.get("user_id", "default_user")
+        schedule = request.get("schedule", {})
+
+        if not schedule:
+            return {
+                "success": False,
+                "error": "课程表数据为空"
+            }
+
+        # 将课程表转换为文本格式保存到记忆
+        memory_manager = MemoryManager()
+
+        # 按天组织课程
+        courses_by_day = {}
+        for key, course in schedule.get("courses", {}).items():
+            period_index, day = key.split('_')
+            if day not in courses_by_day:
+                courses_by_day[day] = {}
+            courses_by_day[day][int(period_index)] = course
+
+        # 生成课程表文本
+        lines = []
+        for day in schedule.get("weekdays", []):
+            if day in courses_by_day:
+                courses = []
+                for i in range(len(schedule.get("periods", []))):
+                    course = courses_by_day[day].get(i, "无课")
+                    courses.append(course)
+                lines.append(f"{day}：{'-'.join(courses)}")
+
+        content = "\n".join(lines)
+
+        # 删除旧的课程表记忆
+        from db_setup import Memory
+        old_memories = memory_manager.session.query(Memory).filter(
+            Memory.tag == 'schedule'
+        ).all()
+
+        for mem in old_memories:
+            memory_manager.session.delete(mem)
+
+        # 保存新的课程表
+        new_memory = Memory(
+            content=f"用户课程表：\n{content}",
+            tag="schedule"
+        )
+        memory_manager.session.add(new_memory)
+        memory_manager.session.commit()
+
+        return {
+            "success": True,
+            "message": "课程表保存成功"
+        }
+
+    except Exception as e:
+        print(f"❌ 保存课程表失败: {e}")
+        import traceback
+        traceback.print_exc()
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
+# ========================================
 # v0.6.0 Phase 4: 多模态支持 - 图片识别
 # ========================================
 
@@ -667,15 +1051,15 @@ def stop_scheduler():
 async def upload_image(file: UploadFile = File(...)):
     """
     上传图片文件
-    
+
     Args:
         file: 上传的图片文件
-        
+
     Returns:
         dict: 包含文件路径的响应
     """
     from vision_tool import VisionTool
-    
+
     try:
         # 检查文件名
         if not file.filename:
@@ -683,14 +1067,14 @@ async def upload_image(file: UploadFile = File(...)):
                 "success": False,
                 "error": "文件名缺失"
             }
-        
+
         # 读取文件数据
         file_data = await file.read()
-        
+
         # 保存文件
         vision_tool = VisionTool()
         success, result = vision_tool.save_upload(file_data, file.filename)
-        
+
         if success:
             return {
                 "success": True,
@@ -703,7 +1087,7 @@ async def upload_image(file: UploadFile = File(...)):
                 "success": False,
                 "error": result
             }
-            
+
     except Exception as e:
         return {
             "success": False,
@@ -712,29 +1096,36 @@ async def upload_image(file: UploadFile = File(...)):
 
 
 @app.post("/api/vision/analyze")
-def analyze_image(
-    image_path: str,
-    prompt: Optional[str] = None,
-    model: str = "auto"
-):
+def analyze_image(request: dict):
     """
     分析图片内容
-    
+
     Args:
-        image_path: 图片文件路径
-        prompt: 分析提示语（可选）
-        model: 优先使用的模型 ("claude", "gpt4v", "auto")
-        
+        request: JSON请求体，包含:
+            - image_path: 图片文件路径
+            - prompt: 分析提示语（可选）
+            - model: 优先使用的模型（可选，默认"auto"）
+
     Returns:
         dict: 图片分析结果
     """
     from vision_tool import VisionTool
-    
+
     try:
+        image_path = request.get('image_path')
+        prompt = request.get('prompt')
+        model = request.get('model', 'auto')
+
+        if not image_path:
+            return {
+                "success": False,
+                "error": "缺少 image_path 参数"
+            }
+
         vision_tool = VisionTool()
         result = vision_tool.analyze_image(image_path, prompt, model)
         return result
-        
+
     except Exception as e:
         return {
             "success": False,
