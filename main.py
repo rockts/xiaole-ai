@@ -1,4 +1,4 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -657,6 +657,89 @@ def stop_scheduler():
     """停止调度器"""
     scheduler.stop()
     return {"message": "Scheduler stopped", "status": scheduler.get_status()}
+
+
+# ========================================
+# v0.6.0 Phase 4: 多模态支持 - 图片识别
+# ========================================
+
+@app.post("/api/vision/upload")
+async def upload_image(file: UploadFile = File(...)):
+    """
+    上传图片文件
+    
+    Args:
+        file: 上传的图片文件
+        
+    Returns:
+        dict: 包含文件路径的响应
+    """
+    from vision_tool import VisionTool
+    
+    try:
+        # 检查文件名
+        if not file.filename:
+            return {
+                "success": False,
+                "error": "文件名缺失"
+            }
+        
+        # 读取文件数据
+        file_data = await file.read()
+        
+        # 保存文件
+        vision_tool = VisionTool()
+        success, result = vision_tool.save_upload(file_data, file.filename)
+        
+        if success:
+            return {
+                "success": True,
+                "file_path": result,
+                "filename": file.filename,
+                "size": len(file_data)
+            }
+        else:
+            return {
+                "success": False,
+                "error": result
+            }
+            
+    except Exception as e:
+        return {
+            "success": False,
+            "error": f"上传失败: {str(e)}"
+        }
+
+
+@app.post("/api/vision/analyze")
+def analyze_image(
+    image_path: str,
+    prompt: Optional[str] = None,
+    model: str = "auto"
+):
+    """
+    分析图片内容
+    
+    Args:
+        image_path: 图片文件路径
+        prompt: 分析提示语（可选）
+        model: 优先使用的模型 ("claude", "gpt4v", "auto")
+        
+    Returns:
+        dict: 图片分析结果
+    """
+    from vision_tool import VisionTool
+    
+    try:
+        vision_tool = VisionTool()
+        result = vision_tool.analyze_image(image_path, prompt, model)
+        return result
+        
+    except Exception as e:
+        return {
+            "success": False,
+            "error": f"分析失败: {str(e)}"
+        }
 
 
 if __name__ == "__main__":
