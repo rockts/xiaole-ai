@@ -2259,6 +2259,37 @@
             return result;
         }
 
+        // 音频归一化和增益
+        function normalizeAndBoost(buffer, targetPeak = 0.95, minGain = 1.5) {
+            // 找到最大振幅
+            let max = 0;
+            for (let i = 0; i < buffer.length; i++) {
+                const abs = Math.abs(buffer[i]);
+                if (abs > max) max = abs;
+            }
+
+            // 计算增益
+            let gain = 1.0;
+            if (max > 0) {
+                gain = Math.max(targetPeak / max, minGain);
+            } else {
+                gain = minGain;
+            }
+
+            // 限制最大增益，避免过度放大噪音
+            gain = Math.min(gain, 8.0);
+
+            console.log(`🔊 音频增益: ${gain.toFixed(2)}x (原始峰值: ${(max * 100).toFixed(1)}%)`);
+
+            // 应用增益
+            const result = new Float32Array(buffer.length);
+            for (let i = 0; i < buffer.length; i++) {
+                result[i] = Math.max(-1, Math.min(1, buffer[i] * gain));
+            }
+
+            return result;
+        }
+
         function downsampleBuffer(buffer, inSampleRate, outSampleRate) {
             if (outSampleRate === inSampleRate) return buffer;
             const ratio = inSampleRate / outSampleRate;
@@ -2340,10 +2371,11 @@
                             baiduRecorder.stream.getTracks().forEach(t => t.stop());
                         }
 
-                        // 合并、降采样并编码为 WAV 16k
+                        // 合并、增益、降采样并编码为 WAV 16k
                         const raw = mergeBuffers(baiduRecorder.bufferL);
+                        const boosted = normalizeAndBoost(raw); // 增益处理
                         const inRate = baiduRecorder.audioContext.sampleRate;
-                        const down = downsampleBuffer(raw, inRate, 16000);
+                        const down = downsampleBuffer(boosted, inRate, 16000);
                         const wavBlob = encodeWAV(down, 16000);
 
                         // 上传识别

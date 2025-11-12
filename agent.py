@@ -96,6 +96,14 @@ class XiaoLeAgent:
             if not self.claude_key or \
                self.claude_key == "your_claude_api_key_here":
                 print("⚠️  警告: 未配置 CLAUDE_API_KEY，使用占位模式")
+                # 尝试回退到 DeepSeek
+                if self.deepseek_key and \
+                   self.deepseek_key != "your_deepseek_api_key_here":
+                    print("↩️  回退到 DeepSeek（因缺少 Claude Key）")
+                    self.api_type = "deepseek"
+                    self.model = self._get_model()
+                    print(f"✅ 使用 DeepSeek API ({self.model})")
+                    return "deepseek"
                 return None
             try:
                 from anthropic import Anthropic
@@ -103,9 +111,25 @@ class XiaoLeAgent:
                 return Anthropic(api_key=self.claude_key)
             except Exception as e:
                 print(f"⚠️  Claude初始化失败: {e}")
+                # 尝试回退到 DeepSeek
+                if self.deepseek_key and \
+                   self.deepseek_key != "your_deepseek_api_key_here":
+                    print("↩️  回退到 DeepSeek（Claude 初始化失败）")
+                    self.api_type = "deepseek"
+                    self.model = self._get_model()
+                    print(f"✅ 使用 DeepSeek API ({self.model})")
+                    return "deepseek"
                 return None
 
         print(f"⚠️  未知的API类型: {self.api_type}")
+        # 尝试回退到 DeepSeek
+        if self.deepseek_key and \
+           self.deepseek_key != "your_deepseek_api_key_here":
+            print("↩️  回退到 DeepSeek（未知 API 类型）")
+            self.api_type = "deepseek"
+            self.model = self._get_model()
+            print(f"✅ 使用 DeepSeek API ({self.model})")
+            return "deepseek"
         return None
 
     def think(self, prompt, use_memory=True):

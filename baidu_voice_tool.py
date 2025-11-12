@@ -103,28 +103,53 @@ class BaiduVoiceTool:
             if client is None:  # 再次保护（理论上前面已判断）
                 return {"success": False, "error": "客户端未初始化"}
 
+            print(f"🔍 开始语音识别: 格式={format}, 采样率={rate}, "
+                  f"数据大小={len(audio_data)} bytes")
+            
             result = client.asr(audio_data, format, rate, {
                 'dev_pid': 1537,  # 1537=普通话(支持简单的英文识别)
                 'cuid': 'xiaole-ai',
             })
 
+            print(f"📥 百度API响应: {result}")
+
+            # 检查结果类型
+            if not isinstance(result, dict):
+                return {
+                    "success": False,
+                    "error": f"API返回异常类型: {type(result)}"
+                }
+
             if result.get('err_no') == 0:
                 # 识别成功
                 text = ''.join(result.get('result', []))
+                print(f"✅ 识别成功: {text}")
                 return {
                     "success": True,
                     "text": text
                 }
             else:
                 # 识别失败
+                err_no = result.get('err_no')
                 error_msg = result.get('err_msg', '未知错误')
+                print(f"❌ 识别失败: err_no={err_no}, err_msg={error_msg}")
                 return {
                     "success": False,
-                    "error": f"识别失败: {error_msg}",
-                    "err_no": result.get('err_no')
+                    "error": f"识别失败 ({err_no}): {error_msg}",
+                    "err_no": err_no
                 }
 
+        except KeyError as e:
+            print(f"❌ KeyError: {str(e)}")
+            print("   可能原因: API密钥错误或网络问题")
+            return {
+                "success": False,
+                "error": f"API密钥错误或网络问题: {str(e)}"
+            }
         except Exception as e:
+            print(f"❌ 识别异常: {type(e).__name__}: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return {
                 "success": False,
                 "error": f"识别异常: {str(e)}"
