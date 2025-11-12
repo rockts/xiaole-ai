@@ -104,10 +104,7 @@ class DeleteMemoryTool(Tool):
             if keywords:
                 keyword_list = [k.strip() for k in keywords.split(",")]
                 keyword_conditions = [
-                    or_(
-                        Memory.content.contains(kw),
-                        Memory.summary.contains(kw)
-                    )
+                    Memory.content.contains(kw)
                     for kw in keyword_list
                 ]
                 conditions.append(or_(*keyword_conditions))
