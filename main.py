@@ -19,8 +19,6 @@ from scheduler import get_scheduler  # v0.5.0 定时调度
 from baidu_voice_tool import baidu_voice_tool  # v0.8.0 百度语音识别
 from document_summarizer import DocumentSummarizer  # v0.8.0 Phase 3 文档总结
 import time
-import shutil
-from pathlib import Path
 
 app = FastAPI(
     title="小乐 AI 管家",
@@ -340,7 +338,7 @@ def chat(
 周二：...
 依此类推。不要省略任何信息。'''
 
-            print(f"\n🔍 图片识别 - 使用表格专用prompt")
+            print("\n🔍 图片识别 - 使用表格专用prompt")
 
             vision_result = vision_tool.analyze_image(
                 image_path=image_path,
@@ -352,14 +350,17 @@ def chat(
                 vision_description = vision_result.get('description', '')
 
                 print(f"\n{'='*60}")
-                print(f"🔍 调试：图片识别结果")
+                print("🔍 调试：图片识别结果")
                 print(f"识别内容长度: {len(vision_description)} 字符")
                 print(f"前800字符: {vision_description[:800]}")
                 print(f"{'='*60}\n")
 
                 # 构建包含图片识别结果的完整消息
                 if prompt:
-                    combined_prompt = f"[图片内容]: {vision_description}\n\n[用户问题]: {prompt}"
+                    combined_prompt = (
+                        f"[图片内容]: {vision_description}\n\n"
+                        f"[用户问题]: {prompt}"
+                    )
                 else:
                     combined_prompt = f"[图片内容]: {vision_description}"
 
@@ -386,7 +387,9 @@ def chat(
                     important_content_indicators = [
                         '课程表', '时间表', '日程', '表格', '证件']
                     should_memorize = any(
-                        ind in vision_description for ind in important_content_indicators)
+                        ind in vision_description
+                        for ind in important_content_indicators
+                    )
 
                 if should_memorize:
                     try:
@@ -401,10 +404,12 @@ def chat(
                     except Exception as e:
                         print(f"⚠️ 保存图片记忆失败: {e}")
                 else:
-                    print(f"ℹ️ 图片不需要记忆（普通照片）")
+                    print("ℹ️ 图片不需要记忆（普通照片）")
 
                 # 使用包含图片内容的完整消息进行对话
-                return xiaole.chat(combined_prompt, session_id, user_id, response_style)
+                return xiaole.chat(
+                    combined_prompt, session_id, user_id, response_style
+                )
             else:
                 # 图片识别失败，返回错误信息
                 error_msg = vision_result.get('error', '未知错误')
@@ -1005,7 +1010,7 @@ async def save_schedule(request: dict):
         dict: 保存结果
     """
     try:
-        user_id = request.get("user_id", "default_user")
+        # user_id = request.get("user_id", "default_user")  # 暂未使用
         schedule = request.get("schedule", {})
 
         if not schedule:

@@ -159,6 +159,10 @@ class ConversationManager:
             "session_id": session_id,
             "title": conversation.title,
             "message_count": message_count,
-            "created_at": conversation.created_at.strftime('%Y-%m-%d %H:%M:%S'),
-            "updated_at": conversation.updated_at.strftime('%Y-%m-%d %H:%M:%S')
+            "created_at": conversation.created_at.strftime(
+                '%Y-%m-%d %H:%M:%S'
+            ),
+            "updated_at": conversation.updated_at.strftime(
+                '%Y-%m-%d %H:%M:%S'
+            )
         }

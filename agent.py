@@ -1153,7 +1153,7 @@ class XiaoLeAgent:
                     course_indicators = mem.count('节') + mem.count('科学') + \
                         mem.count('数学') + mem.count('语文')
                     if course_indicators >= 3:  # 至少出现3次课程相关词
-                        logger.info(f"    ⭐ [课程表内容]")
+                        logger.info("    ⭐ [课程表内容]")
 
             if all_memories:
                 context = "记忆库（按时间倒序，最新在前）：\n" + \
