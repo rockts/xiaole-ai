@@ -1616,6 +1616,20 @@
                                 <li>支持中文语音识别，识别后自动填入输入框</li>
                                 <li>建议使用 Chrome、Edge 或 Safari 浏览器</li>
                                 <li>首次使用需授予麦克风权限</li>
+                                <li><strong style="color: #f5576c;">⚠️ 语音识别需要网络连接</strong></li>
+                            </ul>
+                        </div>
+
+                        <div class="setting-item" style="background: #fff3cd; border-radius: 8px; padding: 12px; border-left: 4px solid #f5576c;">
+                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                <span style="font-size: 20px;">⚠️</span>
+                                <span style="font-weight: 500; color: #856404;">遇到"network"错误？</span>
+                            </div>
+                            <ul style="margin: 0; padding-left: 20px; font-size: 12px; color: #856404; line-height: 1.8;">
+                                <li>语音识别使用Google的Web Speech API，需要网络连接</li>
+                                <li>请确保网络连接正常，可以访问Google服务</li>
+                                <li>如果在国内使用，可能需要科学上网</li>
+                                <li>备选方案：可以手动输入文字，或等待后续版本集成国内语音API</li>
                             </ul>
                         </div>
                     </div>
@@ -1975,6 +1989,21 @@
         let isRecording = false;
         let speechSynthesis = window.speechSynthesis;
         let currentUtterance = null;
+        let recognitionRetryCount = 0;
+        const MAX_RETRY = 2;
+
+        // 监听网络状态
+        window.addEventListener('online', function() {
+            console.log('✅ 网络已连接，语音识别可用');
+        });
+
+        window.addEventListener('offline', function() {
+            console.warn('⚠️ 网络已断开，语音识别不可用');
+            if (isRecording) {
+                stopVoiceInput();
+                showToast('网络断开，语音识别已停止', 'error');
+            }
+        });
 
         // 初始化语音识别
         function initSpeechRecognition() {
@@ -2029,12 +2058,12 @@
             };
 
             recognition.onerror = function(event) {
-                console.error('❌ 语音识别错误:', event.error);
+                console.error('❌ 语音识别错误:', event.error, event);
                 const voiceText = document.getElementById('voiceText');
                 
                 switch(event.error) {
                     case 'no-speech':
-                        voiceText.textContent = '没有检测到语音';
+                        voiceText.textContent = '没有检测到语音，请重试';
                         break;
                     case 'audio-capture':
                         voiceText.textContent = '无法访问麦克风';
@@ -2042,13 +2071,24 @@
                     case 'not-allowed':
                         voiceText.textContent = '麦克风权限被拒绝';
                         break;
+                    case 'network':
+                        voiceText.textContent = '网络连接失败，请检查网络后重试';
+                        console.warn('💡 提示: 语音识别需要网络连接，请确保网络正常');
+                        break;
+                    case 'service-not-allowed':
+                        voiceText.textContent = '语音服务不可用';
+                        break;
+                    case 'aborted':
+                        voiceText.textContent = '识别已取消';
+                        break;
                     default:
-                        voiceText.textContent = '识别出错，请重试';
+                        voiceText.textContent = `识别出错: ${event.error}`;
+                        console.error('未知错误类型:', event.error);
                 }
                 
                 setTimeout(() => {
                     stopVoiceInput();
-                }, 2000);
+                }, 3000);
             };
 
             recognition.onend = function() {
@@ -2061,10 +2101,16 @@
 
         // 切换语音输入
         function toggleVoiceInput() {
+            // 检查网络连接
+            if (!navigator.onLine) {
+                alert('⚠️ 网络未连接\n\n语音识别需要网络连接，请检查您的网络设置。');
+                return;
+            }
+
             if (!recognition) {
                 recognition = initSpeechRecognition();
                 if (!recognition) {
-                    alert('您的浏览器不支持语音识别功能\n\n建议使用:\n- Chrome 浏览器\n- Edge 浏览器\n- Safari 浏览器');
+                    alert('❌ 浏览器不支持语音识别\n\n建议使用:\n✅ Chrome 浏览器（推荐）\n✅ Edge 浏览器\n✅ Safari 浏览器\n\n💡 提示：语音识别需要网络连接');
                     return;
                 }
             }
@@ -2073,10 +2119,34 @@
                 recognition.stop();
             } else {
                 try {
+                    // 显示准备提示
+                    const voiceStatus = document.getElementById('voiceStatus');
+                    const voiceText = document.getElementById('voiceText');
+                    voiceStatus.style.display = 'flex';
+                    voiceText.textContent = '正在准备...';
+                    
                     recognition.start();
                 } catch (e) {
                     console.error('启动语音识别失败:', e);
-                    alert('启动语音识别失败，请刷新页面重试');
+                    
+                    // 更友好的错误提示
+                    let errorMsg = '启动语音识别失败';
+                    if (e.message.includes('already started')) {
+                        errorMsg = '语音识别已经在运行中，请稍候';
+                        // 重置状态
+                        stopVoiceInput();
+                        setTimeout(() => {
+                            toggleVoiceInput();
+                        }, 500);
+                        return;
+                    } else if (e.message.includes('not allowed')) {
+                        errorMsg = '麦克风权限被拒绝\n\n请在浏览器设置中允许麦克风访问';
+                    } else {
+                        errorMsg += '\n\n' + e.message;
+                    }
+                    
+                    alert('❌ ' + errorMsg + '\n\n💡 建议：刷新页面后重试');
+                    stopVoiceInput();
                 }
             }
         }
