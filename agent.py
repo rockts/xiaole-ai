@@ -864,6 +864,10 @@ class XiaoLeAgent:
         if not tool_name:
             return None
 
+        # 添加调试日志
+        logger.info(f"🔧 准备调用工具: {tool_name}")
+        logger.info(f"📋 工具参数: {params}")
+
         # 调用工具（异步方法需要同步执行）
         try:
             # 使用asyncio.run()在同步上下文中执行异步工具调用
