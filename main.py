@@ -782,51 +782,79 @@ async def toggle_reminder(reminder_id: int, user_id: str = "default_user"):
 
 @app.post("/api/reminders/{reminder_id}/trigger")
 async def trigger_reminder_manually(reminder_id: int):
-    """手动触发提醒"""
-    success = await reminder_manager.trigger_reminder(reminder_id)
+    """手动触发提醒（测试用） - 只推送通知不写历史"""
+    success = await reminder_manager.check_and_notify_reminder(reminder_id)
     return {
         "success": success,
-        "message": "Reminder triggered" if success else "Trigger failed"
+        "message": "Reminder notified" if success else "Notify failed"
     }
 
 
 @app.post("/api/reminders/{reminder_id}/snooze")
 async def snooze_reminder(reminder_id: int, minutes: int = 5):
-    """延迟提醒（稍后提醒）"""
+    """延迟提醒（稍后提醒）- 不写入历史，只延迟触发时间"""
     from datetime import datetime, timedelta
     import json
+    import psycopg2
+    from psycopg2.extras import RealDictCursor
 
-    # 获取当前提醒
-    conn = await reminder_manager.get_connection()
-    reminder = await conn.fetchrow(
-        "SELECT * FROM reminders WHERE reminder_id = $1",
-        reminder_id
+    # 获取数据库连接
+    conn = psycopg2.connect(
+        host=os.getenv('DB_HOST', '192.168.88.188'),
+        port=os.getenv('DB_PORT', '5432'),
+        database=os.getenv('DB_NAME', 'xiaole_ai'),
+        user=os.getenv('DB_USER', 'xiaole_user'),
+        password=os.getenv('DB_PASS', 'Xiaole2025User'),
+        client_encoding='UTF8'
     )
+    
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            # 获取当前提醒
+            cur.execute(
+                "SELECT * FROM reminders WHERE reminder_id = %s",
+                (reminder_id,)
+            )
+            reminder = cur.fetchone()
 
-    if not reminder:
-        return {"success": False, "error": "Reminder not found"}
+            if not reminder:
+                return {"success": False, "error": "Reminder not found"}
 
-    # 计算新的触发时间（当前时间 + minutes分钟）
-    new_trigger_time = datetime.now() + timedelta(minutes=minutes)
+            # 计算新的触发时间（当前时间 + minutes分钟）
+            new_trigger_time = datetime.now() + timedelta(minutes=minutes)
 
-    # 更新trigger_condition
-    trigger_condition = json.loads(reminder['trigger_condition'])
-    new_time_str = new_trigger_time.strftime('%Y-%m-%d %H:%M:%S')
-    trigger_condition['datetime'] = new_time_str
+            # 更新trigger_condition
+            trigger_condition = json.loads(reminder['trigger_condition'])
+            new_time_str = new_trigger_time.strftime('%Y-%m-%d %H:%M:%S')
+            trigger_condition['datetime'] = new_time_str
 
-    success = await reminder_manager.update_reminder(
-        reminder_id,
-        trigger_condition=json.dumps(trigger_condition),
-        enabled=True  # 确保提醒是启用状态
-    )
+            success = await reminder_manager.update_reminder(
+                reminder_id,
+                trigger_condition=json.dumps(trigger_condition),
+                last_triggered=None,  # 清除last_triggered，允许重新触发
+                enabled=True  # 确保提醒是启用状态
+            )
 
+            return {
+                "success": success,
+                "new_trigger_time": new_time_str,
+                "message": (
+                    f"Reminder snoozed for {minutes} minutes"
+                    if success else "Snooze failed"
+                )
+            }
+    finally:
+        conn.close()
+
+
+@app.post("/api/reminders/{reminder_id}/confirm")
+async def confirm_reminder(reminder_id: int):
+    """用户确认提醒（点击"已知道"） - 写入历史并禁用非重复提醒"""
+    success = await reminder_manager.confirm_reminder(reminder_id)
+    
     return {
         "success": success,
-        "new_trigger_time": new_time_str,
-        "message": (
-            f"Reminder snoozed for {minutes} minutes"
-            if success else "Snooze failed"
-        )
+        "message": "Reminder confirmed" if success else "Confirm failed"
     }
 
 
@@ -856,17 +884,17 @@ async def check_reminders(user_id: str = "default_user"):
 
     all_triggered = time_triggered + behavior_triggered
 
-    # 触发所有需要触发的提醒
+    # 触发所有需要触发的提醒（只推送通知）
     results = []
     for reminder in all_triggered:
-        success = await reminder_manager.trigger_reminder(
+        success = await reminder_manager.check_and_notify_reminder(
             reminder['reminder_id']
         )
         results.append({
             "reminder_id": reminder['reminder_id'],
             "title": reminder.get('title', 'Untitled'),
             "content": reminder['content'],
-            "triggered": success
+            "notified": success
         })
 
     return {

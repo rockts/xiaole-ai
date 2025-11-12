@@ -104,7 +104,7 @@ class ReminderScheduler:
                 )
 
                 for reminder in triggered:
-                    success = await self.reminder_manager.trigger_reminder(
+                    success = await self.reminder_manager.check_and_notify_reminder(
                         reminder['reminder_id']
                     )
                     if success:
@@ -139,7 +139,7 @@ class ReminderScheduler:
                 )
 
                 for reminder in triggered:
-                    success = await self.reminder_manager.trigger_reminder(
+                    success = await self.reminder_manager.check_and_notify_reminder(
                         reminder['reminder_id']
                     )
                     if success:

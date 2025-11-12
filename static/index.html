@@ -6988,9 +6988,31 @@
         }
 
         function markReminderAsRead(reminderId) {
-            // 标记提醒已读（后续可扩展）
+            // 调用confirm API，写入历史并禁用非重复提醒
+            confirmReminder(reminderId);
+            
+            // 更新未读计数
             unreadReminderCount = Math.max(0, unreadReminderCount - 1);
             updateReminderBadge();
+        }
+        
+        // 确认提醒（写入历史）
+        async function confirmReminder(reminderId) {
+            try {
+                const response = await fetch(`${API_BASE}/api/reminders/${reminderId}/confirm`, {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    console.log(`✅ 提醒已确认: ${reminderId}`);
+                } else {
+                    console.error('❌ 确认提醒失败:', data.message);
+                }
+            } catch (error) {
+                console.error('❌ 确认提醒请求失败:', error);
+            }
         }
 
         // 延迟提醒（稍后提醒）
