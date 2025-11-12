@@ -2018,6 +2018,14 @@
             recognition.lang = 'zh-CN';  // 中文识别
             recognition.continuous = false;  // 不持续识别
             recognition.interimResults = true;  // 显示临时结果
+            recognition.maxAlternatives = 1;  // 只返回最佳结果
+
+            // 添加详细日志
+            console.log('🔧 语音识别配置:', {
+                lang: recognition.lang,
+                continuous: recognition.continuous,
+                interimResults: recognition.interimResults
+            });
 
             recognition.onstart = function() {
                 console.log('🎤 语音识别开始');
@@ -2106,6 +2114,12 @@
                 alert('⚠️ 网络未连接\n\n语音识别需要网络连接，请检查您的网络设置。');
                 return;
             }
+
+            // 诊断语音识别可用性
+            console.log('🔍 语音识别诊断:');
+            console.log('- 浏览器:', navigator.userAgent);
+            console.log('- 在线状态:', navigator.onLine);
+            console.log('- 语音识别支持:', 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window);
 
             if (!recognition) {
                 recognition = initSpeechRecognition();
