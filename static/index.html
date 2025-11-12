@@ -346,6 +346,80 @@
             background: rgba(255, 255, 255, 0.5);
         }
 
+        /* 消息搜索框 v0.6.0 */
+        .message-search-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: var(--card-bg);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .message-search-container input {
+            flex: 1;
+            padding: 8px 12px;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--input-bg);
+            color: var(--text-primary);
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .message-search-container input:focus {
+            border-color: var(--button-gradient-start);
+        }
+
+        .clear-search-btn {
+            padding: 6px 12px;
+            background: var(--button-bg);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.2s;
+        }
+
+        .clear-search-btn:hover {
+            background: var(--input-bg);
+            color: var(--text-primary);
+        }
+
+        .search-result-count {
+            color: var(--text-secondary);
+            font-size: 12px;
+            white-space: nowrap;
+        }
+
+        .message.search-highlight {
+            background: rgba(255, 235, 59, 0.2);
+            border-left: 3px solid #FFC107;
+            animation: highlightPulse 0.5s ease-in-out;
+        }
+
+        @keyframes highlightPulse {
+
+            0%,
+            100% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.02);
+            }
+        }
+
+        .message .search-match {
+            background: #FFEB3B;
+            color: #000;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+
         .message.ai .message-content {
             background: var(--message-ai-bg);
             color: var(--message-ai-text);
@@ -1037,6 +1111,12 @@
         <div id="chat" class="tab-content active">
             <div id="sessionInfo" class="session-info" style="display: none;">
                 <div class="session-title-display">💬 <span id="currentSessionTitle"></span></div>
+            </div>
+            <!-- 消息搜索框 v0.6.0 -->
+            <div class="message-search-container">
+                <input type="text" id="messageSearchInput" placeholder="搜索对话内容..." onkeyup="searchMessages()">
+                <button onclick="clearMessageSearch()" class="clear-search-btn" title="清除搜索">✕</button>
+                <span id="searchResultCount" class="search-result-count"></span>
             </div>
             <div class="chat-container" id="chatContainer"></div>
             <!-- 图片上传输入（隐藏） -->
@@ -2125,6 +2205,145 @@
         }
 
         // ============ 消息操作功能结束 ============
+
+        // ============ 消息搜索功能 v0.6.0 ============
+
+        /**
+         * 搜索当前对话中的消息
+         */
+        function searchMessages() {
+            const searchInput = document.getElementById('messageSearchInput');
+            const query = searchInput.value.trim().toLowerCase();
+            const messages = document.querySelectorAll('#chatContainer .message');
+            const countSpan = document.getElementById('searchResultCount');
+
+            // 如果搜索框为空，清除所有高亮
+            if (!query) {
+                clearMessageSearch();
+                return;
+            }
+
+            let matchCount = 0;
+            let firstMatch = null;
+
+            messages.forEach(msg => {
+                // 移除之前的高亮
+                msg.classList.remove('search-highlight');
+                const contentDiv = msg.querySelector('.message-content');
+                if (!contentDiv) return;
+
+                // 获取原始文本内容
+                const textContent = contentDiv.textContent.toLowerCase();
+
+                if (textContent.includes(query)) {
+                    matchCount++;
+                    msg.classList.add('search-highlight');
+
+                    // 记录第一个匹配项
+                    if (!firstMatch) {
+                        firstMatch = msg;
+                    }
+
+                    // 高亮匹配的文字
+                    highlightText(contentDiv, query);
+                }
+            });
+
+            // 显示搜索结果数量
+            if (matchCount > 0) {
+                countSpan.textContent = `找到 ${matchCount} 条结果`;
+                countSpan.style.color = '#4CAF50';
+
+                // 滚动到第一个匹配项
+                if (firstMatch) {
+                    firstMatch.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            } else {
+                countSpan.textContent = '未找到匹配结果';
+                countSpan.style.color = '#ff6b6b';
+            }
+        }
+
+        /**
+         * 高亮显示匹配的文本
+         */
+        function highlightText(element, query) {
+            // 如果是用户消息（纯文本）
+            if (element.parentElement.classList.contains('user')) {
+                const text = element.textContent;
+                const regex = new RegExp(`(${escapeRegExp(query)})`, 'gi');
+                const highlighted = text.replace(regex, '<span class="search-match">$1</span>');
+                element.innerHTML = highlighted;
+            }
+            // 如果是AI消息（Markdown渲染后的HTML），遍历文本节点
+            else {
+                highlightTextNodes(element, query);
+            }
+        }
+
+        /**
+         * 递归高亮文本节点
+         */
+        function highlightTextNodes(node, query) {
+            if (node.nodeType === Node.TEXT_NODE) {
+                const text = node.textContent;
+                const regex = new RegExp(`(${escapeRegExp(query)})`, 'gi');
+                if (regex.test(text)) {
+                    const span = document.createElement('span');
+                    span.innerHTML = text.replace(regex, '<span class="search-match">$1</span>');
+                    node.parentNode.replaceChild(span, node);
+                }
+            } else if (node.nodeType === Node.ELEMENT_NODE && node.nodeName !== 'SCRIPT' && node.nodeName !== 'STYLE') {
+                Array.from(node.childNodes).forEach(child => highlightTextNodes(child, query));
+            }
+        }
+
+        /**
+         * 转义正则表达式特殊字符
+         */
+        function escapeRegExp(string) {
+            return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        }
+
+        /**
+         * 清除消息搜索
+         */
+        function clearMessageSearch() {
+            const searchInput = document.getElementById('messageSearchInput');
+            const countSpan = document.getElementById('searchResultCount');
+            const messages = document.querySelectorAll('#chatContainer .message');
+
+            // 清空搜索框
+            searchInput.value = '';
+            countSpan.textContent = '';
+
+            // 移除所有高亮
+            messages.forEach(msg => {
+                msg.classList.remove('search-highlight');
+                const contentDiv = msg.querySelector('.message-content');
+                if (!contentDiv) return;
+
+                // 恢复原始内容
+                if (msg.classList.contains('user')) {
+                    // 用户消息：移除 span 标签
+                    const matches = contentDiv.querySelectorAll('.search-match');
+                    matches.forEach(match => {
+                        const text = document.createTextNode(match.textContent);
+                        match.parentNode.replaceChild(text, match);
+                    });
+                } else {
+                    // AI消息：需要重新渲染Markdown
+                    // 这里简单处理，移除所有 search-match 标签
+                    const matches = contentDiv.querySelectorAll('.search-match');
+                    matches.forEach(match => {
+                        const text = document.createTextNode(match.textContent);
+                        match.parentNode.replaceChild(text, match);
+                    });
+                }
+            });
+        }
+
+        // ============ 消息搜索功能结束 ============
 
         // 加载会话列表
         async function loadSessions() {
