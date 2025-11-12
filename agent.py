@@ -73,7 +73,7 @@ class XiaoLeAgent:
             from tools import (
                 weather_tool, system_info_tool,
                 time_tool, calculator_tool, reminder_tool,
-                search_tool, file_tool
+                search_tool, file_tool, delete_memory_tool
             )
 
             # 注册工具
@@ -84,6 +84,7 @@ class XiaoLeAgent:
             self.tool_registry.register(reminder_tool)  # v0.5.0 提醒工具
             self.tool_registry.register(search_tool)  # v0.5.0 搜索工具
             self.tool_registry.register(file_tool)  # v0.5.0 文件工具
+            self.tool_registry.register(delete_memory_tool)  # v0.8.1 删除记忆
 
             logger.info(
                 f"✅ 工具注册完成，共 "
