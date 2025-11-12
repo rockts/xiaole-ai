@@ -7,16 +7,21 @@ import logging
 from datetime import datetime, timedelta
 from sqlalchemy import and_, or_
 from db_setup import Memory, SessionLocal
+from tool_manager import Tool
 
 logger = logging.getLogger(__name__)
 
 
-class DeleteMemoryTool:
+class DeleteMemoryTool(Tool):
     """记忆删除工具 - 支持按关键词、时间范围、标签删除记忆"""
     
-    name = "delete_memory"
-    category = "memory"  # 记忆管理类工具
-    description = """删除数据库中的记忆。
+    def __init__(self, db=None):
+        super().__init__()
+        self.name = "delete_memory"
+        self.category = "memory"  # 记忆管理类工具
+        self.enabled = True
+        self.db = db or SessionLocal()
+        self.description = """删除数据库中的记忆。
 支持的删除方式：
 1. 按关键词删除：删除包含特定关键词的记忆
 2. 按时间范围删除：删除最近N分钟/小时/天的记忆
@@ -34,9 +39,6 @@ class DeleteMemoryTool:
 - 删除最近5分钟的记忆：{"time_range": "5分钟前", "confirm": true}
 - 删除对话类记忆：{"tags": "对话", "confirm": true}
 """
-
-    def __init__(self, db=None):
-        self.db = db or SessionLocal()
     
     def _parse_time_range(self, time_str: str) -> Optional[datetime]:
         """解析时间范围字符串，返回起始时间"""
@@ -79,14 +81,21 @@ class DeleteMemoryTool:
         
         return None
     
-    def run(
-        self,
-        keywords: Optional[str] = None,
-        time_range: Optional[str] = None,
-        tags: Optional[str] = None,
-        confirm: bool = False
-    ) -> str:
-        """执行记忆删除"""
+    async def execute(self, **kwargs) -> dict:
+        """
+        执行记忆删除
+        
+        Args:
+            **kwargs: 包含 keywords, time_range, tags, confirm
+            
+        Returns:
+            {"success": bool, "data": str}
+        """
+        keywords = kwargs.get("keywords")
+        time_range = kwargs.get("time_range")
+        tags = kwargs.get("tags")
+        confirm = kwargs.get("confirm", False)
+        
         try:
             # 构建查询条件
             conditions = []
@@ -107,21 +116,27 @@ class DeleteMemoryTool:
             if time_range:
                 start_time = self._parse_time_range(time_range)
                 if start_time:
-                    conditions.append(Memory.timestamp >= start_time)
+                    conditions.append(Memory.created_at >= start_time)
                 else:
-                    return f"无法解析时间范围：{time_range}"
+                    return {
+                        "success": False,
+                        "data": f"无法解析时间范围：{time_range}"
+                    }
             
             # 标签过滤
             if tags:
                 tag_list = [t.strip() for t in tags.split(",")]
                 tag_conditions = [
-                    Memory.tags.contains(tag) for tag in tag_list
+                    Memory.tag.contains(tag_item) for tag_item in tag_list
                 ]
                 conditions.append(or_(*tag_conditions))
             
             # 如果没有任何条件，返回错误
             if not conditions:
-                return "请指定删除条件（关键词、时间范围或标签）"
+                return {
+                    "success": False,
+                    "data": "请指定删除条件（关键词、时间范围或标签）"
+                }
             
             # 查询符合条件的记忆
             query = self.db.query(Memory)
@@ -131,19 +146,20 @@ class DeleteMemoryTool:
             memories = query.all()
             
             if not memories:
-                return "没有找到符合条件的记忆"
+                return {
+                    "success": True,
+                    "data": "没有找到符合条件的记忆"
+                }
             
             # 如果没有确认，只返回预览
             if not confirm:
                 preview = f"找到 {len(memories)} 条符合条件的记忆：\n"
                 for i, mem in enumerate(memories[:5], 1):
-                    content = mem.content[:50] + "..." if len(
-                        mem.content
-                    ) > 50 else mem.content
-                    preview += (
-                        f"{i}. [{mem.timestamp.strftime('%Y-%m-%d %H:%M')}] "
-                        f"{content}\n"
-                    )
+                    content = str(mem.content)[:50] + "..." if len(
+                        str(mem.content)
+                    ) > 50 else str(mem.content)
+                    time_str = mem.created_at.strftime('%Y-%m-%d %H:%M')
+                    preview += f"{i}. [{time_str}] {content}\n"
                 
                 if len(memories) > 5:
                     preview += f"...还有 {len(memories) - 5} 条记忆\n"
@@ -151,7 +167,7 @@ class DeleteMemoryTool:
                 preview += (
                     "\n如果确认删除，请再次调用并设置 confirm=true"
                 )
-                return preview
+                return {"success": True, "data": preview}
             
             # 确认后删除
             deleted_count = len(memories)
@@ -166,12 +182,18 @@ class DeleteMemoryTool:
                 f"tags={tags})"
             )
             
-            return f"✅ 已成功删除 {deleted_count} 条记忆"
+            return {
+                "success": True,
+                "data": f"✅ 已成功删除 {deleted_count} 条记忆"
+            }
         
         except Exception as e:
             logger.error(f"删除记忆失败: {e}", exc_info=True)
             self.db.rollback()
-            return f"删除记忆时发生错误：{str(e)}"
+            return {
+                "success": False,
+                "data": f"删除记忆时发生错误：{str(e)}"
+            }
 
 
 def get_tool():
