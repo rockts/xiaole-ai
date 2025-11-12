@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-运行数据库迁移 - 005_performance_optimization_v0.6.2
+运行数据库迁移 - 006_create_tasks_tables
 """
 import psycopg2
 import os
@@ -18,7 +18,7 @@ load_dotenv()
 def main():
     """运行迁移"""
     print("=" * 60)
-    print("数据库性能优化迁移 - v0.6.2")
+    print("数据库迁移 006: 创建任务管理表")
     print("=" * 60)
 
     # 连接数据库
@@ -37,8 +37,7 @@ def main():
         return 1
 
     # 读取SQL文件
-    sql_file = project_root / 'db_migrations' / \
-        '005_performance_optimization_v0.6.2.sql'
+    sql_file = project_root / 'db_migrations' / '006_create_tasks_tables.sql'
     try:
         with open(sql_file, 'r', encoding='utf-8') as f:
             sql_content = f.read()

@@ -6,6 +6,7 @@ from pattern_learning import PatternLearner  # v0.3.0 模式学习
 from tool_manager import get_tool_registry  # v0.4.0 工具管理
 from enhanced_intent import EnhancedToolSelector, ContextEnhancer
 from dialogue_enhancer import DialogueEnhancer  # v0.6.0
+from task_manager import TaskManager  # v0.8.0 任务管理
 from error_handler import (
     retry_with_backoff, log_execution, handle_api_errors,
     logger
@@ -33,6 +34,22 @@ class XiaoLeAgent:
         self.enhanced_selector = EnhancedToolSelector(self.tool_registry)
         self.context_enhancer = ContextEnhancer(self.memory, self.conversation)
         self.dialogue_enhancer = DialogueEnhancer()  # Day 4: 对话质量
+
+        # v0.8.0 任务管理器
+        db_config = {
+            'host': os.getenv('DB_HOST'),
+            'port': int(os.getenv('DB_PORT', 5432)),
+            'database': os.getenv('DB_NAME'),
+            'user': os.getenv('DB_USER'),
+            'password': os.getenv('DB_PASS')
+        }
+        self.task_manager = TaskManager(db_config)
+
+        # v0.8.0 任务执行器(延迟导入避免循环依赖)
+        from task_executor import TaskExecutor
+        self.task_executor = TaskExecutor(
+            self.task_manager, self.tool_registry
+        )
 
         # 注册工具
         self._register_tools()
@@ -451,38 +468,103 @@ class XiaoLeAgent:
 
         # v0.4.0: 智能工具调用 - 先分析是否需要调用工具
         tool_result = None
-        try:
-            # v0.6.0 Phase 3: 使用增强的意图识别
-            context = {
-                'recent_messages': history,
-                'user_id': user_id,
-                'session_id': session_id
-            }
-            tool_calls = self.enhanced_selector.analyze_intent(prompt, context)
 
-            if tool_calls:
-                # 执行工具调用（按优先级）
-                for tool_call in tool_calls:
-                    result = self.enhanced_selector.execute_with_retry(
-                        tool_call, max_retries=2
-                    )
-                    if result.success:
-                        tool_result = result.data
-                        break
-            else:
-                # 回退到旧的工具调用逻辑
-                tool_result = self._auto_call_tool(prompt, user_id, session_id)
-        except Exception as e:
-            logger.warning(f"增强工具调用失败: {e}")
-            # 回退到旧逻辑
+        # v0.8.0: 任务关键词预检查 (优先级高于工具调用)
+        task_keywords = [
+            '创建任务', '添加任务', '新建任务',
+            '帮我准备', '帮我整理', '帮我规划',
+            '帮我安排', '帮我计划', '帮我组织'
+        ]
+        skip_tool_check = any(keyword in prompt for keyword in task_keywords)
+
+        if not skip_tool_check:
             try:
-                tool_result = self._auto_call_tool(prompt, user_id, session_id)
-            except Exception as e2:
-                logger.warning(f"旧工具调用也失败: {e2}")
+                # v0.6.0 Phase 3: 使用增强的意图识别
+                context = {
+                    'recent_messages': history,
+                    'user_id': user_id,
+                    'session_id': session_id
+                }
+                tool_calls = self.enhanced_selector.analyze_intent(
+                    prompt, context)
+
+                if tool_calls:
+                    # 执行工具调用（按优先级）
+                    for tool_call in tool_calls:
+                        result = self.enhanced_selector.execute_with_retry(
+                            tool_call, max_retries=2
+                        )
+                        if result.success:
+                            tool_result = result.data
+                            break
+                else:
+                    # 回退到旧的工具调用逻辑
+                    tool_result = self._auto_call_tool(
+                        prompt, user_id, session_id)
+            except Exception as e:
+                logger.warning(f"增强工具调用失败: {e}")
+                # 回退到旧逻辑
+                try:
+                    tool_result = self._auto_call_tool(
+                        prompt, user_id, session_id)
+                except Exception as e2:
+                    logger.warning(f"旧工具调用也失败: {e2}")
+
+        # v0.8.0: 任务识别和执行
+        task_result = None
+        try:
+            # 识别是否为复杂任务
+            task_check = self.identify_complex_task(prompt, user_id)
+            if task_check.get('is_task', False):
+                confidence = task_check.get('confidence', 0)
+                if confidence >= 0.7:
+                    logger.info(
+                        f"识别到复杂任务(置信度:{confidence}): "
+                        f"{task_check.get('title')}"
+                    )
+
+                    # 拆解任务
+                    decompose_result = self.decompose_task(
+                        task_title=task_check['title'],
+                        task_description=task_check.get('description', ''),
+                        user_id=user_id
+                    )
+
+                    if decompose_result.get('success'):
+                        # 创建任务
+                        task_id = self.task_manager.create_task(
+                            user_id=user_id,
+                            session_id=session_id,
+                            title=task_check['title'],
+                            description=task_check.get('description', ''),
+                            priority=decompose_result.get('priority', 0)
+                        )
+
+                        if task_id:
+                            # 创建步骤
+                            for step in decompose_result.get('steps', []):
+                                self.task_manager.create_step(
+                                    task_id=task_id,
+                                    step_num=step.get('step_num', 0),
+                                    description=step.get('description', ''),
+                                    action_type=step.get('action_type'),
+                                    action_params=step.get('action_params')
+                                )
+
+                            # 执行任务
+                            task_result = self.task_executor.execute_task(
+                                task_id=task_id,
+                                user_id=user_id,
+                                session_id=session_id
+                            )
+
+                            logger.info(f"任务执行结果: {task_result}")
+        except Exception as e:
+            logger.warning(f"任务处理失败: {e}", exc_info=True)
 
         # v0.6.0: 调用 AI 生成回复（带上下文、工具结果和响应风格）
         reply = self._think_with_context(
-            prompt, history, tool_result, response_style
+            prompt, history, tool_result or task_result, response_style
         )
 
         # v0.6.0 Phase 3 Day 4: 对话质量增强
@@ -1223,3 +1305,175 @@ class XiaoLeAgent:
             f"风格: {response_style}"
         )
         return reply
+
+    # ==================== v0.8.0 任务管理功能 ====================
+
+    def identify_complex_task(self, user_input: str, user_id: str) -> dict:
+        """
+        识别用户输入是否为复杂任务
+
+        Args:
+            user_input: 用户输入
+            user_id: 用户ID
+
+        Returns:
+            包含is_task和task_info的字典
+        """
+        prompt = f"""
+请分析用户的输入是否为一个需要多步骤执行的复杂任务。
+
+复杂任务的特征:
+1. 需要多个步骤才能完成
+2. 涉及多个工具或操作
+3. 步骤之间有依赖关系
+4. 需要一定时间完成
+
+用户输入: {user_input}
+
+请以JSON格式回答:
+{{
+    "is_task": true/false,
+    "confidence": 0.0-1.0,
+    "title": "任务标题",
+    "description": "任务描述",
+    "reasoning": "判断理由"
+}}
+
+例子:
+- "帮我准备周末的野餐" -> is_task: true (需要查天气、列物品、设提醒)
+- "今天天气怎么样" -> is_task: false (单个查询)
+- "提醒我明天9点开会" -> is_task: false (单个提醒)
+- "帮我规划下周的学习计划" -> is_task: true (需要多步分析和安排)
+"""
+
+        try:
+            response = self._call_deepseek(prompt)
+            # 提取JSON
+            import json
+            import re
+            json_match = re.search(r'\{[\s\S]*\}', response)
+            if json_match:
+                result = json.loads(json_match.group())
+                logger.info(
+                    f"任务识别: {result.get('title', 'N/A')} - "
+                    f"是否为任务: {result.get('is_task')}"
+                )
+                return result
+            else:
+                return {"is_task": False, "reasoning": "无法解析响应"}
+
+        except Exception as e:
+            logger.error(f"任务识别失败: {e}")
+            return {"is_task": False, "reasoning": f"错误: {str(e)}"}
+
+    def decompose_task(
+        self,
+        task_title: str,
+        task_description: str,
+        user_id: str
+    ) -> dict:
+        """
+        将复杂任务拆解为多个步骤
+
+        Args:
+            task_title: 任务标题
+            task_description: 任务描述
+            user_id: 用户ID
+
+        Returns:
+            包含success和steps的字典
+        """
+        # 获取可用工具信息
+        tools_info = "\n".join([
+            f"- {tool['name']}: {tool['description']}"
+            for tool in self.tool_registry.list_tools()
+        ])
+
+        prompt = f"""
+请将以下任务拆解为具体的执行步骤:
+
+任务标题: {task_title}
+任务描述: {task_description}
+
+可用工具:
+{tools_info}
+
+要求:
+1. 每个步骤要具体、可执行
+2. 步骤之间要有逻辑顺序
+3. 需要调用工具的要标明工具名称和参数
+4. 需要用户确认的要标明
+5. 每个步骤包含: 序号、描述、操作类型、所需参数
+
+以JSON格式返回:
+{{
+    "steps": [
+        {{
+            "step_num": 1,
+            "description": "步骤描述",
+            "action_type": "tool_call/user_confirm/wait/info",
+            "action_params": {{
+                "tool_name": "工具名",
+                "params": {{}},
+                "notes": "备注"
+            }}
+        }}
+    ]
+}}
+
+示例任务"准备周末野餐":
+{{
+    "steps": [
+        {{
+            "step_num": 1,
+            "description": "查询周末天气预报",
+            "action_type": "tool_call",
+            "action_params": {{
+                "tool_name": "weather",
+                "params": {{"city": "当前城市"}},
+                "notes": "确定天气情况"
+            }}
+        }},
+        {{
+            "step_num": 2,
+            "description": "列出野餐所需物品清单",
+            "action_type": "info",
+            "action_params": {{
+                "notes": "生成物品清单供用户参考"
+            }}
+        }},
+        {{
+            "step_num": 3,
+            "description": "设置购物提醒",
+            "action_type": "user_confirm",
+            "action_params": {{
+                "question": "是否需要设置购物提醒?",
+                "if_yes": "tool_call:reminder"
+            }}
+        }}
+    ]
+}}
+"""
+
+        try:
+            response = self._call_deepseek(prompt)
+            # 提取JSON
+            import json
+            import re
+            json_match = re.search(r'\{[\s\S]*\}', response)
+            if json_match:
+                result = json.loads(json_match.group())
+                steps = result.get('steps', [])
+                logger.info(f"任务拆解完成: 共 {len(steps)} 个步骤")
+                return {
+                    'success': True,
+                    'steps': steps,
+                    'priority': result.get('priority', 0)
+                }
+            else:
+                logger.error("无法解析任务拆解结果")
+                return {'success': False, 'error': '无法解析结果'}
+
+        except Exception as e:
+            logger.error(f"任务拆解失败: {e}")
+            return {'success': False, 'error': str(e)}
