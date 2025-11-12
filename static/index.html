@@ -346,6 +346,80 @@
             background: rgba(255, 255, 255, 0.5);
         }
 
+        /* 消息搜索框 v0.6.0 */
+        .message-search-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: var(--card-bg);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .message-search-container input {
+            flex: 1;
+            padding: 8px 12px;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--input-bg);
+            color: var(--text-primary);
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .message-search-container input:focus {
+            border-color: var(--button-gradient-start);
+        }
+
+        .clear-search-btn {
+            padding: 6px 12px;
+            background: var(--button-bg);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.2s;
+        }
+
+        .clear-search-btn:hover {
+            background: var(--input-bg);
+            color: var(--text-primary);
+        }
+
+        .search-result-count {
+            color: var(--text-secondary);
+            font-size: 12px;
+            white-space: nowrap;
+        }
+
+        .message.search-highlight {
+            background: rgba(255, 235, 59, 0.2);
+            border-left: 3px solid #FFC107;
+            animation: highlightPulse 0.5s ease-in-out;
+        }
+
+        @keyframes highlightPulse {
+
+            0%,
+            100% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.02);
+            }
+        }
+
+        .message .search-match {
+            background: #FFEB3B;
+            color: #000;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+
         .message.ai .message-content {
             background: var(--message-ai-bg);
             color: var(--message-ai-text);
@@ -960,6 +1034,374 @@
             box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
         }
 
+        /* v0.8.0 语音输入功能 */
+        .voice-input-btn {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            position: relative;
+        }
+
+        .voice-input-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(245, 87, 108, 0.3);
+        }
+
+        .voice-input-btn.recording {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        /* 连续对话模式按钮 */
+        .conversation-mode-btn {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            position: relative;
+        }
+
+        .conversation-mode-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(79, 172, 254, 0.3);
+        }
+
+        .conversation-mode-btn.active {
+            background: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
+            animation: breathe 2s ease-in-out infinite;
+        }
+
+        @keyframes breathe {
+
+            0%,
+            100% {
+                transform: scale(1);
+                box-shadow: 0 0 0 0 rgba(79, 172, 254, 0.7);
+            }
+
+            50% {
+                transform: scale(1.05);
+                box-shadow: 0 0 0 10px rgba(79, 172, 254, 0);
+            }
+        }
+
+        /* 连续对话状态指示器 */
+        .conversation-mode-status {
+            position: absolute;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(79, 172, 254, 0.95);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 25px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            z-index: 999;
+            text-align: center;
+        }
+
+        .conversation-indicator {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .conversation-dot {
+            width: 10px;
+            height: 10px;
+            background: #00ff88;
+            border-radius: 50%;
+            animation: blink 1.5s ease-in-out infinite;
+        }
+
+        @keyframes blink {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.3;
+            }
+        }
+
+        #conversationHint {
+            font-size: 12px;
+            opacity: 0.9;
+        }
+
+        /* 停止语音按钮 */
+        .stop-speaking-btn {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 4px 12px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+            margin-left: 10px;
+        }
+
+        .stop-speaking-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(1.05);
+        }
+
+        .stop-speaking-btn:active {
+            transform: scale(0.95);
+        }
+
+        /* 全局停止语音按钮 */
+        .global-stop-speaking {
+            position: fixed;
+            bottom: 150px;
+            right: 30px;
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 50px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 20px rgba(255, 107, 107, 0.4);
+            z-index: 1000;
+            transition: all 0.3s;
+            animation: shake 0.5s ease-in-out infinite;
+        }
+
+        .global-stop-speaking:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 25px rgba(255, 107, 107, 0.6);
+        }
+
+        .global-stop-speaking:active {
+            transform: scale(0.95);
+        }
+
+        .global-stop-speaking span:first-child {
+            font-size: 20px;
+        }
+
+        .stop-text {
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        @keyframes shake {
+
+            0%,
+            100% {
+                transform: translateX(0);
+            }
+
+            25% {
+                transform: translateX(-3px);
+            }
+
+            75% {
+                transform: translateX(3px);
+            }
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                transform: scale(1);
+                box-shadow: 0 0 0 0 rgba(245, 87, 108, 0.7);
+            }
+
+            50% {
+                transform: scale(1.05);
+                box-shadow: 0 0 0 10px rgba(245, 87, 108, 0);
+            }
+        }
+
+        .voice-status {
+            position: absolute;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(245, 87, 108, 0.95);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 25px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            z-index: 1000;
+        }
+
+        .voice-wave {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+            height: 20px;
+        }
+
+        .voice-wave span {
+            width: 3px;
+            height: 100%;
+            background: white;
+            border-radius: 2px;
+            animation: wave 1s ease-in-out infinite;
+        }
+
+        .voice-wave span:nth-child(1) {
+            animation-delay: 0s;
+        }
+
+        .voice-wave span:nth-child(2) {
+            animation-delay: 0.1s;
+        }
+
+        .voice-wave span:nth-child(3) {
+            animation-delay: 0.2s;
+        }
+
+        .voice-wave span:nth-child(4) {
+            animation-delay: 0.3s;
+        }
+
+        .voice-wave span:nth-child(5) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes wave {
+
+            0%,
+            100% {
+                height: 30%;
+            }
+
+            50% {
+                height: 100%;
+            }
+        }
+
+        .voice-status #voiceText {
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        /* 语音播放状态样式 */
+        .speaking-status {
+            position: fixed;
+            bottom: 160px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 30px;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            z-index: 1000;
+            animation: slideUp 0.3s ease-out;
+        }
+
+        .speaking-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .speaking-icon {
+            font-size: 20px;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        .speaking-wave {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+            height: 20px;
+        }
+
+        .speaking-wave span {
+            display: inline-block;
+            width: 3px;
+            background: white;
+            border-radius: 3px;
+            animation: speakWave 1s ease-in-out infinite;
+        }
+
+        .speaking-wave span:nth-child(1) {
+            animation-delay: 0s;
+        }
+
+        .speaking-wave span:nth-child(2) {
+            animation-delay: 0.1s;
+        }
+
+        .speaking-wave span:nth-child(3) {
+            animation-delay: 0.2s;
+        }
+
+        .speaking-wave span:nth-child(4) {
+            animation-delay: 0.3s;
+        }
+
+        @keyframes speakWave {
+            0%, 100% {
+                height: 30%;
+            }
+            50% {
+                height: 100%;
+            }
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+            50% {
+                transform: scale(1.1);
+                opacity: 0.8;
+            }
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateX(-50%) translateY(20px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(-50%) translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .speaking-status #speakingText {
+            font-size: 14px;
+            font-weight: 500;
+        }
+
         .image-preview {
             background: var(--card-bg);
             border: 2px solid var(--border-color);
@@ -1004,6 +1446,248 @@
             display: flex;
             gap: 8px;
         }
+
+        /* v0.8.0 任务管理样式 */
+        .task-card {
+            background: var(--card-bg);
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px var(--shadow-light);
+            border-left: 4px solid #667eea;
+            transition: all 0.3s ease;
+        }
+
+        .task-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px var(--shadow-heavy);
+        }
+
+        .task-card.status-pending {
+            border-left-color: #f59e0b;
+        }
+
+        .task-card.status-in_progress {
+            border-left-color: #3b82f6;
+        }
+
+        .task-card.status-completed {
+            border-left-color: #10b981;
+        }
+
+        .task-card.status-failed {
+            border-left-color: #ef4444;
+        }
+
+        .task-card.status-cancelled {
+            border-left-color: #6b7280;
+        }
+
+        .task-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+        }
+
+        .task-title {
+            font-size: 16px;
+            font-weight: bold;
+            color: var(--text-primary);
+            margin-bottom: 5px;
+        }
+
+        .task-status-badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        .task-status-badge.pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .task-status-badge.in_progress {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .task-status-badge.waiting {
+            background: #e0e7ff;
+            color: #3730a3;
+        }
+
+        .task-status-badge.completed {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .task-status-badge.failed {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .task-status-badge.cancelled {
+            background: #f3f4f6;
+            color: #374151;
+        }
+
+        .task-description {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-bottom: 10px;
+            line-height: 1.5;
+        }
+
+        .task-progress {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 10px 0;
+        }
+
+        .task-progress-bar {
+            flex: 1;
+            height: 8px;
+            background: var(--input-bg);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .task-progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            transition: width 0.3s ease;
+        }
+
+        .task-progress-text {
+            font-size: 12px;
+            color: var(--text-tertiary);
+            min-width: 50px;
+            text-align: right;
+        }
+
+        .task-meta {
+            display: flex;
+            gap: 15px;
+            font-size: 12px;
+            color: var(--text-tertiary);
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+
+        .task-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .task-btn {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .task-btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .task-btn-primary:hover {
+            background: #5568d3;
+        }
+
+        .task-btn-success {
+            background: #10b981;
+            color: white;
+        }
+
+        .task-btn-success:hover {
+            background: #059669;
+        }
+
+        .task-btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+
+        .task-btn-danger:hover {
+            background: #dc2626;
+        }
+
+        .task-btn-secondary {
+            background: #6b7280;
+            color: white;
+        }
+
+        .task-btn-secondary:hover {
+            background: #4b5563;
+        }
+
+        .task-step {
+            background: var(--input-bg);
+            padding: 10px;
+            margin: 8px 0;
+            border-radius: 8px;
+            border-left: 3px solid #cbd5e1;
+        }
+
+        .task-step.completed {
+            border-left-color: #10b981;
+            opacity: 0.7;
+        }
+
+        .task-step.failed {
+            border-left-color: #ef4444;
+        }
+
+        .task-step-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+
+        .task-step-title {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .task-step-status {
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 8px;
+            background: var(--card-bg);
+        }
+
+        .priority-badge {
+            padding: 2px 8px;
+            border-radius: 8px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        .priority-0 {
+            background: #f3f4f6;
+            color: #6b7280;
+        }
+
+        .priority-1 {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .priority-2 {
+            background: #fee2e2;
+            color: #991b1b;
+        }
     </style>
     <!-- Markdown 解析库 -->
     <script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js"></script>
@@ -1027,7 +1711,9 @@
             <div class="tab" onclick="switchTab('sessions', event)">📋 会话</div>
             <div class="tab" onclick="switchTab('memory', event)">🧠 记忆</div>
             <!-- <div class="tab" onclick="switchTab('analytics', event)">📊 行为分析</div> -->
+            <div class="tab" onclick="switchTab('tasks', event)">✅ 任务</div>
             <div class="tab" onclick="switchTab('reminders', event)">🔔 提醒</div>
+            <div class="tab" onclick="switchTab('documents', event)">📄 文档总结</div>
             <div class="tab" onclick="switchTab('schedule', event)">📅 课程表</div>
             <div class="tab" onclick="switchTab('tools', event)">🔧 工具管理</div>
             <div class="tab" onclick="switchTab('settings', event)">⚙️ 设置</div>
@@ -1038,6 +1724,12 @@
             <div id="sessionInfo" class="session-info" style="display: none;">
                 <div class="session-title-display">💬 <span id="currentSessionTitle"></span></div>
             </div>
+            <!-- 消息搜索框 v0.6.0 -->
+            <div class="message-search-container">
+                <input type="text" id="messageSearchInput" placeholder="搜索对话内容..." onkeyup="searchMessages()">
+                <button onclick="clearMessageSearch()" class="clear-search-btn" title="清除搜索">✕</button>
+                <span id="searchResultCount" class="search-result-count"></span>
+            </div>
             <div class="chat-container" id="chatContainer"></div>
             <!-- 图片上传输入（隐藏） -->
             <input type="file" id="imageUpload" accept="image/*" style="display: none;"
@@ -1045,11 +1737,47 @@
                 oncancel="console.log('❌ File selection cancelled')">
             <div class="input-container">
                 <button onclick="triggerImageUpload()" class="upload-image-btn" title="上传图片">📷</button>
+                <button onclick="toggleVoiceInput()" class="voice-input-btn" id="voiceBtn"
+                    title="语音输入（可打断AI）">🎤</button>
+                <button onclick="toggleConversationMode()" class="conversation-mode-btn" id="conversationModeBtn"
+                    title="连续对话模式">💬</button>
                 <div id="messageInput" contenteditable="true" data-placeholder="输入消息（Enter发送，Shift+Enter换行）..."
                     style="flex: 1; padding: 12px; border: 2px solid #ddd; border-radius: 25px; font-size: 14px; outline: none; min-height: 40px; max-height: 120px; overflow-y: auto; line-height: 1.5; white-space: pre-wrap; word-wrap: break-word;">
                 </div>
                 <button onclick="sendMessageFromDiv()" id="sendBtn">发送</button>
                 <button onclick="newChat()">新对话</button>
+            </div>
+            <!-- 全局停止语音按钮 -->
+            <div id="globalStopSpeakingBtn" class="global-stop-speaking" style="display: none;" onclick="stopSpeaking()"
+                title="停止语音播放（或点击录音按钮打断）">
+                <span>🔇</span>
+                <span class="stop-text">停止播放</span>
+            </div>
+            <!-- 连续对话模式状态 -->
+            <div id="conversationModeStatus" class="conversation-mode-status" style="display: none;">
+                <div class="conversation-indicator">
+                    <span class="conversation-dot"></span>
+                    <span id="conversationStateText">对话模式已开启</span>
+                    <button onclick="stopSpeaking()" class="stop-speaking-btn" title="停止语音">🔇</button>
+                </div>
+                <span id="conversationHint">说完话后会自动识别并发送</span>
+            </div>
+            <!-- 语音识别状态提示 -->
+            <div id="voiceStatus" class="voice-status" style="display: none;">
+                <div class="voice-wave">
+                    <span></span><span></span><span></span><span></span><span></span>
+                </div>
+                <span id="voiceText">正在聆听...</span>
+            </div>
+            <!-- 语音播放状态提示 -->
+            <div id="speakingStatus" class="speaking-status" style="display: none;">
+                <div class="speaking-indicator">
+                    <span class="speaking-icon">🔊</span>
+                    <div class="speaking-wave">
+                        <span></span><span></span><span></span><span></span>
+                    </div>
+                </div>
+                <span id="speakingText">正在播放...</span>
             </div>
         </div>
 
@@ -1155,6 +1883,54 @@
             </div>
         </div>
 
+        <!-- 任务管理 v0.8.0 -->
+        <div id="tasks" class="tab-content">
+            <div class="memory-container">
+                <div class="stats-card">
+                    <h3>✅ 任务管理 <span style="font-size: 12px; color: #667eea; font-weight: normal;">v0.8.0 多轮任务规划</span>
+                    </h3>
+
+                    <div style="margin: 15px 0; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                        <button onclick="loadTasks()"
+                            style="padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 8px; cursor: pointer;">
+                            🔄 刷新
+                        </button>
+                        <button onclick="showCreateTaskDialog()"
+                            style="padding: 10px 20px; background: #10b981; color: white; border: none; border-radius: 8px; cursor: pointer;">
+                            ➕ 创建任务
+                        </button>
+                        <select id="taskStatusFilter" onchange="loadTasks()"
+                            style="padding: 8px 15px; border: 2px solid #ddd; border-radius: 8px; cursor: pointer;">
+                            <option value="">全部状态</option>
+                            <option value="pending">待处理</option>
+                            <option value="in_progress">执行中</option>
+                            <option value="waiting">等待中</option>
+                            <option value="completed">已完成</option>
+                            <option value="failed">失败</option>
+                            <option value="cancelled">已取消</option>
+                        </select>
+                    </div>
+
+                    <!-- 统计信息 -->
+                    <div id="taskStats"
+                        style="margin: 15px 0; display: flex; gap: 15px; font-size: 13px; flex-wrap: wrap;">
+                        <span style="color: #f59e0b;">📋 待处理: <strong id="taskPendingCount">0</strong></span>
+                        <span style="color: #3b82f6;">⚡ 执行中: <strong id="taskInProgressCount">0</strong></span>
+                        <span style="color: #10b981;">✅ 已完成: <strong id="taskCompletedCount">0</strong></span>
+                        <span style="color: #ef4444;">❌ 失败: <strong id="taskFailedCount">0</strong></span>
+                    </div>
+
+                    <!-- 任务列表 -->
+                    <div style="margin: 20px 0;">
+                        <div id="tasksList"
+                            style="background: #f8f9fa; padding: 15px; border-radius: 10px; min-height: 200px;">
+                            <div class="loading">点击"刷新"加载任务</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- 提醒管理 v0.5.0 -->
         <div id="reminders" class="tab-content">
             <div class="memory-container">
@@ -1193,6 +1969,52 @@
                         <div id="remindersList"
                             style="background: #f8f9fa; padding: 15px; border-radius: 10px; min-height: 200px;">
                             <div class="loading">点击"刷新"加载提醒</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 文档总结 v0.8.0 Phase 3 -->
+        <div id="documents" class="tab-content">
+            <div class="memory-container">
+                <div class="stats-card">
+                    <h3>📄 文档总结 <span style="font-size: 12px; color: #667eea; font-weight: normal;">v0.8.0 Phase
+                            3</span></h3>
+
+                    <!-- 上传区域 -->
+                    <div style="margin: 20px 0;">
+                        <div
+                            style="border: 2px dashed #667eea; border-radius: 12px; padding: 40px; text-align: center; background: #f8f9fa;">
+                            <div style="font-size: 48px; margin-bottom: 15px;">📤</div>
+                            <h4 style="margin: 10px 0; color: #333;">上传文档进行智能总结</h4>
+                            <p style="color: #666; margin: 10px 0; font-size: 14px;">
+                                支持 PDF、Word (DOCX)、文本文件 (TXT、MD)<br>
+                                最大文件大小: 10 MB
+                            </p>
+                            <input type="file" id="documentFileInput" accept=".pdf,.docx,.txt,.md"
+                                style="display: none;" onchange="handleDocumentUpload(event)">
+                            <button onclick="document.getElementById('documentFileInput').click()"
+                                style="margin-top: 15px; padding: 12px 30px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                                       color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold;">
+                                📁 选择文件
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 文档列表 -->
+                    <div style="margin: 20px 0;">
+                        <div
+                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                            <h4 style="margin: 0;">📚 文档列表</h4>
+                            <button onclick="loadDocuments()"
+                                style="padding: 8px 16px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer;">
+                                🔄 刷新
+                            </button>
+                        </div>
+                        <div id="documentsList"
+                            style="background: #f8f9fa; padding: 15px; border-radius: 10px; min-height: 200px;">
+                            <div class="loading">点击"刷新"加载文档列表</div>
                         </div>
                     </div>
                 </div>
@@ -1388,6 +2210,121 @@
                         </div>
                     </div>
 
+                    <!-- v0.8.0 语音设置 -->
+                    <div class="settings-section">
+                        <h4 class="settings-title">🎤 语音交互设置 <span
+                                style="font-size: 11px; color: #f5576c; font-weight: normal;">新功能</span></h4>
+
+                        <div class="setting-item">
+                            <div class="setting-label">
+                                <span class="setting-name">语音识别服务</span>
+                                <span class="setting-desc">选择语音识别提供商</span>
+                            </div>
+                            <select id="voiceProvider" class="setting-select"
+                                onchange="updateVoiceProvider(this.value)">
+                                <option value="google">Google (需科学上网)</option>
+                                <option value="baidu">百度语音 (推荐)</option>
+                            </select>
+                        </div>
+
+                        <div class="setting-item">
+                            <div class="setting-label">
+                                <span class="setting-name">自动播放AI回复</span>
+                                <span class="setting-desc">AI回复后自动播放语音</span>
+                            </div>
+                            <label class="setting-switch">
+                                <input type="checkbox" id="voiceAutoPlay" onchange="updateVoiceAutoPlay(this.checked)">
+                                <span class="switch-slider"></span>
+                            </label>
+                        </div>
+
+                        <div class="setting-item">
+                            <div class="setting-label">
+                                <span class="setting-name">语音合成服务</span>
+                                <span class="setting-desc">选择AI回复的语音合成方式</span>
+                            </div>
+                            <select id="ttsProvider" class="setting-select" onchange="updateTTSProvider(this.value)">
+                                <option value="web">浏览器语音 (免费)</option>
+                                <option value="baidu">百度语音 (更自然)</option>
+                            </select>
+                        </div>
+
+                        <div class="setting-item" id="baiduTTSPersonSetting" style="display: none;">
+                            <div class="setting-label">
+                                <span class="setting-name">百度TTS音色</span>
+                                <span class="setting-desc">选择AI回复的声音（基础免费版）</span>
+                            </div>
+                            <select id="ttsPerson" class="setting-select" onchange="updateTTSPerson(this.value)">
+                                <option value="0">度小美（女声，温柔）</option>
+                                <option value="1">度小宇（男声，温和）</option>
+                                <option value="3">度逍遥（男声，年轻活力）</option>
+                                <option value="4">度丫丫（女声，活泼可爱）</option>
+                            </select>
+                            <div
+                                style="margin-top: 8px; padding: 8px; background: #fff3cd; border-radius: 6px; font-size: 12px; color: #856404;">
+                                💡 提示：仅显示基础免费版音色。高级音色（度小娇、度小鹿等）需要付费版本。
+                            </div>
+                        </div>
+
+                        <div class="setting-item">
+                            <div class="setting-label">
+                                <span class="setting-name">语速</span>
+                                <span class="setting-desc">调节语音播放速度</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <input type="range" id="voiceRate" min="0.5" max="2" step="0.1" value="1.0"
+                                    oninput="updateVoiceRate(this.value)"
+                                    style="flex: 1; height: 4px; border-radius: 2px; outline: none; cursor: pointer;">
+                                <span id="voiceRateValue"
+                                    style="min-width: 40px; text-align: right; font-weight: 500;">1.0x</span>
+                            </div>
+                        </div>
+
+                        <div class="setting-item">
+                            <div class="setting-label">
+                                <span class="setting-name">音量</span>
+                                <span class="setting-desc">调节语音播放音量</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <input type="range" id="voiceVolume" min="0" max="1" step="0.1" value="1.0"
+                                    oninput="updateVoiceVolume(this.value)"
+                                    style="flex: 1; height: 4px; border-radius: 2px; outline: none; cursor: pointer;">
+                                <span id="voiceVolumeValue"
+                                    style="min-width: 40px; text-align: right; font-weight: 500;">100%</span>
+                            </div>
+                        </div>
+
+                        <div class="setting-item" style="background: #f8f9fa; border-radius: 8px; padding: 12px;">
+                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                <span style="font-size: 20px;">💡</span>
+                                <span style="font-weight: 500; color: #333;">语音功能使用提示</span>
+                            </div>
+                            <ul style="margin: 0; padding-left: 20px; font-size: 12px; color: #666; line-height: 1.8;">
+                                <li>点击输入框旁的 🎤 按钮开始语音输入</li>
+                                <li>支持中文语音识别，识别后自动填入输入框</li>
+                                <li>开启自动播放后，AI回复会自动朗读</li>
+                                <li>建议使用 Chrome、Edge 或 Safari 浏览器</li>
+                                <li>首次使用需授予麦克风权限</li>
+                                <li><strong style="color: #f5576c;">⚠️ 语音识别需要网络连接</strong></li>
+                            </ul>
+                        </div>
+
+                        <div class="setting-item"
+                            style="background: #fff3cd; border-radius: 8px; padding: 12px; border-left: 4px solid #f5576c;">
+                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                <span style="font-size: 20px;">⚠️</span>
+                                <span style="font-weight: 500; color: #856404;">遇到"network"错误？</span>
+                            </div>
+                            <ul
+                                style="margin: 0; padding-left: 20px; font-size: 12px; color: #856404; line-height: 1.8;">
+                                <li>语音识别使用Google的Web Speech API，需要网络连接</li>
+                                <li>请确保网络连接正常，可以访问Google服务</li>
+                                <li>如果在国内使用，可能需要科学上网</li>
+                                <li>备选方案：可以手动输入文字，或等待后续版本集成国内语音API</li>
+                            </ul>
+                        </div>
+                    </div>
+
                     <!-- 重置按钮 -->
                     <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; text-align: center;">
                         <button onclick="resetSettings()" style="
@@ -1528,6 +2465,9 @@
             if (settings.shortcutHintsEnabled) {
                 showShortcutHints();
             }
+
+            // 初始化语音设置 v0.8.0
+            initVoiceSettings();
         }
 
         // 获取设置
@@ -1636,6 +2576,91 @@
             showToast(enabled ? '✅ 提醒通知已启用' : '⚠️ 提醒通知已禁用', enabled ? 'success' : 'warning');
         }
 
+        // ==================== v0.8.0 语音设置功能 ====================
+
+        // 更新语音服务提供商
+        function updateVoiceProvider(provider) {
+            localStorage.setItem('useBaiduVoice', provider === 'baidu');
+            const providerName = provider === 'baidu' ? '百度语音' : 'Google语音';
+            showToast(`✅ 已切换到${providerName}识别`, 'success');
+        }
+
+        // 更新TTS提供商
+        function updateTTSProvider(provider) {
+            localStorage.setItem('ttsProvider', provider);
+            const ttsName = provider === 'baidu' ? '百度语音合成' : '浏览器语音合成';
+            showToast(`✅ 已切换到${ttsName}`, 'success');
+
+            // 显示/隐藏百度TTS音色选择
+            const personSetting = document.getElementById('baiduTTSPersonSetting');
+            if (personSetting) {
+                personSetting.style.display = provider === 'baidu' ? 'flex' : 'none';
+            }
+        }
+
+        // 更新TTS音色
+        function updateTTSPerson(person) {
+            localStorage.setItem('ttsPerson', person);
+            const personNames = {
+                '0': '度小美（女声，温柔）',
+                '1': '度小宇（男声，温和）',
+                '3': '度逍遥（男声，年轻活力）',
+                '4': '度丫丫（女声，活泼可爱）'
+            };
+            showToast(`✅ 音色已设置为：${personNames[person] || '度小美'}`, 'success');
+        }
+
+        // 更新语音自动播放设置
+        function updateVoiceAutoPlay(enabled) {
+            localStorage.setItem('voiceAutoPlay', enabled);
+            showToast(enabled ? '✅ 已开启语音自动播放' : '❌ 已关闭语音自动播放', 'info');
+        }
+
+        // 更新语速
+        function updateVoiceRate(value) {
+            localStorage.setItem('voiceRate', value);
+            document.getElementById('voiceRateValue').textContent = value + 'x';
+        }
+
+        // 更新音量
+        function updateVoiceVolume(value) {
+            localStorage.setItem('voiceVolume', value);
+            const percentage = Math.round(value * 100);
+            document.getElementById('voiceVolumeValue').textContent = percentage + '%';
+        }
+
+        // 初始化语音设置
+        function initVoiceSettings() {
+            // 首次访问时默认使用百度语音（国内更稳定）
+            if (localStorage.getItem('useBaiduVoice') === null) {
+                localStorage.setItem('useBaiduVoice', 'true');
+            }
+
+            const useBaiduVoice = localStorage.getItem('useBaiduVoice') === 'true';
+            const ttsProvider = localStorage.getItem('ttsProvider') || 'web';
+            const ttsPerson = localStorage.getItem('ttsPerson') || '0'; // 默认度小美(女声)
+            const autoPlay = localStorage.getItem('voiceAutoPlay') === 'true';
+            const rate = localStorage.getItem('voiceRate') || '1.0';
+            const volume = localStorage.getItem('voiceVolume') || '1.0';
+
+            document.getElementById('voiceProvider').value = useBaiduVoice ? 'baidu' : 'google';
+            document.getElementById('ttsProvider').value = ttsProvider;
+            document.getElementById('ttsPerson').value = ttsPerson;
+            document.getElementById('voiceAutoPlay').checked = autoPlay;
+            document.getElementById('voiceRate').value = rate;
+            document.getElementById('voiceRateValue').textContent = rate + 'x';
+            document.getElementById('voiceVolume').value = volume;
+            document.getElementById('voiceVolumeValue').textContent = Math.round(volume * 100) + '%';
+
+            // 显示/隐藏百度TTS音色选择
+            const personSetting = document.getElementById('baiduTTSPersonSetting');
+            if (personSetting) {
+                personSetting.style.display = ttsProvider === 'baidu' ? 'flex' : 'none';
+            }
+        }
+
+        // ==================== 设置管理功能 ====================
+
         // 重置所有设置
         function resetSettings() {
             if (confirm('确定要重置所有设置为默认值吗？')) {
@@ -1687,6 +2712,10 @@
                 loadReminders();
                 loadReminderHistory();
             }
+            if (tabName === 'documents') {
+                // 自动加载文档列表
+                loadDocuments();
+            }
             if (tabName === 'tools') {
                 // 自动加载工具列表
                 loadTools();
@@ -1697,6 +2726,1055 @@
                 loadSchedule();
             }
         }
+
+        // ==================== v0.8.0 语音交互功能 ====================
+
+        let recognition = null;
+        let isRecording = false;
+        let speechSynthesis = window.speechSynthesis;
+        let currentUtterance = null;
+        let recognitionRetryCount = 0;
+        const MAX_RETRY = 2;
+
+        // v0.8.1 连续对话模式
+        let isConversationMode = false;
+        let isSpeaking = false; // AI正在说话
+        let currentAudio = null; // 当前播放的音频
+
+        // 监听网络状态
+        window.addEventListener('online', function () {
+            console.log('✅ 网络已连接，语音识别可用');
+        });
+
+        window.addEventListener('offline', function () {
+            console.warn('⚠️ 网络已断开，语音识别不可用');
+            if (isRecording) {
+                stopVoiceInput();
+                showToast('网络断开，语音识别已停止', 'error');
+            }
+        });
+
+        // 页面卸载时清理语音资源
+        window.addEventListener('beforeunload', function () {
+            console.log('🧹 页面卸载，清理语音资源...');
+
+            // 停止语音合成
+            if (speechSynthesis.speaking) {
+                speechSynthesis.cancel();
+            }
+
+            // 停止音频播放
+            if (currentAudio) {
+                currentAudio.pause();
+                currentAudio = null;
+            }
+
+            // 停止录音
+            if (isRecording) {
+                stopVoiceInput();
+            }
+
+            // 关闭对话模式
+            if (isConversationMode) {
+                isConversationMode = false;
+            }
+        });
+
+        // 页面隐藏时暂停语音（切换标签页、最小化窗口等）
+        document.addEventListener('visibilitychange', function () {
+            if (document.hidden) {
+                console.log('📵 页面隐藏，暂停语音播放');
+
+                // 暂停语音合成
+                if (speechSynthesis.speaking) {
+                    speechSynthesis.pause();
+                }
+
+                // 暂停音频
+                if (currentAudio && !currentAudio.paused) {
+                    currentAudio.pause();
+                }
+            } else {
+                console.log('📱 页面显示，恢复语音播放');
+
+                // 恢复语音合成
+                if (speechSynthesis.paused) {
+                    speechSynthesis.resume();
+                }
+
+                // 恢复音频（可选，避免突然播放）
+                // if (currentAudio && currentAudio.paused) {
+                //     currentAudio.play();
+                // }
+            }
+        });
+
+        // 初始化语音识别
+        function initSpeechRecognition() {
+            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                console.warn('浏览器不支持语音识别');
+                return null;
+            }
+
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechRecognition();
+
+            recognition.lang = 'zh-CN';  // 中文识别
+            recognition.continuous = false;  // 不持续识别
+            recognition.interimResults = true;  // 显示临时结果
+            recognition.maxAlternatives = 1;  // 只返回最佳结果
+
+            // 添加详细日志
+            console.log('🔧 语音识别配置:', {
+                lang: recognition.lang,
+                continuous: recognition.continuous,
+                interimResults: recognition.interimResults
+            });
+
+            recognition.onstart = function () {
+                console.log('🎤 语音识别开始');
+                isRecording = true;
+                const voiceBtn = document.getElementById('voiceBtn');
+                const voiceStatus = document.getElementById('voiceStatus');
+                const voiceText = document.getElementById('voiceText');
+
+                voiceBtn.classList.add('recording');
+                voiceStatus.style.display = 'flex';
+                voiceText.textContent = '正在聆听...';
+            };
+
+            recognition.onresult = function (event) {
+                let interimTranscript = '';
+                let finalTranscript = '';
+
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    const transcript = event.results[i][0].transcript;
+                    if (event.results[i].isFinal) {
+                        finalTranscript += transcript;
+                    } else {
+                        interimTranscript += transcript;
+                    }
+                }
+
+                const voiceText = document.getElementById('voiceText');
+                if (interimTranscript) {
+                    voiceText.textContent = interimTranscript;
+                }
+
+                if (finalTranscript) {
+                    console.log('✅ 识别结果:', finalTranscript);
+                    const input = document.getElementById('messageInput');
+                    input.textContent = finalTranscript;
+                    input.focus();
+
+                    // 连续对话模式：自动发送
+                    if (isConversationMode) {
+                        setTimeout(() => autoSendInConversationMode(finalTranscript), 500);
+                    }
+                }
+            };
+
+            recognition.onerror = function (event) {
+                console.error('❌ 语音识别错误:', event.error, event);
+                const voiceText = document.getElementById('voiceText');
+
+                switch (event.error) {
+                    case 'no-speech':
+                        voiceText.textContent = '没有检测到语音，请重试';
+                        break;
+                    case 'audio-capture':
+                        voiceText.textContent = '无法访问麦克风';
+                        break;
+                    case 'not-allowed':
+                        voiceText.textContent = '麦克风权限被拒绝';
+                        break;
+                    case 'network':
+                        voiceText.textContent = '网络连接失败，请检查网络后重试';
+                        console.warn('💡 提示: 语音识别需要网络连接，请确保网络正常');
+                        break;
+                    case 'service-not-allowed':
+                        voiceText.textContent = '语音服务不可用';
+                        break;
+                    case 'aborted':
+                        voiceText.textContent = '识别已取消';
+                        break;
+                    default:
+                        voiceText.textContent = `识别出错: ${event.error}`;
+                        console.error('未知错误类型:', event.error);
+                }
+
+                setTimeout(() => {
+                    stopVoiceInput();
+                }, 3000);
+            };
+
+            recognition.onend = function () {
+                console.log('🎤 语音识别结束');
+                stopVoiceInput();
+            };
+
+            return recognition;
+        }
+
+        // 切换语音输入
+        function toggleVoiceInput() {
+            // 优先使用百度语音识别
+            const useBaiduVoice = localStorage.getItem('useBaiduVoice') === 'true';
+
+            if (useBaiduVoice) {
+                toggleBaiduVoiceInput();
+            } else {
+                toggleGoogleVoiceInput();
+            }
+        }
+
+        // Google 语音识别（原方法）
+        function toggleGoogleVoiceInput() {
+            // 检查网络连接
+            if (!navigator.onLine) {
+                alert('⚠️ 网络未连接\n\n语音识别需要网络连接，请检查您的网络设置。');
+                return;
+            }
+
+            // 诊断语音识别可用性
+            console.log('🔍 Google语音识别诊断:');
+            console.log('- 浏览器:', navigator.userAgent);
+            console.log('- 在线状态:', navigator.onLine);
+            console.log('- 语音识别支持:', 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window);
+
+            if (!recognition) {
+                recognition = initSpeechRecognition();
+                if (!recognition) {
+                    alert('❌ 浏览器不支持语音识别\n\n建议使用:\n✅ Chrome 浏览器（推荐）\n✅ Edge 浏览器\n✅ Safari 浏览器\n\n💡 提示：语音识别需要网络连接');
+                    return;
+                }
+            }
+
+            if (isRecording) {
+                recognition.stop();
+            } else {
+                try {
+                    // 显示准备提示
+                    const voiceStatus = document.getElementById('voiceStatus');
+                    const voiceText = document.getElementById('voiceText');
+                    voiceStatus.style.display = 'flex';
+                    voiceText.textContent = '正在准备...';
+
+                    recognition.start();
+                } catch (e) {
+                    console.error('启动语音识别失败:', e);
+
+                    // 更友好的错误提示
+                    let errorMsg = '启动语音识别失败';
+                    if (e.message.includes('already started')) {
+                        errorMsg = '语音识别已经在运行中，请稍候';
+                        // 重置状态
+                        stopVoiceInput();
+                        setTimeout(() => {
+                            toggleVoiceInput();
+                        }, 500);
+                        return;
+                    } else if (e.message.includes('not allowed')) {
+                        errorMsg = '麦克风权限被拒绝\n\n请在浏览器设置中允许麦克风访问';
+                    } else {
+                        errorMsg += '\n\n' + e.message;
+                    }
+
+                    alert('❌ ' + errorMsg + '\n\n💡 建议：刷新页面后重试');
+                    stopVoiceInput();
+                }
+            }
+        }
+
+        // 停止语音输入
+        function stopVoiceInput() {
+            isRecording = false;
+            const voiceBtn = document.getElementById('voiceBtn');
+            const voiceStatus = document.getElementById('voiceStatus');
+
+            voiceBtn.classList.remove('recording');
+            voiceStatus.style.display = 'none';
+
+            // 停止百度录音器
+            if (baiduRecorder && baiduRecorder.recording) {
+                baiduRecorder.recording = false;
+
+                try {
+                    if (baiduRecorder.processor) {
+                        baiduRecorder.processor.disconnect();
+                        baiduRecorder.processor = null;
+                    }
+                    if (baiduRecorder.source) {
+                        baiduRecorder.source.disconnect();
+                        baiduRecorder.source = null;
+                    }
+                    if (baiduRecorder.stream) {
+                        baiduRecorder.stream.getTracks().forEach(t => t.stop());
+                        baiduRecorder.stream = null;
+                    }
+                    if (baiduRecorder.audioContext) {
+                        baiduRecorder.audioContext.close();
+                        baiduRecorder.audioContext = null;
+                    }
+                    baiduRecorder.bufferL = [];
+                } catch (e) {
+                    console.error('停止百度录音器出错:', e);
+                }
+            }
+        }
+
+        // ==================== 百度语音识别 ====================
+
+        // 基于 Web Audio API 的 WAV(PCM16) 录音器，采样率 16k 以适配百度ASR
+        let baiduRecorder = {
+            audioContext: null,
+            source: null,
+            processor: null,
+            analyser: null,
+            stream: null,
+            bufferL: [],
+            sampleRate: 16000,
+            recording: false,
+            silenceStart: 0,
+            silenceThreshold: 0.01, // 静音阈值
+            silenceDuration: 1500,  // 静音持续时间（毫秒），1.5秒后自动停止
+            hasSpoken: false,       // 是否检测到说话
+            listeningMode: false,   // 监听模式：等待用户打断AI说话
+        };
+
+        function mergeBuffers(bufferArray) {
+            let length = 0;
+            bufferArray.forEach(b => length += b.length);
+            const result = new Float32Array(length);
+            let offset = 0;
+            bufferArray.forEach(b => { result.set(b, offset); offset += b.length; });
+            return result;
+        }
+
+        // 音频归一化和增益
+        function normalizeAndBoost(buffer, targetPeak = 0.95, minGain = 1.5) {
+            // 找到最大振幅
+            let max = 0;
+            for (let i = 0; i < buffer.length; i++) {
+                const abs = Math.abs(buffer[i]);
+                if (abs > max) max = abs;
+            }
+
+            // 计算增益
+            let gain = 1.0;
+            if (max > 0) {
+                gain = Math.max(targetPeak / max, minGain);
+            } else {
+                gain = minGain;
+            }
+
+            // 限制最大增益，避免过度放大噪音
+            gain = Math.min(gain, 8.0);
+
+            console.log(`🔊 音频增益: ${gain.toFixed(2)}x (原始峰值: ${(max * 100).toFixed(1)}%)`);
+
+            // 应用增益
+            const result = new Float32Array(buffer.length);
+            for (let i = 0; i < buffer.length; i++) {
+                result[i] = Math.max(-1, Math.min(1, buffer[i] * gain));
+            }
+
+            return result;
+        }
+
+        function downsampleBuffer(buffer, inSampleRate, outSampleRate) {
+            if (outSampleRate === inSampleRate) return buffer;
+            const ratio = inSampleRate / outSampleRate;
+            const newLength = Math.round(buffer.length / ratio);
+            const result = new Float32Array(newLength);
+            let offsetResult = 0;
+            let offsetBuffer = 0;
+            while (offsetResult < result.length) {
+                const nextOffsetBuffer = Math.round((offsetResult + 1) * ratio);
+                let accum = 0, count = 0;
+                for (let i = offsetBuffer; i < nextOffsetBuffer && i < buffer.length; i++) {
+                    accum += buffer[i];
+                    count++;
+                }
+                result[offsetResult] = accum / count;
+                offsetResult++;
+                offsetBuffer = nextOffsetBuffer;
+            }
+            return result;
+        }
+
+        function encodeWAV(samples, sampleRate) {
+            const buffer = new ArrayBuffer(44 + samples.length * 2);
+            const view = new DataView(buffer);
+
+            function writeString(view, offset, string) {
+                for (let i = 0; i < string.length; i++) {
+                    view.setUint8(offset + i, string.charCodeAt(i));
+                }
+            }
+
+            const bytesPerSample = 2;
+            const numChannels = 1;
+            const blockAlign = numChannels * bytesPerSample;
+            const byteRate = sampleRate * blockAlign;
+
+            // RIFF header
+            writeString(view, 0, 'RIFF');
+            view.setUint32(4, 36 + samples.length * bytesPerSample, true);
+            writeString(view, 8, 'WAVE');
+
+            // fmt chunk
+            writeString(view, 12, 'fmt ');
+            view.setUint32(16, 16, true); // PCM
+            view.setUint16(20, 1, true);  // PCM format
+            view.setUint16(22, numChannels, true);
+            view.setUint32(24, sampleRate, true);
+            view.setUint32(28, byteRate, true);
+            view.setUint16(32, blockAlign, true);
+            view.setUint16(34, 16, true); // 16-bit
+
+            // data chunk
+            writeString(view, 36, 'data');
+            view.setUint32(40, samples.length * bytesPerSample, true);
+
+            // PCM samples
+            let offset = 44;
+            for (let i = 0; i < samples.length; i++, offset += 2) {
+                let s = Math.max(-1, Math.min(1, samples[i]));
+                view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+            }
+
+            return new Blob([view], { type: 'audio/wav' });
+        }
+
+        // 🎧 启动监听模式：在AI说话时监听用户打断
+        async function startListeningForInterrupt() {
+            if (!isConversationMode || !isSpeaking) return;
+            if (baiduRecorder.listeningMode) return; // 已经在监听中
+
+            console.log('🎧 启动打断监听模式...');
+
+            try {
+                // 请求麦克风权限
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true
+                    }
+                });
+
+                // 创建音频分析器
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const source = audioContext.createMediaStreamSource(stream);
+                const analyser = audioContext.createAnalyser();
+                analyser.fftSize = 2048;
+                const processor = audioContext.createScriptProcessor(4096, 1, 1);
+
+                // 保存到全局对象
+                baiduRecorder.listeningStream = stream;
+                baiduRecorder.listeningContext = audioContext;
+                baiduRecorder.listeningSource = source;
+                baiduRecorder.listeningAnalyser = analyser;
+                baiduRecorder.listeningProcessor = processor;
+                baiduRecorder.listeningMode = true;
+
+                // 打断检测参数
+                let interruptThreshold = 0.05; // 提高阈值，避免误触发（原来0.01太低）
+                let interruptCount = 0;        // 连续检测计数
+                let requiredCount = 3;         // 需要连续3次检测到声音才触发（约0.3秒）
+                let startDelay = 500;          // 启动后延迟500ms才开始检测，避免回声
+                let startTime = Date.now();
+
+                // 监听音频输入
+                processor.onaudioprocess = function (e) {
+                    if (!baiduRecorder.listeningMode) return;
+
+                    // 启动延迟保护：前500ms不检测
+                    if (Date.now() - startTime < startDelay) {
+                        return;
+                    }
+
+                    const channel = e.inputBuffer.getChannelData(0);
+
+                    // 计算音量
+                    let sum = 0;
+                    for (let i = 0; i < channel.length; i++) {
+                        sum += channel[i] * channel[i];
+                    }
+                    const rms = Math.sqrt(sum / channel.length);
+
+                    // 连续性检测：需要连续多次检测到声音才触发
+                    if (rms > interruptThreshold) {
+                        interruptCount++;
+                        console.log(`🎤 检测到声音 (${interruptCount}/${requiredCount}): RMS=${rms.toFixed(4)}`);
+
+                        if (interruptCount >= requiredCount) {
+                            console.log('✅ 确认用户说话，打断AI');
+
+                            // 停止监听模式
+                            stopListeningMode();
+
+                            // 打断AI并开始正式录音
+                            if (isSpeaking) {
+                                stopSpeaking();
+                            }
+
+                            // 立即开始录音
+                            setTimeout(() => {
+                                if (isConversationMode && !isRecording) {
+                                    console.log('🎤 从监听模式切换到录音模式');
+                                    toggleBaiduVoiceInput();
+                                }
+                            }, 100);
+                        }
+                    } else {
+                        // 没有声音，重置计数
+                        if (interruptCount > 0) {
+                            console.log(`🔇 声音中断，重置计数 (之前: ${interruptCount})`);
+                        }
+                        interruptCount = 0;
+                    }
+                };
+
+                // 连接音频节点
+                source.connect(analyser);
+                analyser.connect(processor);
+                processor.connect(audioContext.destination);
+
+                console.log('✅ 打断监听模式已激活');
+
+            } catch (error) {
+                console.error('❌ 启动监听模式失败:', error);
+                baiduRecorder.listeningMode = false;
+            }
+        }
+
+        // 停止监听模式
+        function stopListeningMode() {
+            if (!baiduRecorder.listeningMode) return;
+
+            console.log('🛑 停止打断监听模式');
+
+            try {
+                if (baiduRecorder.listeningProcessor) {
+                    baiduRecorder.listeningProcessor.disconnect();
+                    baiduRecorder.listeningProcessor = null;
+                }
+                if (baiduRecorder.listeningAnalyser) {
+                    baiduRecorder.listeningAnalyser.disconnect();
+                    baiduRecorder.listeningAnalyser = null;
+                }
+                if (baiduRecorder.listeningSource) {
+                    baiduRecorder.listeningSource.disconnect();
+                    baiduRecorder.listeningSource = null;
+                }
+                if (baiduRecorder.listeningStream) {
+                    baiduRecorder.listeningStream.getTracks().forEach(track => track.stop());
+                    baiduRecorder.listeningStream = null;
+                }
+                if (baiduRecorder.listeningContext) {
+                    baiduRecorder.listeningContext.close();
+                    baiduRecorder.listeningContext = null;
+                }
+            } catch (e) {
+                console.log('清理监听模式资源:', e);
+            }
+
+            baiduRecorder.listeningMode = false;
+        }
+
+        async function toggleBaiduVoiceInput() {
+            if (isRecording) {
+                // 手动停止录音并识别
+                await processBaiduRecording();
+                return;
+            }
+
+            // 如果AI正在说话，先停止
+            if (isSpeaking) {
+                console.log('⏸️ 打断AI说话，开始录音');
+                stopSpeaking();
+            }
+
+            try {
+                // 先清理之前的录音器状态
+                if (baiduRecorder.audioContext) {
+                    try {
+                        await baiduRecorder.audioContext.close();
+                    } catch (e) {
+                        console.log('关闭旧AudioContext:', e);
+                    }
+                }
+
+                // 重置录音器对象
+                baiduRecorder = {
+                    audioContext: null,
+                    source: null,
+                    processor: null,
+                    analyser: null,
+                    stream: null,
+                    bufferL: [],
+                    sampleRate: 16000,
+                    recording: false,
+                    silenceStart: 0,
+                    silenceThreshold: 0.01,
+                    silenceDuration: 1500,
+                    hasSpoken: false,
+                };
+
+                // 请求麦克风权限
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true
+                    }
+                });
+
+                // 显示录音状态
+                isRecording = true;
+                const voiceBtn = document.getElementById('voiceBtn');
+                const voiceStatus = document.getElementById('voiceStatus');
+                const voiceText = document.getElementById('voiceText');
+
+                voiceBtn.classList.add('recording');
+                voiceStatus.style.display = 'flex';
+                voiceText.textContent = '请开始说话...';
+
+                // 创建 Web Audio 录音流程
+                baiduRecorder.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                baiduRecorder.stream = stream;
+                baiduRecorder.source = baiduRecorder.audioContext.createMediaStreamSource(stream);
+                baiduRecorder.analyser = baiduRecorder.audioContext.createAnalyser();
+                baiduRecorder.analyser.fftSize = 2048;
+                baiduRecorder.processor = baiduRecorder.audioContext.createScriptProcessor(4096, 1, 1);
+                baiduRecorder.bufferL = [];
+                baiduRecorder.recording = true;
+                baiduRecorder.silenceStart = Date.now();
+
+                // 音频处理和静音检测
+                baiduRecorder.processor.onaudioprocess = function (e) {
+                    if (!baiduRecorder.recording) return;
+
+                    const channel = e.inputBuffer.getChannelData(0);
+                    // 拷贝数据
+                    baiduRecorder.bufferL.push(new Float32Array(channel));
+
+                    // 计算音量（RMS）
+                    let sum = 0;
+                    for (let i = 0; i < channel.length; i++) {
+                        sum += channel[i] * channel[i];
+                    }
+                    const rms = Math.sqrt(sum / channel.length);
+
+                    // 静音检测
+                    if (rms > baiduRecorder.silenceThreshold) {
+                        // 检测到声音
+                        if (!baiduRecorder.hasSpoken) {
+                            // 第一次检测到声音
+                            baiduRecorder.hasSpoken = true;
+
+                            // 🎯 连续对话模式：检测到用户说话，立即打断AI
+                            if (isConversationMode && isSpeaking) {
+                                console.log('👂 检测到用户说话，打断AI播放');
+                                stopSpeaking();
+                                const stateText = document.getElementById('conversationStateText');
+                                if (stateText) {
+                                    stateText.textContent = '正在录音...';
+                                }
+                            }
+                        }
+
+                        baiduRecorder.silenceStart = Date.now();
+                        voiceText.textContent = '正在录音...🎤';
+                    } else if (baiduRecorder.hasSpoken) {
+                        // 说话后的静音
+                        const silenceDuration = Date.now() - baiduRecorder.silenceStart;
+                        if (silenceDuration > baiduRecorder.silenceDuration) {
+                            console.log('🔇 检测到静音，自动停止录音');
+                            voiceText.textContent = '检测到静音，正在识别...';
+                            // 自动停止并识别
+                            setTimeout(() => processBaiduRecording(), 100);
+                        }
+                    }
+                };
+
+                // 连接音频节点
+                baiduRecorder.source.connect(baiduRecorder.analyser);
+                baiduRecorder.analyser.connect(baiduRecorder.processor);
+                baiduRecorder.processor.connect(baiduRecorder.audioContext.destination);
+
+                console.log('🎤 百度语音录音开始 (自动静音检测)');
+                console.log('   AudioContext采样率:', baiduRecorder.audioContext.sampleRate);
+                console.log('   静音阈值:', baiduRecorder.silenceThreshold);
+                console.log('   静音时长:', baiduRecorder.silenceDuration + 'ms');
+
+            } catch (error) {
+                console.error('❌ 麦克风访问失败:', error);
+
+                let errorMsg = '无法访问麦克风';
+                if (error.name === 'NotAllowedError') {
+                    errorMsg = '麦克风权限被拒绝\n\n请在浏览器设置中允许麦克风访问';
+                } else if (error.name === 'NotFoundError') {
+                    errorMsg = '未找到麦克风设备\n\n请检查麦克风是否正常连接';
+                } else if (error.name === 'NotReadableError') {
+                    errorMsg = '麦克风被其他程序占用\n\n请关闭其他使用麦克风的程序';
+                }
+
+                showToast('❌ ' + errorMsg, 'error');
+                stopVoiceInput();
+            }
+        }
+
+        // 处理百度录音识别
+        async function processBaiduRecording() {
+            if (!baiduRecorder || !baiduRecorder.recording) return;
+
+            try {
+                baiduRecorder.recording = false;
+
+                if (baiduRecorder.processor) {
+                    baiduRecorder.processor.disconnect();
+                }
+                if (baiduRecorder.analyser) {
+                    baiduRecorder.analyser.disconnect();
+                }
+                if (baiduRecorder.source) {
+                    baiduRecorder.source.disconnect();
+                }
+                if (baiduRecorder.stream) {
+                    baiduRecorder.stream.getTracks().forEach(t => t.stop());
+                }
+
+                // 检查是否录到音频
+                if (baiduRecorder.bufferL.length === 0) {
+                    showToast('⚠️ 未检测到音频输入', 'warning');
+                    stopVoiceInput();
+                    return;
+                }
+
+                // 合并、增益、降采样并编码为 WAV 16k
+                const raw = mergeBuffers(baiduRecorder.bufferL);
+                const boosted = normalizeAndBoost(raw);
+                const inRate = baiduRecorder.audioContext.sampleRate;
+                const down = downsampleBuffer(boosted, inRate, 16000);
+                const wavBlob = encodeWAV(down, 16000);
+
+                // 上传识别
+                const voiceText = document.getElementById('voiceText');
+                voiceText.textContent = '正在识别...';
+
+                const formData = new FormData();
+                formData.append('file', wavBlob, 'audio.wav');
+                const response = await fetch('/api/voice/recognize', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    const input = document.getElementById('messageInput');
+                    input.textContent = result.text;
+                    input.focus();
+                    showToast('✅ 识别成功', 'success');
+
+                    // 连续对话模式：自动发送
+                    if (isConversationMode) {
+                        setTimeout(() => autoSendInConversationMode(result.text), 500);
+                    }
+                } else {
+                    showToast('❌ 识别失败: ' + (result.error || '未知错误'), 'error');
+                }
+            } catch (e) {
+                console.error('停止或识别出错:', e);
+                showToast('❌ 识别请求失败', 'error');
+            } finally {
+                stopVoiceInput();
+            }
+        }
+
+        // ==================== v0.8.1 连续对话模式 ====================
+
+        // 切换连续对话模式
+        function toggleConversationMode() {
+            isConversationMode = !isConversationMode;
+
+            const btn = document.getElementById('conversationModeBtn');
+            const statusDiv = document.getElementById('conversationModeStatus');
+            const stateText = document.getElementById('conversationStateText');
+
+            if (isConversationMode) {
+                // 开启对话模式
+                btn.classList.add('active');
+                statusDiv.style.display = 'block';
+                stateText.textContent = '对话模式已开启';
+                showToast('🎤 连续对话模式已开启', 'success');
+                console.log('🔊 连续对话模式：已开启');
+
+                // 自动开始第一轮录音
+                setTimeout(() => {
+                    if (isConversationMode && !isRecording && !isSpeaking) {
+                        startConversationRound();
+                    }
+                }, 500);
+            } else {
+                // 关闭对话模式
+                btn.classList.remove('active');
+                statusDiv.style.display = 'none';
+                showToast('⏸️ 连续对话模式已关闭', 'info');
+                console.log('🔇 连续对话模式：已关闭');
+
+                // 停止当前录音
+                if (isRecording) {
+                    stopVoiceInput();
+                }
+                // 停止当前播放
+                if (currentAudio) {
+                    currentAudio.pause();
+                    currentAudio = null;
+                }
+                if (currentUtterance) {
+                    speechSynthesis.cancel();
+                    currentUtterance = null;
+                }
+                isSpeaking = false;
+            }
+        }
+
+        // 开始一轮对话（录音）
+        function startConversationRound() {
+            if (!isConversationMode) return;
+            if (isRecording) return; // 只检查录音状态，允许打断AI说话
+
+            // 如果AI正在说话，先停止
+            if (isSpeaking) {
+                console.log('⏸️ 打断AI说话，开始新录音');
+                stopSpeaking();
+            }
+
+            console.log('🎤 开始新一轮对话录音...');
+            const stateText = document.getElementById('conversationStateText');
+            stateText.textContent = '请开始说话...';
+
+            // 触发语音输入
+            toggleVoiceInput();
+        }
+
+        // 在识别成功后自动发送（连续对话模式专用）
+        async function autoSendInConversationMode(text) {
+            if (!isConversationMode) return;
+
+            console.log('📤 连续对话模式：自动发送消息');
+            const stateText = document.getElementById('conversationStateText');
+            stateText.textContent = 'AI正在思考...';
+
+            // 填入输入框
+            const input = document.getElementById('messageInput');
+            input.textContent = text;
+
+            // 自动发送
+            await sendMessageFromDiv();
+        }
+
+        // 在AI回复播放完成后继续下一轮
+        function onSpeechEnd() {
+            isSpeaking = false;
+            console.log('🔚 语音播放完成');
+
+            // 停止监听模式
+            stopListeningMode();
+
+            if (isConversationMode) {
+                console.log('♻️ 连续对话模式：准备下一轮');
+                const stateText = document.getElementById('conversationStateText');
+                stateText.textContent = '请继续说话...';
+
+                // 等待1秒后开始下一轮
+                setTimeout(() => {
+                    if (isConversationMode && !isRecording && !isSpeaking) {
+                        startConversationRound();
+                    }
+                }, 1000);
+            }
+        }
+
+        // 语音播放AI回复（支持 WebSpeech 或 百度TTS）
+        async function speakText(text) {
+            // 检查是否启用自动播放（连续对话模式强制播放）
+            const autoPlay = localStorage.getItem('voiceAutoPlay') === 'true' || isConversationMode;
+            if (!autoPlay) return;
+
+            isSpeaking = true;
+
+            // 显示全局停止按钮
+            const globalStopBtn = document.getElementById('globalStopSpeakingBtn');
+            if (globalStopBtn) {
+                globalStopBtn.style.display = 'flex';
+            }
+
+            // 显示播放状态指示器
+            const speakingStatus = document.getElementById('speakingStatus');
+            if (speakingStatus) {
+                speakingStatus.style.display = 'flex';
+            }
+
+            if (isConversationMode) {
+                const stateText = document.getElementById('conversationStateText');
+                stateText.textContent = 'AI正在回复...（点击🎤或按空格打断）';
+
+                // 不再自动启动监听模式，改为用户主动打断
+                // startListeningForInterrupt();
+            }
+
+            const ttsProvider = (localStorage.getItem('ttsProvider') || 'web').toLowerCase();
+            if (ttsProvider === 'baidu') {
+                try {
+                    const resp = await fetch('/api/voice/synthesize', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            text,
+                            person: parseInt(localStorage.getItem('ttsPerson') || '0', 10),
+                            speed: parseInt(localStorage.getItem('voiceRateNum') || '5', 10),
+                            pitch: 5,
+                            volume: Math.round(parseFloat(localStorage.getItem('voiceVolume') || '1.0') * 10),
+                            audio_format: 'mp3'
+                        })
+                    });
+                    const data = await resp.json();
+                    if (data.success) {
+                        currentAudio = new Audio(`data:${data.mime};base64,${data.audio_base64}`);
+                        currentAudio.onended = () => {
+                            currentAudio = null;
+                            // 隐藏停止按钮和播放状态
+                            if (globalStopBtn) {
+                                globalStopBtn.style.display = 'none';
+                            }
+                            const speakingStatus = document.getElementById('speakingStatus');
+                            if (speakingStatus) {
+                                speakingStatus.style.display = 'none';
+                            }
+                            onSpeechEnd();
+                        };
+                        currentAudio.onerror = () => {
+                            currentAudio = null;
+                            isSpeaking = false;
+                            // 隐藏停止按钮和播放状态
+                            if (globalStopBtn) {
+                                globalStopBtn.style.display = 'none';
+                            }
+                            const speakingStatus = document.getElementById('speakingStatus');
+                            if (speakingStatus) {
+                                speakingStatus.style.display = 'none';
+                            }
+                        };
+                        currentAudio.play().catch(e => {
+                            console.warn('自动播放受阻:', e);
+                            isSpeaking = false;
+                            // 隐藏停止按钮和播放状态
+                            if (globalStopBtn) {
+                                globalStopBtn.style.display = 'none';
+                            }
+                            const speakingStatus = document.getElementById('speakingStatus');
+                            if (speakingStatus) {
+                                speakingStatus.style.display = 'none';
+                            }
+                        });
+                        return;
+                    } else {
+                        console.warn('百度TTS失败，回退到WebSpeech:', data.error);
+                    }
+                } catch (e) {
+                    console.warn('百度TTS调用异常，回退到WebSpeech:', e);
+                }
+            }
+
+            // 停止当前播放
+            if (currentUtterance) {
+                speechSynthesis.cancel();
+            }
+
+            // 创建新的语音合成实例
+            currentUtterance = new SpeechSynthesisUtterance(text);
+            currentUtterance.lang = 'zh-CN';
+            currentUtterance.rate = parseFloat(localStorage.getItem('voiceRate') || '1.0');
+            currentUtterance.volume = parseFloat(localStorage.getItem('voiceVolume') || '1.0');
+
+            currentUtterance.onstart = function () {
+                console.log('🔊 开始播放语音');
+            };
+
+            currentUtterance.onend = function () {
+                console.log('🔊 播放结束');
+                currentUtterance = null;
+                // 隐藏停止按钮和播放状态
+                if (globalStopBtn) {
+                    globalStopBtn.style.display = 'none';
+                }
+                const speakingStatus = document.getElementById('speakingStatus');
+                if (speakingStatus) {
+                    speakingStatus.style.display = 'none';
+                }
+                onSpeechEnd();
+            };
+
+            currentUtterance.onerror = function (event) {
+                console.error('语音播放错误:', event.error);
+                currentUtterance = null;
+                isSpeaking = false;
+                // 隐藏停止按钮和播放状态
+                if (globalStopBtn) {
+                    globalStopBtn.style.display = 'none';
+                }
+                const speakingStatus = document.getElementById('speakingStatus');
+                if (speakingStatus) {
+                    speakingStatus.style.display = 'none';
+                }
+            };
+
+            speechSynthesis.speak(currentUtterance);
+        }
+
+        // 停止语音播放
+        // 停止语音播放
+        function stopSpeaking() {
+            console.log('🛑 停止所有语音播放');
+
+            // 停止 Web Speech API
+            if (speechSynthesis.speaking) {
+                speechSynthesis.cancel();
+                currentUtterance = null;
+            }
+
+            // 停止百度TTS音频
+            if (currentAudio) {
+                currentAudio.pause();
+                currentAudio.currentTime = 0; // 重置播放位置
+                currentAudio = null;
+            }
+
+            // 停止监听模式
+            stopListeningMode();
+
+            // 重置说话状态
+            isSpeaking = false;
+
+            // 隐藏全局停止按钮和播放状态
+            const globalStopBtn = document.getElementById('globalStopSpeakingBtn');
+            if (globalStopBtn) {
+                globalStopBtn.style.display = 'none';
+            }
+
+            const speakingStatus = document.getElementById('speakingStatus');
+            if (speakingStatus) {
+                speakingStatus.style.display = 'none';
+            }
+
+            showToast('⏸️ 语音播放已停止', 'info');
+        }
+
+        // ==================== 发送消息功能 ====================
 
         // 发送消息（从contenteditable div）
         async function sendMessageFromDiv() {
@@ -1935,7 +4013,7 @@
         }
 
         // 添加消息到界面
-        function addMessage(role, content, messageId = null, imagePath = null) {
+        function addMessage(role, content, messageId = null, imagePath = null, shouldPlayVoice = true) {
             const container = document.getElementById('chatContainer');
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${role}`;
@@ -1961,6 +4039,14 @@
             // 如果是助手消息，使用Markdown渲染；用户消息保持纯文本
             if (role === 'assistant') {
                 textDiv.innerHTML = marked.parse(content);
+
+                // v0.8.0 语音播放AI回复（检查自动播放设置）
+                const autoPlayEnabled = localStorage.getItem('voiceAutoPlay') === 'true';
+                if (shouldPlayVoice && autoPlayEnabled) {
+                    setTimeout(() => {
+                        speakText(content);
+                    }, 100);
+                }
             } else {
                 textDiv.textContent = content;
 
@@ -2125,6 +4211,145 @@
         }
 
         // ============ 消息操作功能结束 ============
+
+        // ============ 消息搜索功能 v0.6.0 ============
+
+        /**
+         * 搜索当前对话中的消息
+         */
+        function searchMessages() {
+            const searchInput = document.getElementById('messageSearchInput');
+            const query = searchInput.value.trim().toLowerCase();
+            const messages = document.querySelectorAll('#chatContainer .message');
+            const countSpan = document.getElementById('searchResultCount');
+
+            // 如果搜索框为空，清除所有高亮
+            if (!query) {
+                clearMessageSearch();
+                return;
+            }
+
+            let matchCount = 0;
+            let firstMatch = null;
+
+            messages.forEach(msg => {
+                // 移除之前的高亮
+                msg.classList.remove('search-highlight');
+                const contentDiv = msg.querySelector('.message-content');
+                if (!contentDiv) return;
+
+                // 获取原始文本内容
+                const textContent = contentDiv.textContent.toLowerCase();
+
+                if (textContent.includes(query)) {
+                    matchCount++;
+                    msg.classList.add('search-highlight');
+
+                    // 记录第一个匹配项
+                    if (!firstMatch) {
+                        firstMatch = msg;
+                    }
+
+                    // 高亮匹配的文字
+                    highlightText(contentDiv, query);
+                }
+            });
+
+            // 显示搜索结果数量
+            if (matchCount > 0) {
+                countSpan.textContent = `找到 ${matchCount} 条结果`;
+                countSpan.style.color = '#4CAF50';
+
+                // 滚动到第一个匹配项
+                if (firstMatch) {
+                    firstMatch.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            } else {
+                countSpan.textContent = '未找到匹配结果';
+                countSpan.style.color = '#ff6b6b';
+            }
+        }
+
+        /**
+         * 高亮显示匹配的文本
+         */
+        function highlightText(element, query) {
+            // 如果是用户消息（纯文本）
+            if (element.parentElement.classList.contains('user')) {
+                const text = element.textContent;
+                const regex = new RegExp(`(${escapeRegExp(query)})`, 'gi');
+                const highlighted = text.replace(regex, '<span class="search-match">$1</span>');
+                element.innerHTML = highlighted;
+            }
+            // 如果是AI消息（Markdown渲染后的HTML），遍历文本节点
+            else {
+                highlightTextNodes(element, query);
+            }
+        }
+
+        /**
+         * 递归高亮文本节点
+         */
+        function highlightTextNodes(node, query) {
+            if (node.nodeType === Node.TEXT_NODE) {
+                const text = node.textContent;
+                const regex = new RegExp(`(${escapeRegExp(query)})`, 'gi');
+                if (regex.test(text)) {
+                    const span = document.createElement('span');
+                    span.innerHTML = text.replace(regex, '<span class="search-match">$1</span>');
+                    node.parentNode.replaceChild(span, node);
+                }
+            } else if (node.nodeType === Node.ELEMENT_NODE && node.nodeName !== 'SCRIPT' && node.nodeName !== 'STYLE') {
+                Array.from(node.childNodes).forEach(child => highlightTextNodes(child, query));
+            }
+        }
+
+        /**
+         * 转义正则表达式特殊字符
+         */
+        function escapeRegExp(string) {
+            return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        }
+
+        /**
+         * 清除消息搜索
+         */
+        function clearMessageSearch() {
+            const searchInput = document.getElementById('messageSearchInput');
+            const countSpan = document.getElementById('searchResultCount');
+            const messages = document.querySelectorAll('#chatContainer .message');
+
+            // 清空搜索框
+            searchInput.value = '';
+            countSpan.textContent = '';
+
+            // 移除所有高亮
+            messages.forEach(msg => {
+                msg.classList.remove('search-highlight');
+                const contentDiv = msg.querySelector('.message-content');
+                if (!contentDiv) return;
+
+                // 恢复原始内容
+                if (msg.classList.contains('user')) {
+                    // 用户消息：移除 span 标签
+                    const matches = contentDiv.querySelectorAll('.search-match');
+                    matches.forEach(match => {
+                        const text = document.createTextNode(match.textContent);
+                        match.parentNode.replaceChild(text, match);
+                    });
+                } else {
+                    // AI消息：需要重新渲染Markdown
+                    // 这里简单处理，移除所有 search-match 标签
+                    const matches = contentDiv.querySelectorAll('.search-match');
+                    matches.forEach(match => {
+                        const text = document.createTextNode(match.textContent);
+                        match.parentNode.replaceChild(text, match);
+                    });
+                }
+            });
+        }
+
+        // ============ 消息搜索功能结束 ============
 
         // 加载会话列表
         async function loadSessions() {
@@ -2348,7 +4573,7 @@
                 const messages = data.messages || data.history || [];
                 if (messages.length > 0) {
                     messages.forEach(msg => {
-                        addMessage(msg.role, msg.content);
+                        addMessage(msg.role, msg.content, null, null, false);  // 历史消息不播放语音
                     });
                 }
 
@@ -3261,6 +5486,286 @@
         // 全局变量：控制是否显示已过期提醒
         let showExpired = false;
 
+        // ==================== v0.8.0 Phase 3: 文档总结功能 ====================
+
+        // 处理文件上传
+        async function handleDocumentUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            // 文件类型检查
+            const allowedTypes = ['.pdf', '.docx', '.txt', '.md'];
+            const fileExt = '.' + file.name.split('.').pop().toLowerCase();
+            if (!allowedTypes.includes(fileExt)) {
+                showNotification('❌ 不支持的文件类型！仅支持 PDF, DOCX, TXT, MD', 'error');
+                return;
+            }
+
+            // 文件大小检查 (10MB)
+            if (file.size > 10 * 1024 * 1024) {
+                showNotification('❌ 文件过大！最大支持 10MB', 'error');
+                return;
+            }
+
+            // 显示上传进度
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                showNotification('⏳ 上传并分析中...', 'info');
+
+                const response = await fetch(`${API_BASE}/api/documents/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showNotification(`✅ 文档上传成功！正在生成总结...`, 'success');
+                    // 显示总结结果
+                    showDocumentSummary(data.document);
+                    // 刷新列表
+                    loadDocuments();
+                } else {
+                    showNotification(`❌ ${data.error || '上传失败'}`, 'error');
+                }
+            } catch (error) {
+                console.error('上传文档失败:', error);
+                showNotification('❌ 上传失败，请检查网络', 'error');
+            }
+
+            // 清空文件输入
+            event.target.value = '';
+        }
+
+        // 加载文档列表
+        async function loadDocuments() {
+            const container = document.getElementById('documentsList');
+            container.innerHTML = '<div class="loading">加载中...</div>';
+
+            try {
+                const userId = 'default_user';
+                const response = await fetch(`${API_BASE}/api/users/${userId}/documents?limit=50`);
+                const data = await response.json();
+
+                if (data.success && data.documents.length > 0) {
+                    let html = '<div style="display: grid; gap: 15px;">';
+
+                    data.documents.forEach(doc => {
+                        const statusColor = {
+                            'completed': '#10b981',
+                            'processing': '#3b82f6',
+                            'failed': '#ef4444',
+                            'pending': '#f59e0b'
+                        }[doc.status] || '#6b7280';
+
+                        const statusText = {
+                            'completed': '✅ 已完成',
+                            'processing': '⚡ 处理中',
+                            'failed': '❌ 失败',
+                            'pending': '⏳ 待处理'
+                        }[doc.status] || doc.status;
+
+                        html += `
+                            <div style="background: white; padding: 15px; border-radius: 10px; border: 1px solid #e5e7eb;">
+                                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
+                                    <div style="flex: 1;">
+                                        <div style="font-weight: bold; color: #1f2937; margin-bottom: 5px;">
+                                            📄 ${escapeHtml(doc.original_filename)}
+                                        </div>
+                                        <div style="font-size: 12px; color: #6b7280;">
+                                            ${doc.file_type.toUpperCase()} · ${(doc.file_size / 1024).toFixed(1)} KB · 
+                                            ${new Date(doc.created_at).toLocaleString('zh-CN')}
+                                        </div>
+                                    </div>
+                                    <div style="background: ${statusColor}; color: white; padding: 4px 12px; 
+                                                border-radius: 12px; font-size: 12px; white-space: nowrap;">
+                                        ${statusText}
+                                    </div>
+                                </div>
+                                
+                                ${doc.summary ? `
+                                    <div style="background: #f9fafb; padding: 10px; border-radius: 6px; margin: 10px 0; 
+                                                font-size: 13px; color: #374151; line-height: 1.6;">
+                                        ${escapeHtml(doc.summary.substring(0, 200))}${doc.summary.length > 200 ? '...' : ''}
+                                    </div>
+                                ` : ''}
+                                
+                                <div style="display: flex; gap: 10px; margin-top: 10px;">
+                                    ${doc.status === 'completed' ? `
+                                        <button onclick="viewDocumentSummary(${doc.id})"
+                                            style="padding: 6px 12px; background: #667eea; color: white; border: none; 
+                                                   border-radius: 6px; cursor: pointer; font-size: 13px;">
+                                            🔍 查看详情
+                                        </button>
+                                        <button onclick="exportDocumentSummary(${doc.id})"
+                                            style="padding: 6px 12px; background: #10b981; color: white; border: none; 
+                                                   border-radius: 6px; cursor: pointer; font-size: 13px;">
+                                            💾 导出
+                                        </button>
+                                    ` : ''}
+                                    <button onclick="deleteDocument(${doc.id})"
+                                        style="padding: 6px 12px; background: #ef4444; color: white; border: none; 
+                                               border-radius: 6px; cursor: pointer; font-size: 13px;">
+                                        🗑️ 删除
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                    });
+
+                    html += '</div>';
+                    container.innerHTML = html;
+                } else {
+                    container.innerHTML = '<div style="text-align: center; padding: 40px; color: #6b7280;">📭 还没有上传任何文档</div>';
+                }
+            } catch (error) {
+                console.error('加载文档列表失败:', error);
+                container.innerHTML = '<div style="text-align: center; padding: 40px; color: #ef4444;">❌ 加载失败</div>';
+            }
+        }
+
+        // 查看文档总结详情
+        async function viewDocumentSummary(docId) {
+            try {
+                const response = await fetch(`${API_BASE}/api/documents/${docId}`);
+                const data = await response.json();
+
+                console.log('文档详情API响应:', data);
+
+                if (data.success) {
+                    showDocumentSummary(data.document);
+                } else {
+                    console.error('获取文档失败:', data.error);
+                    showNotification(`❌ 获取文档失败: ${data.error || '未知错误'}`, 'error');
+                }
+            } catch (error) {
+                console.error('获取文档失败:', error);
+                showNotification(`❌ 获取文档失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 显示文档总结
+        function showDocumentSummary(doc) {
+            // key_points 可能是字符串或数组
+            let keyPoints = [];
+            try {
+                if (typeof doc.key_points === 'string') {
+                    keyPoints = JSON.parse(doc.key_points);
+                } else if (Array.isArray(doc.key_points)) {
+                    keyPoints = doc.key_points;
+                }
+            } catch (e) {
+                console.error('解析key_points失败:', e);
+            }
+
+            let html = `
+                <div style="max-width: 700px;">
+                    <h3>📄 ${escapeHtml(doc.original_filename)}</h3>
+                    
+                    <div style="background: #f3f4f6; padding: 15px; border-radius: 8px; margin: 15px 0;">
+                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; font-size: 13px;">
+                            <div><strong>文件类型:</strong> ${doc.file_type.toUpperCase()}</div>
+                            <div><strong>文件大小:</strong> ${(doc.file_size / 1024).toFixed(1)} KB</div>
+                            <div><strong>原文长度:</strong> ${doc.content_length || 0} 字</div>
+                            <div><strong>总结长度:</strong> ${doc.summary_length || 0} 字</div>
+                            <div><strong>分块数:</strong> ${doc.chunk_count || 1}</div>
+                            <div><strong>处理时间:</strong> ${doc.processing_time ? doc.processing_time.toFixed(2) + '秒' : 'N/A'}</div>
+                        </div>
+                    </div>
+
+                    ${keyPoints.length > 0 ? `
+                        <div style="margin: 20px 0;">
+                            <h4 style="color: #667eea; margin-bottom: 10px;">✨ 关键要点</h4>
+                            <ul style="background: #f9fafb; padding: 15px 15px 15px 35px; border-radius: 8px; 
+                                       line-height: 1.8; margin: 0;">
+                                ${keyPoints.map(point => `<li>${escapeHtml(point)}</li>`).join('')}
+                            </ul>
+                        </div>
+                    ` : ''}
+
+                    <div style="margin: 20px 0;">
+                        <h4 style="color: #667eea; margin-bottom: 10px;">📝 智能总结</h4>
+                        <div class="markdown-content" style="background: #f9fafb; padding: 25px 30px; 
+                                    border-radius: 8px; line-height: 1.8; color: #374151;">
+                            ${marked.parse(doc.summary || '总结生成中...')}
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            showCustomNotification('文档总结', html);
+            
+            // 为Markdown内容添加样式
+            setTimeout(() => {
+                const markdownContent = document.querySelector('.custom-notification .markdown-content');
+                if (markdownContent) {
+                    // 标题样式
+                    markdownContent.querySelectorAll('h1, h2, h3, h4').forEach(h => {
+                        h.style.color = '#1f2937';
+                        h.style.marginTop = '16px';
+                        h.style.marginBottom = '8px';
+                        h.style.fontWeight = 'bold';
+                    });
+                    // 列表样式
+                    markdownContent.querySelectorAll('ol, ul').forEach(list => {
+                        list.style.marginLeft = '20px';
+                        list.style.marginTop = '8px';
+                        list.style.marginBottom = '8px';
+                    });
+                    markdownContent.querySelectorAll('li').forEach(li => {
+                        li.style.marginBottom = '4px';
+                    });
+                    // 段落样式
+                    markdownContent.querySelectorAll('p').forEach(p => {
+                        p.style.marginBottom = '12px';
+                    });
+                    // 粗体样式
+                    markdownContent.querySelectorAll('strong').forEach(strong => {
+                        strong.style.color = '#374151';
+                        strong.style.fontWeight = '600';
+                    });
+                }
+            }, 100);
+        }
+
+        // 导出文档总结
+        async function exportDocumentSummary(docId) {
+            try {
+                window.open(`${API_BASE}/api/documents/${docId}/export?format=md`, '_blank');
+                showNotification('✅ 正在下载...', 'success');
+            } catch (error) {
+                console.error('导出失败:', error);
+                showNotification('❌ 导出失败', 'error');
+            }
+        }
+
+        // 删除文档
+        async function deleteDocument(docId) {
+            if (!confirm('确定要删除这个文档吗？')) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/api/documents/${docId}`, {
+                    method: 'DELETE'
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showNotification('✅ 文档已删除', 'success');
+                    loadDocuments();
+                } else {
+                    showNotification('❌ 删除失败', 'error');
+                }
+            } catch (error) {
+                console.error('删除文档失败:', error);
+                showNotification('❌ 删除失败', 'error');
+            }
+        }
+
+        // ==================== 提醒管理 ====================
+
         async function loadReminders() {
             const container = document.getElementById('remindersList');
             container.innerHTML = '<div class="loading">加载中...</div>';
@@ -3626,6 +6131,431 @@
         }
 
         // ============ 提醒管理功能结束 ============
+
+        // ============ v0.8.0 任务管理功能 ============
+
+        // HTML转义函数，防止XSS攻击
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // 加载任务列表
+        async function loadTasks() {
+            const container = document.getElementById('tasksList');
+            container.innerHTML = '<div class="loading">加载中...</div>';
+
+            try {
+                const statusFilter = document.getElementById('taskStatusFilter').value;
+                const userId = 'default_user'; // 使用默认用户ID
+
+                let url = `${API_BASE}/api/users/${userId}/tasks?limit=50`;
+                if (statusFilter) {
+                    url += `&status=${statusFilter}`;
+                }
+
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (!data.success) {
+                    throw new Error(data.error || '加载任务失败');
+                }
+
+                const tasks = data.tasks || [];
+
+                // 更新统计
+                updateTaskStats(tasks);
+
+                if (tasks.length === 0) {
+                    container.innerHTML = '<div class="loading">暂无任务</div>';
+                    return;
+                }
+
+                // 按优先级和状态排序
+                tasks.sort((a, b) => {
+                    if (a.priority !== b.priority) return b.priority - a.priority;
+                    if (a.status !== b.status) {
+                        const order = ['in_progress', 'pending', 'waiting', 'failed', 'completed', 'cancelled'];
+                        return order.indexOf(a.status) - order.indexOf(b.status);
+                    }
+                    return new Date(b.created_at) - new Date(a.created_at);
+                });
+
+                // 渲染任务卡片
+                let html = '<div>';
+                tasks.forEach(task => {
+                    html += renderTaskCard(task);
+                });
+                html += '</div>';
+                container.innerHTML = html;
+
+            } catch (error) {
+                console.error('加载任务失败:', error);
+                container.innerHTML = `<div class="error">加载失败: ${error.message}</div>`;
+            }
+        }
+
+        // 渲染任务卡片
+        function renderTaskCard(task) {
+            const statusMap = {
+                'pending': '待处理',
+                'in_progress': '执行中',
+                'waiting': '等待中',
+                'completed': '已完成',
+                'failed': '失败',
+                'cancelled': '已取消'
+            };
+
+            const priorityMap = {
+                0: '普通',
+                1: '重要',
+                2: '紧急'
+            };
+
+            const progress = task.total_steps > 0
+                ? Math.round((task.current_step / task.total_steps) * 100)
+                : 0;
+
+            const statusClass = task.status;
+            const statusText = statusMap[task.status] || task.status;
+            const priorityClass = `priority-${task.priority}`;
+            const priorityText = priorityMap[task.priority] || '普通';
+
+            const createdTime = new Date(task.created_at).toLocaleString('zh-CN');
+            const updatedTime = task.updated_at ? new Date(task.updated_at).toLocaleString('zh-CN') : '-';
+
+            return `
+                <div class="task-card status-${statusClass}">
+                    <div class="task-header">
+                        <div style="flex: 1;">
+                            <div class="task-title">${escapeHtml(task.title)}</div>
+                            ${task.description ? `<div class="task-description">${escapeHtml(task.description)}</div>` : ''}
+                        </div>
+                        <div style="display: flex; gap: 8px; align-items: flex-start;">
+                            <span class="priority-badge ${priorityClass}">${priorityText}</span>
+                            <span class="task-status-badge ${statusClass}">${statusText}</span>
+                        </div>
+                    </div>
+
+                    ${task.total_steps > 0 ? `
+                    <div class="task-progress">
+                        <div class="task-progress-bar">
+                            <div class="task-progress-fill" style="width: ${progress}%"></div>
+                        </div>
+                        <div class="task-progress-text">${task.current_step}/${task.total_steps}</div>
+                    </div>
+                    ` : ''}
+
+                    <div class="task-meta">
+                        <span>📅 创建: ${createdTime}</span>
+                        <span>🔄 更新: ${updatedTime}</span>
+                        ${task.retry_count > 0 ? `<span>🔁 重试: ${task.retry_count}次</span>` : ''}
+                    </div>
+
+                    <div class="task-actions">
+                        <button class="task-btn task-btn-primary" onclick="showTaskDetails(${task.id})">📋 详情</button>
+                        ${task.status === 'pending' || task.status === 'waiting' ? `
+                        <button class="task-btn task-btn-success" onclick="executeTask(${task.id})">▶️ 执行</button>
+                        ` : ''}
+                        ${task.status === 'in_progress' || task.status === 'waiting' ? `
+                        <button class="task-btn task-btn-secondary" onclick="cancelTask(${task.id})">⏸️ 取消</button>
+                        ` : ''}
+                        ${task.status === 'completed' || task.status === 'failed' || task.status === 'cancelled' ? `
+                        <button class="task-btn task-btn-danger" onclick="deleteTask(${task.id})">🗑️ 删除</button>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        // 更新任务统计
+        function updateTaskStats(tasks) {
+            const stats = {
+                pending: 0,
+                in_progress: 0,
+                completed: 0,
+                failed: 0
+            };
+
+            tasks.forEach(task => {
+                if (stats.hasOwnProperty(task.status)) {
+                    stats[task.status]++;
+                }
+            });
+
+            document.getElementById('taskPendingCount').textContent = stats.pending;
+            document.getElementById('taskInProgressCount').textContent = stats.in_progress;
+            document.getElementById('taskCompletedCount').textContent = stats.completed;
+            document.getElementById('taskFailedCount').textContent = stats.failed;
+        }
+
+        // 显示任务详情
+        async function showTaskDetails(taskId) {
+            try {
+                const response = await fetch(`${API_BASE}/api/tasks/${taskId}`);
+                const data = await response.json();
+
+                if (!data.success) {
+                    throw new Error(data.error || '获取任务详情失败');
+                }
+
+                const task = data.task;
+                const steps = data.steps || [];
+
+                let stepsHtml = '';
+                if (steps.length > 0) {
+                    stepsHtml = '<div style="margin-top: 15px;"><h4>任务步骤:</h4>';
+                    steps.forEach((step, index) => {
+                        const stepStatus = step.status || 'pending';
+                        const stepClass = stepStatus === 'completed' ? 'completed' : (stepStatus === 'failed' ? 'failed' : '');
+                        stepsHtml += `
+                            <div class="task-step ${stepClass}">
+                                <div class="task-step-header">
+                                    <span class="task-step-title">${index + 1}. ${escapeHtml(step.description)}</span>
+                                    <span class="task-step-status">${stepStatus}</span>
+                                </div>
+                                ${step.action_type ? `<div style="font-size: 12px; color: #6b7280; margin-top: 5px;">类型: ${step.action_type}</div>` : ''}
+                                ${step.error ? `<div style="font-size: 12px; color: #ef4444; margin-top: 5px;">错误: ${escapeHtml(step.error)}</div>` : ''}
+                            </div>
+                        `;
+                    });
+                    stepsHtml += '</div>';
+                }
+
+                const detailHtml = `
+                    <div style="max-width: 600px;">
+                        <h3>${escapeHtml(task.title)}</h3>
+                        ${task.description ? `<p style="color: #6b7280; margin: 10px 0;">${escapeHtml(task.description)}</p>` : ''}
+                        
+                        <div style="margin: 15px 0; padding: 15px; background: #f3f4f6; border-radius: 8px;">
+                            <div><strong>状态:</strong> ${task.status}</div>
+                            <div><strong>优先级:</strong> ${task.priority}</div>
+                            <div><strong>进度:</strong> ${task.current_step}/${task.total_steps}</div>
+                            <div><strong>创建时间:</strong> ${new Date(task.created_at).toLocaleString('zh-CN')}</div>
+                            ${task.started_at ? `<div><strong>开始时间:</strong> ${new Date(task.started_at).toLocaleString('zh-CN')}</div>` : ''}
+                            ${task.completed_at ? `<div><strong>完成时间:</strong> ${new Date(task.completed_at).toLocaleString('zh-CN')}</div>` : ''}
+                        </div>
+
+                        ${stepsHtml}
+                    </div>
+                `;
+
+                // 使用现有的通知弹窗显示详情
+                showCustomNotification('任务详情', detailHtml);
+
+            } catch (error) {
+                console.error('获取任务详情失败:', error);
+                showNotification('❌ 获取任务详情失败', 'error');
+            }
+        }
+
+        // 执行任务
+        async function executeTask(taskId) {
+            if (!confirm('确定要执行这个任务吗?')) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/api/tasks/${taskId}/execute`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        user_id: 'default_user',
+                        session_id: currentSessionId || ''
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!data.success) {
+                    throw new Error(data.error || '执行任务失败');
+                }
+
+                showNotification('✅ 任务执行成功', 'success');
+                loadTasks(); // 刷新列表
+
+            } catch (error) {
+                console.error('执行任务失败:', error);
+                showNotification(`❌ 执行失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 取消任务
+        async function cancelTask(taskId) {
+            if (!confirm('确定要取消这个任务吗?')) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/api/tasks/${taskId}/cancel`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                const data = await response.json();
+
+                if (!data.success) {
+                    throw new Error(data.error || '取消任务失败');
+                }
+
+                showNotification('✅ 任务已取消', 'success');
+                loadTasks(); // 刷新列表
+
+            } catch (error) {
+                console.error('取消任务失败:', error);
+                showNotification(`❌ 取消失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 删除任务
+        async function deleteTask(taskId) {
+            if (!confirm('确定要删除这个任务吗? 此操作不可恢复!')) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/api/tasks/${taskId}`, {
+                    method: 'DELETE'
+                });
+
+                const data = await response.json();
+
+                if (!data.success) {
+                    throw new Error(data.error || '删除任务失败');
+                }
+
+                showNotification('✅ 任务已删除', 'success');
+                loadTasks(); // 刷新列表
+
+            } catch (error) {
+                console.error('删除任务失败:', error);
+                showNotification(`❌ 删除失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 显示创建任务对话框
+        function showCreateTaskDialog() {
+            const html = `
+                <div style="max-width: 500px;">
+                    <h3>创建新任务</h3>
+                    <div style="margin: 15px 0;">
+                        <label style="display: block; margin-bottom: 5px; font-weight: 500;">任务标题:</label>
+                        <input type="text" id="newTaskTitle" placeholder="输入任务标题" 
+                            style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px;">
+                    </div>
+                    <div style="margin: 15px 0;">
+                        <label style="display: block; margin-bottom: 5px; font-weight: 500;">任务描述:</label>
+                        <textarea id="newTaskDesc" placeholder="输入任务描述（可选）" rows="3"
+                            style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px; resize: vertical;"></textarea>
+                    </div>
+                    <div style="margin: 15px 0;">
+                        <label style="display: block; margin-bottom: 5px; font-weight: 500;">优先级:</label>
+                        <select id="newTaskPriority" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px;">
+                            <option value="0">普通</option>
+                            <option value="1">重要</option>
+                            <option value="2">紧急</option>
+                        </select>
+                    </div>
+                    <div style="display: flex; gap: 10px; margin-top: 20px;">
+                        <button onclick="createTask()" style="flex: 1; padding: 12px; background: #667eea; color: white; border: none; border-radius: 8px; cursor: pointer;">
+                            ✅ 创建
+                        </button>
+                        <button onclick="closeCustomNotification()" style="flex: 1; padding: 12px; background: #6b7280; color: white; border: none; border-radius: 8px; cursor: pointer;">
+                            ❌ 取消
+                        </button>
+                    </div>
+                </div>
+            `;
+            showCustomNotification('创建任务', html);
+        }
+
+        // 创建任务
+        async function createTask() {
+            const title = document.getElementById('newTaskTitle').value.trim();
+            const description = document.getElementById('newTaskDesc').value.trim();
+            const priority = parseInt(document.getElementById('newTaskPriority').value);
+
+            if (!title) {
+                showNotification('❌ 请输入任务标题', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/api/tasks`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        user_id: 'default_user',
+                        session_id: currentSessionId || '',
+                        title: title,
+                        description: description,
+                        priority: priority
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!data.success) {
+                    throw new Error(data.error || '创建任务失败');
+                }
+
+                showNotification('✅ 任务创建成功', 'success');
+                closeCustomNotification();
+                loadTasks(); // 刷新列表
+
+            } catch (error) {
+                console.error('创建任务失败:', error);
+                showNotification(`❌ 创建失败: ${error.message}`, 'error');
+            }
+        }
+
+        // 显示自定义通知弹窗
+        function showCustomNotification(title, content) {
+            // 移除已存在的弹窗
+            const existing = document.querySelector('.custom-notification-overlay');
+            if (existing) existing.remove();
+
+            const overlay = document.createElement('div');
+            overlay.className = 'custom-notification-overlay';
+            overlay.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0, 0, 0, 0.5);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 10001;
+            `;
+
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                background: var(--card-bg);
+                padding: 25px;
+                border-radius: 12px;
+                box-shadow: 0 8px 24px var(--shadow-heavy);
+                max-width: 90%;
+                max-height: 80vh;
+                overflow-y: auto;
+            `;
+            modal.innerHTML = content;
+
+            overlay.appendChild(modal);
+            document.body.appendChild(overlay);
+
+            // 点击overlay关闭
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay) {
+                    closeCustomNotification();
+                }
+            });
+        }
+
+        // 关闭自定义通知
+        function closeCustomNotification() {
+            const overlay = document.querySelector('.custom-notification-overlay');
+            if (overlay) overlay.remove();
+        }
+
+        // ============ v0.8.0 任务管理功能结束 ============
 
         // ============ v0.7.0 课程表管理功能 ============
 
@@ -4385,6 +7315,24 @@
 
             const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
             const ctrlKey = isMac ? event.metaKey : event.ctrlKey;
+
+            // 空格键: 在连续对话模式下打断AI说话
+            if (event.code === 'Space' && isConversationMode && isSpeaking && !isRecording) {
+                // 确保不是在输入框中按空格
+                if (document.activeElement.tagName !== 'INPUT' &&
+                    document.activeElement.id !== 'messageInput') {
+                    event.preventDefault();
+                    console.log('⌨️ 按空格键打断AI');
+                    stopSpeaking();
+                    // 立即开始录音
+                    setTimeout(() => {
+                        if (isConversationMode && !isRecording) {
+                            toggleBaiduVoiceInput();
+                        }
+                    }, 100);
+                    return;
+                }
+            }
 
             // Ctrl+Enter / Cmd+Enter: 发送消息
             if (ctrlKey && event.key === 'Enter') {

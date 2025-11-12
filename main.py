@@ -1,14 +1,26 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, File, UploadFile
+from fastapi import (
+    FastAPI, WebSocket, WebSocketDisconnect, 
+    File, UploadFile, HTTPException
+)
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import Response
 from pydantic import BaseModel
 from typing import Optional, Dict, Any, List
+import os
+import json
+from urllib.parse import quote
 from agent import XiaoLeAgent
 from memory import MemoryManager
 from conflict_detector import ConflictDetector
 from proactive_qa import ProactiveQA  # v0.3.0 主动问答
 from reminder_manager import get_reminder_manager  # v0.5.0 主动提醒
 from scheduler import get_scheduler  # v0.5.0 定时调度
+from baidu_voice_tool import baidu_voice_tool  # v0.8.0 百度语音识别
+from document_summarizer import DocumentSummarizer  # v0.8.0 Phase 3 文档总结
+import time
+import shutil
+from pathlib import Path
 
 app = FastAPI(
     title="小乐AI管家",
@@ -25,9 +37,13 @@ app.add_middleware(
     allow_headers=["*"],  # 允许所有请求头
 )
 
-# 挂载静态文件目录
-app.mount("/static", StaticFiles(directory="static"), name="static")
-app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+# 挂载静态文件目录（使用绝对路径，避免工作目录不同导致404）
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+STATIC_DIR = os.path.join(BASE_DIR, "static")
+UPLOADS_DIR = os.path.join(BASE_DIR, "uploads")
+
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+app.mount("/uploads", StaticFiles(directory=UPLOADS_DIR), name="uploads")
 
 
 # Pydantic模型 - v0.5.0提醒系统
@@ -40,6 +56,16 @@ class ReminderCreate(BaseModel):
     priority: int = 3
     repeat: bool = False
     repeat_interval: Optional[int] = None
+
+
+# v0.8.0: 语音合成请求体
+class TTSRequest(BaseModel):
+    text: str
+    person: int = 0
+    speed: int = 5
+    pitch: int = 5
+    volume: int = 5
+    audio_format: str = "mp3"  # mp3|wav|pcm
 
 
 xiaole = XiaoLeAgent()
@@ -1095,6 +1121,126 @@ async def upload_image(file: UploadFile = File(...)):
         }
 
 
+# ========================================
+# v0.8.0 语音识别接口（百度API）
+# ========================================
+
+@app.post("/api/voice/recognize")
+async def voice_recognize(file: UploadFile = File(...)):
+    """
+    语音识别接口（使用百度API）
+
+    Args:
+        file: 音频文件（wav/pcm/amr/m4a格式）
+
+    Returns:
+        dict: {"success": True, "text": "识别结果"}
+    """
+    try:
+        # 检查服务是否可用
+        if not baidu_voice_tool.is_enabled():
+            return {
+                "success": False,
+                "error": "百度语音服务未配置，请设置环境变量"
+            }
+
+        # 读取音频数据
+        audio_data = await file.read()
+
+        # 检测音频格式
+        filename = file.filename.lower() if file.filename else ""
+        if filename.endswith('.wav'):
+            format_type = 'wav'
+        elif filename.endswith('.pcm'):
+            format_type = 'pcm'
+        elif filename.endswith('.amr'):
+            format_type = 'amr'
+        elif filename.endswith('.m4a'):
+            format_type = 'm4a'
+        else:
+            format_type = 'wav'  # 默认wav
+
+        # 调用识别
+        result = await baidu_voice_tool.recognize(
+            audio_data,
+            format=format_type,
+            rate=16000
+        )
+
+        return result
+
+    except Exception as e:
+        return {
+            "success": False,
+            "error": f"语音识别失败: {str(e)}"
+        }
+
+
+@app.get("/api/voice/status")
+def voice_status(detailed: bool = False):
+    """检查语音服务状态
+
+    Args:
+        detailed: 是否返回详细脱敏后的密钥状态
+    """
+    return baidu_voice_tool.get_status(detailed)
+
+
+@app.post("/api/voice/synthesize")
+async def voice_synthesize(req: TTSRequest):
+    """文本转语音（百度TTS）
+
+    Args:
+        req: TTSRequest，请求体
+
+    Returns:
+        JSON，包含 base64 音频与 mime 类型
+    """
+    try:
+        if not baidu_voice_tool.is_enabled():
+            return {
+                "success": False,
+                "error": "百度语音服务未配置，请设置环境变量"
+            }
+
+        audio_bytes = await baidu_voice_tool.synthesize(
+            text=req.text,
+            person=req.person,
+            speed=req.speed,
+            pitch=req.pitch,
+            volume=req.volume,
+            audio_format=req.audio_format,
+        )
+
+        if not audio_bytes:
+            return {
+                "success": False,
+                "error": "语音合成失败"
+            }
+
+        import base64
+
+        mime = "audio/mpeg"
+        fmt = (req.audio_format or "mp3").lower()
+        if fmt == "wav":
+            mime = "audio/wav"
+        elif fmt == "pcm":
+            mime = "audio/x-pcm"
+
+        b64 = base64.b64encode(audio_bytes).decode("utf-8")
+        return {
+            "success": True,
+            "audio_base64": b64,
+            "mime": mime,
+            "format": fmt,
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": f"语音合成异常: {str(e)}"
+        }
+
+
 @app.post("/api/vision/analyze")
 def analyze_image(request: dict):
     """
@@ -1130,6 +1276,460 @@ def analyze_image(request: dict):
         return {
             "success": False,
             "error": f"分析失败: {str(e)}"
+        }
+
+
+# ==================== v0.8.0 任务管理API ====================
+
+@app.post("/api/tasks")
+def create_task_api(request: dict):
+    """
+    创建任务
+
+    Args:
+        request: {
+            "user_id": "用户ID",
+            "session_id": "会话ID",
+            "title": "任务标题",
+            "description": "任务描述",
+            "priority": 0
+        }
+    """
+    try:
+        user_id = request.get('user_id', 'default_user')
+        session_id = request.get('session_id')
+        title = request.get('title')
+        description = request.get('description', '')
+        priority = request.get('priority', 0)
+
+        if not title:
+            return {"success": False, "error": "缺少任务标题"}
+
+        task_id = xiaole.task_manager.create_task(
+            user_id=user_id,
+            session_id=session_id,
+            title=title,
+            description=description,
+            priority=priority
+        )
+
+        return {
+            "success": True,
+            "task_id": task_id
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
+@app.get("/api/tasks/{task_id}")
+def get_task_api(task_id: int):
+    """获取任务详情"""
+    try:
+        task = xiaole.task_manager.get_task(task_id)
+        if not task:
+            return {"success": False, "error": "任务不存在"}
+
+        # 获取步骤
+        steps = xiaole.task_manager.get_task_steps(task_id)
+
+        return {
+            "success": True,
+            "task": dict(task),
+            "steps": steps
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
+@app.get("/api/sessions/{session_id}/tasks")
+def get_session_tasks(session_id: str, status: str = None):
+    """获取会话的所有任务"""
+    try:
+        tasks = xiaole.task_manager.get_tasks_by_session(
+            session_id=session_id,
+            status=status
+        )
+
+        return {
+            "success": True,
+            "tasks": [dict(t) for t in tasks]
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
+@app.get("/api/users/{user_id}/tasks")
+def get_user_tasks(user_id: str, status: str = None, limit: int = 50):
+    """获取用户的所有任务"""
+    try:
+        tasks = xiaole.task_manager.get_tasks_by_user(
+            user_id=user_id,
+            status=status,
+            limit=limit
+        )
+
+        return {
+            "success": True,
+            "tasks": [dict(t) for t in tasks]
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
+@app.put("/api/tasks/{task_id}/status")
+def update_task_status_api(task_id: int, request: dict):
+    """更新任务状态"""
+    try:
+        status = request.get('status')
+        if not status:
+            return {"success": False, "error": "缺少状态参数"}
+
+        success = xiaole.task_manager.update_task_status(
+            task_id=task_id,
+            status=status
+        )
+
+        return {
+            "success": success
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
+@app.post("/api/tasks/{task_id}/execute")
+def execute_task_api(task_id: int, request: dict):
+    """执行任务"""
+    try:
+        user_id = request.get('user_id', 'default_user')
+        session_id = request.get('session_id', '')
+
+        result = xiaole.task_executor.execute_task(
+            task_id=task_id,
+            user_id=user_id,
+            session_id=session_id
+        )
+
+        return result
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
+@app.post("/api/tasks/{task_id}/cancel")
+def cancel_task_api(task_id: int):
+    """取消任务"""
+    try:
+        result = xiaole.task_executor.cancel_task(task_id)
+        return result
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
+@app.delete("/api/tasks/{task_id}")
+def delete_task_api(task_id: int):
+    """删除任务"""
+    try:
+        success = xiaole.task_manager.delete_task(task_id)
+        return {
+            "success": success
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
+@app.get("/api/tasks/stats/{user_id}")
+def get_task_stats(user_id: str):
+    """获取用户任务统计"""
+    try:
+        stats = xiaole.task_manager.get_task_statistics(user_id)
+        return {
+            "success": True,
+            "stats": stats
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
+# ==================== v0.8.0 Phase 3: 文档总结API ====================
+
+# 数据库配置
+DB_CONFIG = {
+    'host': os.getenv('DB_HOST'),
+    'port': int(os.getenv('DB_PORT', 5432)),
+    'database': os.getenv('DB_NAME'),
+    'user': os.getenv('DB_USER'),
+    'password': os.getenv('DB_PASS')
+}
+
+# 初始化文档总结器
+document_summarizer = DocumentSummarizer(
+    db_config=DB_CONFIG,
+    upload_dir=UPLOADS_DIR
+)
+
+
+@app.post("/api/documents/upload")
+async def upload_document(
+    file: UploadFile = File(...),
+    user_id: str = "default_user",
+    session_id: str = None
+):
+    """
+    上传文档并自动总结
+
+    支持格式: PDF, DOCX, TXT, MD
+    最大大小: 10MB
+    """
+    start_time = time.time()
+    doc_id = None
+
+    try:
+        # 验证文件
+        file_size = 0
+        file_content = await file.read()
+        file_size = len(file_content)
+
+        valid, file_type, error_msg = document_summarizer.validate_file(
+            file.filename, file_size
+        )
+
+        if not valid:
+            return {
+                "success": False,
+                "error": error_msg
+            }
+
+        # 生成唯一文件名
+        timestamp = int(time.time())
+        safe_filename = f"{timestamp}_{file.filename}"
+        file_path = os.path.join(UPLOADS_DIR, safe_filename)
+
+        # 保存文件
+        with open(file_path, 'wb') as f:
+            f.write(file_content)
+
+        # 创建数据库记录
+        doc_id = document_summarizer.create_document_record(
+            user_id=user_id,
+            session_id=session_id or "",
+            filename=safe_filename,
+            original_filename=file.filename,
+            file_type=file_type,
+            file_size=file_size,
+            file_path=file_path
+        )
+
+        # 提取文本
+        try:
+            content = document_summarizer.extract_text(file_path, file_type)
+            chunks = document_summarizer.split_text(content)
+
+            # 更新内容
+            document_summarizer.update_document_content(
+                doc_id, content, len(chunks)
+            )
+
+            # 生成总结
+            if len(chunks) == 1:
+                # 单块直接总结
+                summary = document_summarizer.summarize_chunk(
+                    chunks[0],
+                    xiaole._call_deepseek
+                )
+            else:
+                # 多块：先总结各块，再合并
+                chunk_summaries = []
+                for i, chunk in enumerate(chunks):
+                    print(f"📝 总结第 {i+1}/{len(chunks)} 块...")
+                    chunk_summary = document_summarizer.summarize_chunk(
+                        chunk,
+                        xiaole._call_deepseek
+                    )
+                    chunk_summaries.append(chunk_summary)
+
+                # 合并总结
+                combined_text = "\n\n".join(chunk_summaries)
+                if len(combined_text) > 4000:
+                    # 再次总结
+                    summary = document_summarizer.summarize_chunk(
+                        combined_text,
+                        xiaole._call_deepseek
+                    )
+                else:
+                    summary = combined_text
+
+            # 提取关键要点
+            key_points = document_summarizer.extract_key_points(
+                content,
+                xiaole._call_deepseek
+            )
+
+            # 更新总结结果
+            processing_time = time.time() - start_time
+            document_summarizer.update_document_summary(
+                doc_id, summary, key_points, processing_time
+            )
+
+            return {
+                "success": True,
+                "document_id": doc_id,
+                "summary": summary,
+                "key_points": key_points,
+                "processing_time": processing_time,
+                "content_length": len(content),
+                "chunk_count": len(chunks)
+            }
+
+        except Exception as e:
+            # 标记处理失败
+            if doc_id:
+                document_summarizer.mark_document_failed(doc_id, str(e))
+            raise
+
+    except Exception as e:
+        print(f"❌ 文档处理失败: {e}")
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
+@app.get("/api/documents/{doc_id}")
+def get_document_detail(doc_id: int):
+    """获取文档详情"""
+    try:
+        doc = document_summarizer.get_document(doc_id)
+        if not doc:
+            return {
+                "success": False,
+                "error": "文档不存在"
+            }
+
+        return {
+            "success": True,
+            "document": doc
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
+@app.get("/api/users/{user_id}/documents")
+def get_user_documents_api(
+    user_id: str,
+    status: str = None,
+    limit: int = 50
+):
+    """获取用户的文档列表"""
+    try:
+        docs = document_summarizer.get_user_documents(
+            user_id, status, limit
+        )
+
+        return {
+            "success": True,
+            "documents": docs,
+            "count": len(docs)
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
+@app.get("/api/documents/{doc_id}/export")
+def export_document_api(doc_id: int, format: str = "md"):
+    """导出文档总结"""
+    try:
+        doc = document_summarizer.get_document(doc_id)
+        if not doc:
+            raise HTTPException(status_code=404, detail="文档不存在")
+
+        # 生成Markdown内容
+        content = f"""# {doc['filename']}
+
+## 文档信息
+- 文件大小: {doc['file_size'] / 1024:.2f} KB
+- 处理时间: {doc['processing_time']:.1f}秒
+- 分块数量: {doc['chunk_count']}
+
+## 关键要点
+
+"""
+        # 添加关键要点
+        key_points = doc.get('key_points', [])
+        if isinstance(key_points, str):
+            try:
+                key_points = json.loads(key_points)
+            except Exception:
+                key_points = []
+
+        for i, point in enumerate(key_points, 1):
+            content += f"{i}. {point}\n"
+
+        content += f"\n## 智能总结\n\n{doc['summary']}\n"
+
+        # 返回文件下载
+        # URL编码文件名以支持中文
+        filename = f"{doc['filename']}_summary.md"
+        encoded_filename = quote(filename)
+        return Response(
+            content=content.encode('utf-8'),
+            media_type="text/markdown; charset=utf-8",
+            headers={
+                "Content-Disposition": (
+                    f"attachment; filename={encoded_filename}; "
+                    f"filename*=UTF-8''{encoded_filename}"
+                )
+            }
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/documents/{doc_id}")
+def delete_document_api(doc_id: int):
+    """删除文档"""
+    try:
+        success = document_summarizer.delete_document(doc_id)
+        return {
+            "success": success
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e)
         }
 
 

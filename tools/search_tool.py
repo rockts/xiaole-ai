@@ -1,14 +1,16 @@
 """
-网络搜索工具 (v0.6.1 优化版)
+网络搜索工具 (v0.6.2 优化版)
 使用 DuckDuckGo 进行网络搜索
-新增功能：错误重试、结果缓存、搜索历史、多策略搜索
+新增功能：错误重试、结果缓存、搜索历史、多策略搜索、代理支持
 v0.6.1: 升级到ddgs包,改进搜索稳定性
+v0.6.2: 添加代理支持和超时优化
 """
 from tool_manager import Tool, ToolParameter
 from ddgs import DDGS  # v0.6.1: 使用新的ddgs包
 import asyncio
 import time
-from typing import List, Dict
+import os
+from typing import List, Dict, Optional
 
 
 class SearchTool(Tool):
@@ -54,6 +56,14 @@ class SearchTool(Tool):
         # === v0.6.0 新增：重试配置 ===
         self.max_retries = 3
         self.retry_delay = 1  # 秒
+
+        # === v0.6.2 新增：代理和超时配置 ===
+        # 从环境变量读取代理
+        self.proxy = os.getenv('HTTP_PROXY') or os.getenv('HTTPS_PROXY')
+        self.timeout = 15  # 每次搜索超时时间（秒）
+
+        if self.proxy:
+            print(f"✅ 搜索工具已启用代理: {self.proxy}")
 
     async def execute(self, **kwargs) -> Dict:
         """
@@ -242,7 +252,7 @@ class SearchTool(Tool):
         max_results: int = 5
     ) -> List[Dict]:
         """
-        使用 DuckDuckGo 搜索
+        使用 DuckDuckGo 搜索（带超时控制）
 
         Args:
             query: 搜索关键词
@@ -252,15 +262,21 @@ class SearchTool(Tool):
             List[Dict]: 搜索结果列表
         """
         try:
-            # 在线程池中执行同步的搜索操作
+            # 在线程池中执行同步的搜索操作，带超时控制
             loop = asyncio.get_event_loop()
-            results = await loop.run_in_executor(
-                None,
-                self._do_search,
-                query,
-                max_results
+            results = await asyncio.wait_for(
+                loop.run_in_executor(
+                    None,
+                    self._do_search,
+                    query,
+                    max_results
+                ),
+                timeout=self.timeout
             )
             return results
+        except asyncio.TimeoutError:
+            print(f"⚠️  搜索超时（{self.timeout}秒）: {query}")
+            return []
         except Exception as e:
             print(f"搜索出错: {e}")
             return []
@@ -270,6 +286,7 @@ class SearchTool(Tool):
         执行实际的搜索（同步方法）
 
         v0.6.1: 使用新的ddgs包API,改进搜索稳定性
+        v0.6.2: 添加代理支持
 
         Args:
             query: 搜索关键词
@@ -280,11 +297,19 @@ class SearchTool(Tool):
         """
         import time
 
+        # 准备代理参数（如果配置了代理）
+        ddgs_kwargs = {}
+        if self.proxy:
+            ddgs_kwargs['proxies'] = {
+                'http': self.proxy,
+                'https': self.proxy
+            }
+
         # 策略1: 直接搜索
         try:
             print(f"🔍 尝试搜索: {query}")
-            ddgs = DDGS()
-            results = ddgs.text(query, max_results=max_results)
+            ddgs = DDGS(**ddgs_kwargs)
+            results = list(ddgs.text(query, max_results=max_results))
             if results:
                 print(f"✅ 找到 {len(results)} 条结果")
                 return results
@@ -299,8 +324,9 @@ class SearchTool(Tool):
                 '什么时候', '').replace('发布', ' 发布时间').strip()
             print(f"🔍 尝试简化查询: {simplified_query}")
 
-            ddgs = DDGS()
-            results = ddgs.text(simplified_query, max_results=max_results)
+            ddgs = DDGS(**ddgs_kwargs)
+            results = list(ddgs.text(
+                simplified_query, max_results=max_results))
             if results:
                 print(f"✅ 简化查询找到 {len(results)} 条结果")
                 return results
@@ -319,8 +345,9 @@ class SearchTool(Tool):
                     en_query = f"{product} release date 2025"
                     print(f"🔍 尝试英文查询: {en_query}")
 
-                    ddgs = DDGS()
-                    results = ddgs.text(en_query, max_results=max_results)
+                    ddgs = DDGS(**ddgs_kwargs)
+                    results = list(ddgs.text(
+                        en_query, max_results=max_results))
                     if results:
                         print(f"✅ 英文查询找到 {len(results)} 条结果")
                         return results

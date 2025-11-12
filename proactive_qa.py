@@ -1,5 +1,5 @@
 """
-主动问答模块 - v0.6.0 优化版
+主动问答模块 - v0.6.2 优化版
 识别用户未完整回答的问题，主动追问，提升对话体验
 
 v0.6.0更新:
@@ -7,11 +7,16 @@ v0.6.0更新:
 - 改进追问生成的自然度
 - 添加可配置的阈值
 - 减少误判率
+
+v0.6.2更新:
+- 添加问题去重机制，避免重复追问
+- 添加冷却时间，避免频繁打扰
+- 改进上下文敏感判断
 """
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from db_setup import ProactiveQuestion, Message
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 import re
 import json
@@ -67,6 +72,11 @@ class ProactiveQA:
         self.confidence_threshold = (
             confidence_threshold or self.CONFIDENCE_THRESHOLD
         )
+        # v0.6.2: 问题去重配置
+        self.recent_questions = []  # 最近追问的问题
+        self.max_recent = 10  # 保留最近10个问题用于去重
+        self.cooldown_seconds = 300  # 同一问题冷却时间（5分钟）
+        self.last_ask_time = None  # 上次追问时间
 
     def is_question(self, text: str) -> bool:
         """判断文本是否为问句"""
@@ -78,6 +88,82 @@ class ProactiveQA:
             if re.search(pattern, text):
                 return True
         return False
+
+    def _is_duplicate_question(self, question: str) -> bool:
+        """
+        检查是否为重复问题（v0.6.2）
+
+        Args:
+            question: 问题文本
+
+        Returns:
+            bool: 如果是重复问题且在冷却期内返回True
+        """
+        current_time = datetime.now()
+
+        # 清理过期的问题记录
+        self.recent_questions = [
+            (q, t) for q, t in self.recent_questions
+            if (current_time - t).total_seconds() < self.cooldown_seconds
+        ]
+
+        # 检查是否为相似问题（简单的相似度判断）
+        for recent_q, ask_time in self.recent_questions:
+            # 计算文本相似度（简单版：检查关键词重叠）
+            if self._calculate_similarity(question, recent_q) > 0.7:
+                return True
+
+        return False
+
+    def _calculate_similarity(self, text1: str, text2: str) -> float:
+        """
+        计算两个文本的相似度（简单版本）
+
+        Returns:
+            float: 0-1之间的相似度分数
+        """
+        # 分词（简单版：按字符）
+        words1 = set(text1)
+        words2 = set(text2)
+
+        if not words1 or not words2:
+            return 0.0
+
+        # 计算Jaccard相似度
+        intersection = len(words1 & words2)
+        union = len(words1 | words2)
+
+        return intersection / union if union > 0 else 0.0
+
+    def _add_to_recent_questions(self, question: str):
+        """
+        添加问题到最近问题列表（v0.6.2）
+
+        Args:
+            question: 问题文本
+        """
+        self.recent_questions.append((question, datetime.now()))
+
+        # 限制列表大小
+        if len(self.recent_questions) > self.max_recent:
+            self.recent_questions.pop(0)
+
+        # 更新上次追问时间
+        self.last_ask_time = datetime.now()
+
+    def _should_cooldown(self) -> bool:
+        """
+        检查是否应该冷却（避免频繁追问）
+
+        Returns:
+            bool: 如果应该冷却返回True
+        """
+        if not self.last_ask_time:
+            return False
+
+        # 至少间隔30秒再追问
+        time_since_last = (datetime.now() - self.last_ask_time).total_seconds()
+        return time_since_last < 30
 
     def is_incomplete_answer(self, text: str) -> bool:
         """
@@ -147,6 +233,10 @@ class ProactiveQA:
             if not messages:
                 return {"needs_followup": False, "questions": []}
 
+            # v0.6.2: 检查是否应该冷却
+            if self._should_cooldown():
+                return {"needs_followup": False, "questions": []}
+
             # 反转消息顺序（从旧到新）
             messages = list(reversed(messages))
 
@@ -166,6 +256,10 @@ class ProactiveQA:
 
                     # 判断用户是否提问
                     if self.is_question(user_text):
+                        # v0.6.2: 检查是否为重复问题
+                        if self._is_duplicate_question(user_text):
+                            continue
+
                         # 判断AI回答是否不完整
                         if self.is_incomplete_answer(ai_response):
                             # 分析缺失信息
@@ -177,6 +271,9 @@ class ProactiveQA:
                             confidence = self._calculate_confidence(
                                 user_text, ai_response, missing_info
                             )
+
+                            # v0.6.2: 记录问题用于去重
+                            self._add_to_recent_questions(user_text)
 
                             needs_followup_list.append({
                                 "question": user_text,
