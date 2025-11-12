@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import Optional, Dict, Any, List
+import os
 from agent import XiaoLeAgent
 from memory import MemoryManager
 from conflict_detector import ConflictDetector
@@ -26,9 +27,13 @@ app.add_middleware(
     allow_headers=["*"],  # 允许所有请求头
 )
 
-# 挂载静态文件目录
-app.mount("/static", StaticFiles(directory="static"), name="static")
-app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+# 挂载静态文件目录（使用绝对路径，避免工作目录不同导致404）
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+STATIC_DIR = os.path.join(BASE_DIR, "static")
+UPLOADS_DIR = os.path.join(BASE_DIR, "uploads")
+
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+app.mount("/uploads", StaticFiles(directory=UPLOADS_DIR), name="uploads")
 
 
 # Pydantic模型 - v0.5.0提醒系统
@@ -41,6 +46,16 @@ class ReminderCreate(BaseModel):
     priority: int = 3
     repeat: bool = False
     repeat_interval: Optional[int] = None
+
+
+# v0.8.0: 语音合成请求体
+class TTSRequest(BaseModel):
+    text: str
+    person: int = 0
+    speed: int = 5
+    pitch: int = 5
+    volume: int = 5
+    audio_format: str = "mp3"  # mp3|wav|pcm
 
 
 xiaole = XiaoLeAgent()
@@ -1104,10 +1119,10 @@ async def upload_image(file: UploadFile = File(...)):
 async def voice_recognize(file: UploadFile = File(...)):
     """
     语音识别接口（使用百度API）
-    
+
     Args:
         file: 音频文件（wav/pcm/amr/m4a格式）
-        
+
     Returns:
         dict: {"success": True, "text": "识别结果"}
     """
@@ -1118,10 +1133,10 @@ async def voice_recognize(file: UploadFile = File(...)):
                 "success": False,
                 "error": "百度语音服务未配置，请设置环境变量"
             }
-        
+
         # 读取音频数据
         audio_data = await file.read()
-        
+
         # 检测音频格式
         filename = file.filename.lower() if file.filename else ""
         if filename.endswith('.wav'):
@@ -1134,16 +1149,16 @@ async def voice_recognize(file: UploadFile = File(...)):
             format_type = 'm4a'
         else:
             format_type = 'wav'  # 默认wav
-        
+
         # 调用识别
         result = await baidu_voice_tool.recognize(
             audio_data,
             format=format_type,
             rate=16000
         )
-        
+
         return result
-    
+
     except Exception as e:
         return {
             "success": False,
@@ -1152,13 +1167,68 @@ async def voice_recognize(file: UploadFile = File(...)):
 
 
 @app.get("/api/voice/status")
-def voice_status():
-    """检查语音服务状态"""
-    return {
-        "enabled": baidu_voice_tool.is_enabled(),
-        "service": "百度语音识别",
-        "provider": "Baidu AI"
-    }
+def voice_status(detailed: bool = False):
+    """检查语音服务状态
+
+    Args:
+        detailed: 是否返回详细脱敏后的密钥状态
+    """
+    return baidu_voice_tool.get_status(detailed)
+
+
+@app.post("/api/voice/synthesize")
+async def voice_synthesize(req: TTSRequest):
+    """文本转语音（百度TTS）
+
+    Args:
+        req: TTSRequest，请求体
+
+    Returns:
+        JSON，包含 base64 音频与 mime 类型
+    """
+    try:
+        if not baidu_voice_tool.is_enabled():
+            return {
+                "success": False,
+                "error": "百度语音服务未配置，请设置环境变量"
+            }
+
+        audio_bytes = await baidu_voice_tool.synthesize(
+            text=req.text,
+            person=req.person,
+            speed=req.speed,
+            pitch=req.pitch,
+            volume=req.volume,
+            audio_format=req.audio_format,
+        )
+
+        if not audio_bytes:
+            return {
+                "success": False,
+                "error": "语音合成失败"
+            }
+
+        import base64
+
+        mime = "audio/mpeg"
+        fmt = (req.audio_format or "mp3").lower()
+        if fmt == "wav":
+            mime = "audio/wav"
+        elif fmt == "pcm":
+            mime = "audio/x-pcm"
+
+        b64 = base64.b64encode(audio_bytes).decode("utf-8")
+        return {
+            "success": True,
+            "audio_base64": b64,
+            "mime": mime,
+            "format": fmt,
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": f"语音合成异常: {str(e)}"
+        }
 
 
 @app.post("/api/vision/analyze")

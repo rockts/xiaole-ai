@@ -1061,10 +1061,13 @@
         }
 
         @keyframes pulse {
-            0%, 100% {
+
+            0%,
+            100% {
                 transform: scale(1);
                 box-shadow: 0 0 0 0 rgba(245, 87, 108, 0.7);
             }
+
             50% {
                 transform: scale(1.05);
                 box-shadow: 0 0 0 10px rgba(245, 87, 108, 0);
@@ -1102,16 +1105,33 @@
             animation: wave 1s ease-in-out infinite;
         }
 
-        .voice-wave span:nth-child(1) { animation-delay: 0s; }
-        .voice-wave span:nth-child(2) { animation-delay: 0.1s; }
-        .voice-wave span:nth-child(3) { animation-delay: 0.2s; }
-        .voice-wave span:nth-child(4) { animation-delay: 0.3s; }
-        .voice-wave span:nth-child(5) { animation-delay: 0.4s; }
+        .voice-wave span:nth-child(1) {
+            animation-delay: 0s;
+        }
+
+        .voice-wave span:nth-child(2) {
+            animation-delay: 0.1s;
+        }
+
+        .voice-wave span:nth-child(3) {
+            animation-delay: 0.2s;
+        }
+
+        .voice-wave span:nth-child(4) {
+            animation-delay: 0.3s;
+        }
+
+        .voice-wave span:nth-child(5) {
+            animation-delay: 0.4s;
+        }
 
         @keyframes wave {
-            0%, 100% {
+
+            0%,
+            100% {
                 height: 30%;
             }
+
             50% {
                 height: 100%;
             }
@@ -1566,14 +1586,16 @@
 
                     <!-- v0.8.0 语音设置 -->
                     <div class="settings-section">
-                        <h4 class="settings-title">🎤 语音交互设置 <span style="font-size: 11px; color: #f5576c; font-weight: normal;">新功能</span></h4>
+                        <h4 class="settings-title">🎤 语音交互设置 <span
+                                style="font-size: 11px; color: #f5576c; font-weight: normal;">新功能</span></h4>
 
                         <div class="setting-item">
                             <div class="setting-label">
                                 <span class="setting-name">语音识别服务</span>
                                 <span class="setting-desc">选择语音识别提供商</span>
                             </div>
-                            <select id="voiceProvider" class="setting-select" onchange="updateVoiceProvider(this.value)">
+                            <select id="voiceProvider" class="setting-select"
+                                onchange="updateVoiceProvider(this.value)">
                                 <option value="google">Google (需科学上网)</option>
                                 <option value="baidu">百度语音 (推荐)</option>
                             </select>
@@ -1585,8 +1607,7 @@
                                 <span class="setting-desc">AI回复后自动播放语音</span>
                             </div>
                             <label class="setting-switch">
-                                <input type="checkbox" id="voiceAutoPlay" 
-                                    onchange="updateVoiceAutoPlay(this.checked)">
+                                <input type="checkbox" id="voiceAutoPlay" onchange="updateVoiceAutoPlay(this.checked)">
                                 <span class="switch-slider"></span>
                             </label>
                         </div>
@@ -1600,7 +1621,8 @@
                                 <input type="range" id="voiceRate" min="0.5" max="2" step="0.1" value="1.0"
                                     oninput="updateVoiceRate(this.value)"
                                     style="flex: 1; height: 4px; border-radius: 2px; outline: none; cursor: pointer;">
-                                <span id="voiceRateValue" style="min-width: 40px; text-align: right; font-weight: 500;">1.0x</span>
+                                <span id="voiceRateValue"
+                                    style="min-width: 40px; text-align: right; font-weight: 500;">1.0x</span>
                             </div>
                         </div>
 
@@ -1613,7 +1635,8 @@
                                 <input type="range" id="voiceVolume" min="0" max="1" step="0.1" value="1.0"
                                     oninput="updateVoiceVolume(this.value)"
                                     style="flex: 1; height: 4px; border-radius: 2px; outline: none; cursor: pointer;">
-                                <span id="voiceVolumeValue" style="min-width: 40px; text-align: right; font-weight: 500;">100%</span>
+                                <span id="voiceVolumeValue"
+                                    style="min-width: 40px; text-align: right; font-weight: 500;">100%</span>
                             </div>
                         </div>
 
@@ -1631,12 +1654,14 @@
                             </ul>
                         </div>
 
-                        <div class="setting-item" style="background: #fff3cd; border-radius: 8px; padding: 12px; border-left: 4px solid #f5576c;">
+                        <div class="setting-item"
+                            style="background: #fff3cd; border-radius: 8px; padding: 12px; border-left: 4px solid #f5576c;">
                             <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
                                 <span style="font-size: 20px;">⚠️</span>
                                 <span style="font-weight: 500; color: #856404;">遇到"network"错误？</span>
                             </div>
-                            <ul style="margin: 0; padding-left: 20px; font-size: 12px; color: #856404; line-height: 1.8;">
+                            <ul
+                                style="margin: 0; padding-left: 20px; font-size: 12px; color: #856404; line-height: 1.8;">
                                 <li>语音识别使用Google的Web Speech API，需要网络连接</li>
                                 <li>请确保网络连接正常，可以访问Google服务</li>
                                 <li>如果在国内使用，可能需要科学上网</li>
@@ -2004,7 +2029,7 @@
         }
 
         // ==================== v0.8.0 语音交互功能 ====================
-        
+
         let recognition = null;
         let isRecording = false;
         let speechSynthesis = window.speechSynthesis;
@@ -2013,11 +2038,11 @@
         const MAX_RETRY = 2;
 
         // 监听网络状态
-        window.addEventListener('online', function() {
+        window.addEventListener('online', function () {
             console.log('✅ 网络已连接，语音识别可用');
         });
 
-        window.addEventListener('offline', function() {
+        window.addEventListener('offline', function () {
             console.warn('⚠️ 网络已断开，语音识别不可用');
             if (isRecording) {
                 stopVoiceInput();
@@ -2034,7 +2059,7 @@
 
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             recognition = new SpeechRecognition();
-            
+
             recognition.lang = 'zh-CN';  // 中文识别
             recognition.continuous = false;  // 不持续识别
             recognition.interimResults = true;  // 显示临时结果
@@ -2047,19 +2072,19 @@
                 interimResults: recognition.interimResults
             });
 
-            recognition.onstart = function() {
+            recognition.onstart = function () {
                 console.log('🎤 语音识别开始');
                 isRecording = true;
                 const voiceBtn = document.getElementById('voiceBtn');
                 const voiceStatus = document.getElementById('voiceStatus');
                 const voiceText = document.getElementById('voiceText');
-                
+
                 voiceBtn.classList.add('recording');
                 voiceStatus.style.display = 'flex';
                 voiceText.textContent = '正在聆听...';
             };
 
-            recognition.onresult = function(event) {
+            recognition.onresult = function (event) {
                 let interimTranscript = '';
                 let finalTranscript = '';
 
@@ -2085,11 +2110,11 @@
                 }
             };
 
-            recognition.onerror = function(event) {
+            recognition.onerror = function (event) {
                 console.error('❌ 语音识别错误:', event.error, event);
                 const voiceText = document.getElementById('voiceText');
-                
-                switch(event.error) {
+
+                switch (event.error) {
                     case 'no-speech':
                         voiceText.textContent = '没有检测到语音，请重试';
                         break;
@@ -2113,13 +2138,13 @@
                         voiceText.textContent = `识别出错: ${event.error}`;
                         console.error('未知错误类型:', event.error);
                 }
-                
+
                 setTimeout(() => {
                     stopVoiceInput();
                 }, 3000);
             };
 
-            recognition.onend = function() {
+            recognition.onend = function () {
                 console.log('🎤 语音识别结束');
                 stopVoiceInput();
             };
@@ -2131,7 +2156,7 @@
         function toggleVoiceInput() {
             // 优先使用百度语音识别
             const useBaiduVoice = localStorage.getItem('useBaiduVoice') === 'true';
-            
+
             if (useBaiduVoice) {
                 toggleBaiduVoiceInput();
             } else {
@@ -2170,11 +2195,11 @@
                     const voiceText = document.getElementById('voiceText');
                     voiceStatus.style.display = 'flex';
                     voiceText.textContent = '正在准备...';
-                    
+
                     recognition.start();
                 } catch (e) {
                     console.error('启动语音识别失败:', e);
-                    
+
                     // 更友好的错误提示
                     let errorMsg = '启动语音识别失败';
                     if (e.message.includes('already started')) {
@@ -2190,7 +2215,7 @@
                     } else {
                         errorMsg += '\n\n' + e.message;
                     }
-                    
+
                     alert('❌ ' + errorMsg + '\n\n💡 建议：刷新页面后重试');
                     stopVoiceInput();
                 }
@@ -2202,10 +2227,10 @@
             isRecording = false;
             const voiceBtn = document.getElementById('voiceBtn');
             const voiceStatus = document.getElementById('voiceStatus');
-            
+
             voiceBtn.classList.remove('recording');
             voiceStatus.style.display = 'none';
-            
+
             // 停止百度录音
             if (window.baiduMediaRecorder && window.baiduMediaRecorder.state !== 'inactive') {
                 window.baiduMediaRecorder.stop();
@@ -2213,15 +2238,138 @@
         }
 
         // ==================== 百度语音识别 ====================
-        
-        let baiduMediaRecorder = null;
-        let baiduAudioChunks = [];
+
+        // 基于 Web Audio API 的 WAV(PCM16) 录音器，采样率 16k 以适配百度ASR
+        let baiduRecorder = {
+            audioContext: null,
+            source: null,
+            processor: null,
+            stream: null,
+            bufferL: [],
+            sampleRate: 16000,
+            recording: false,
+        };
+
+        function mergeBuffers(bufferArray) {
+            let length = 0;
+            bufferArray.forEach(b => length += b.length);
+            const result = new Float32Array(length);
+            let offset = 0;
+            bufferArray.forEach(b => { result.set(b, offset); offset += b.length; });
+            return result;
+        }
+
+        function downsampleBuffer(buffer, inSampleRate, outSampleRate) {
+            if (outSampleRate === inSampleRate) return buffer;
+            const ratio = inSampleRate / outSampleRate;
+            const newLength = Math.round(buffer.length / ratio);
+            const result = new Float32Array(newLength);
+            let offsetResult = 0;
+            let offsetBuffer = 0;
+            while (offsetResult < result.length) {
+                const nextOffsetBuffer = Math.round((offsetResult + 1) * ratio);
+                let accum = 0, count = 0;
+                for (let i = offsetBuffer; i < nextOffsetBuffer && i < buffer.length; i++) {
+                    accum += buffer[i];
+                    count++;
+                }
+                result[offsetResult] = accum / count;
+                offsetResult++;
+                offsetBuffer = nextOffsetBuffer;
+            }
+            return result;
+        }
+
+        function encodeWAV(samples, sampleRate) {
+            const buffer = new ArrayBuffer(44 + samples.length * 2);
+            const view = new DataView(buffer);
+
+            function writeString(view, offset, string) {
+                for (let i = 0; i < string.length; i++) {
+                    view.setUint8(offset + i, string.charCodeAt(i));
+                }
+            }
+
+            const bytesPerSample = 2;
+            const numChannels = 1;
+            const blockAlign = numChannels * bytesPerSample;
+            const byteRate = sampleRate * blockAlign;
+
+            // RIFF header
+            writeString(view, 0, 'RIFF');
+            view.setUint32(4, 36 + samples.length * bytesPerSample, true);
+            writeString(view, 8, 'WAVE');
+
+            // fmt chunk
+            writeString(view, 12, 'fmt ');
+            view.setUint32(16, 16, true); // PCM
+            view.setUint16(20, 1, true);  // PCM format
+            view.setUint16(22, numChannels, true);
+            view.setUint32(24, sampleRate, true);
+            view.setUint32(28, byteRate, true);
+            view.setUint16(32, blockAlign, true);
+            view.setUint16(34, 16, true); // 16-bit
+
+            // data chunk
+            writeString(view, 36, 'data');
+            view.setUint32(40, samples.length * bytesPerSample, true);
+
+            // PCM samples
+            let offset = 44;
+            for (let i = 0; i < samples.length; i++, offset += 2) {
+                let s = Math.max(-1, Math.min(1, samples[i]));
+                view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+            }
+
+            return new Blob([view], { type: 'audio/wav' });
+        }
 
         async function toggleBaiduVoiceInput() {
             if (isRecording) {
                 // 停止录音
-                if (baiduMediaRecorder && baiduMediaRecorder.state !== 'inactive') {
-                    baiduMediaRecorder.stop();
+                if (baiduRecorder && baiduRecorder.recording) {
+                    try {
+                        baiduRecorder.recording = false;
+                        if (baiduRecorder.processor) {
+                            baiduRecorder.processor.disconnect();
+                        }
+                        if (baiduRecorder.source) {
+                            baiduRecorder.source.disconnect();
+                        }
+                        if (baiduRecorder.stream) {
+                            baiduRecorder.stream.getTracks().forEach(t => t.stop());
+                        }
+
+                        // 合并、降采样并编码为 WAV 16k
+                        const raw = mergeBuffers(baiduRecorder.bufferL);
+                        const inRate = baiduRecorder.audioContext.sampleRate;
+                        const down = downsampleBuffer(raw, inRate, 16000);
+                        const wavBlob = encodeWAV(down, 16000);
+
+                        // 上传识别
+                        const voiceText = document.getElementById('voiceText');
+                        voiceText.textContent = '正在识别...';
+                        const formData = new FormData();
+                        formData.append('file', wavBlob, 'audio.wav');
+                        const response = await fetch('/api/voice/recognize', {
+                            method: 'POST',
+                            body: formData
+                        });
+                        const result = await response.json();
+                        if (result.success) {
+                            const input = document.getElementById('messageInput');
+                            input.textContent = result.text;
+                            input.focus();
+                            showToast('✅ 识别成功', 'success');
+                        } else {
+                            showToast('❌ 识别失败: ' + (result.error || '未知错误'), 'error');
+                        }
+                    } catch (e) {
+                        console.error('停止或识别出错:', e);
+                        showToast('❌ 识别请求失败', 'error');
+                    } finally {
+                        stopVoiceInput();
+                    }
                 }
                 return;
             }
@@ -2229,93 +2377,84 @@
             try {
                 // 请求麦克风权限
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                
+
                 // 显示录音状态
                 isRecording = true;
                 const voiceBtn = document.getElementById('voiceBtn');
                 const voiceStatus = document.getElementById('voiceStatus');
                 const voiceText = document.getElementById('voiceText');
-                
+
                 voiceBtn.classList.add('recording');
                 voiceStatus.style.display = 'flex';
                 voiceText.textContent = '正在录音...（使用百度API）';
-                
-                // 创建录音器
-                baiduMediaRecorder = new MediaRecorder(stream);
-                baiduAudioChunks = [];
-                
-                baiduMediaRecorder.ondataavailable = (event) => {
-                    if (event.data.size > 0) {
-                        baiduAudioChunks.push(event.data);
-                    }
+
+                // 创建 Web Audio 录音流程
+                baiduRecorder.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                baiduRecorder.stream = stream;
+                baiduRecorder.source = baiduRecorder.audioContext.createMediaStreamSource(stream);
+                baiduRecorder.processor = baiduRecorder.audioContext.createScriptProcessor(4096, 1, 1);
+                baiduRecorder.bufferL = [];
+                baiduRecorder.recording = true;
+
+                baiduRecorder.processor.onaudioprocess = function (e) {
+                    if (!baiduRecorder.recording) return;
+                    const channel = e.inputBuffer.getChannelData(0);
+                    // 拷贝一份数据避免复用同一缓冲区
+                    baiduRecorder.bufferL.push(new Float32Array(channel));
                 };
-                
-                baiduMediaRecorder.onstop = async () => {
-                    // 停止所有音轨
-                    stream.getTracks().forEach(track => track.stop());
-                    
-                    // 合并音频数据
-                    const audioBlob = new Blob(baiduAudioChunks, { type: 'audio/wav' });
-                    
-                    // 显示上传状态
-                    voiceText.textContent = '正在识别...';
-                    
-                    // 发送到后端识别
-                    try {
-                        const formData = new FormData();
-                        formData.append('file', audioBlob, 'audio.wav');
-                        
-                        const response = await fetch('/api/voice/recognize', {
-                            method: 'POST',
-                            body: formData
-                        });
-                        
-                        const result = await response.json();
-                        
-                        if (result.success) {
-                            // 识别成功
-                            console.log('✅ 百度语音识别结果:', result.text);
-                            const input = document.getElementById('messageInput');
-                            input.textContent = result.text;
-                            input.focus();
-                            showToast('✅ 识别成功', 'success');
-                        } else {
-                            // 识别失败
-                            console.error('❌ 识别失败:', result.error);
-                            showToast('❌ 识别失败: ' + result.error, 'error');
-                        }
-                    } catch (error) {
-                        console.error('❌ 请求失败:', error);
-                        showToast('❌ 识别请求失败', 'error');
-                    } finally {
-                        stopVoiceInput();
-                    }
-                };
-                
-                // 开始录音
-                baiduMediaRecorder.start();
-                console.log('🎤 百度语音录音开始');
-                
+
+                baiduRecorder.source.connect(baiduRecorder.processor);
+                baiduRecorder.processor.connect(baiduRecorder.audioContext.destination);
+                console.log('🎤 百度语音录音开始 (WAV/PCM16/16k)');
+
             } catch (error) {
                 console.error('❌ 麦克风访问失败:', error);
-                
+
                 let errorMsg = '无法访问麦克风';
                 if (error.name === 'NotAllowedError') {
                     errorMsg = '麦克风权限被拒绝\n\n请在浏览器设置中允许麦克风访问';
                 } else if (error.name === 'NotFoundError') {
                     errorMsg = '未找到麦克风设备\n\n请检查麦克风是否正常连接';
                 }
-                
+
                 alert('❌ ' + errorMsg);
                 stopVoiceInput();
             }
         }
 
-        // 语音播放AI回复
-        function speakText(text) {
+        // 语音播放AI回复（支持 WebSpeech 或 百度TTS）
+        async function speakText(text) {
             // 检查是否启用自动播放
             const autoPlay = localStorage.getItem('voiceAutoPlay') === 'true';
             if (!autoPlay) return;
+
+            const ttsProvider = (localStorage.getItem('ttsProvider') || 'web').toLowerCase();
+            if (ttsProvider === 'baidu') {
+                try {
+                    const resp = await fetch('/api/voice/synthesize', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            text,
+                            person: parseInt(localStorage.getItem('ttsPerson') || '0', 10),
+                            speed: parseInt(localStorage.getItem('voiceRateNum') || '5', 10),
+                            pitch: 5,
+                            volume: Math.round(parseFloat(localStorage.getItem('voiceVolume') || '1.0') * 10),
+                            audio_format: 'mp3'
+                        })
+                    });
+                    const data = await resp.json();
+                    if (data.success) {
+                        const audio = new Audio(`data:${data.mime};base64,${data.audio_base64}`);
+                        audio.play().catch(e => console.warn('自动播放受阻:', e));
+                        return;
+                    } else {
+                        console.warn('百度TTS失败，回退到WebSpeech:', data.error);
+                    }
+                } catch (e) {
+                    console.warn('百度TTS调用异常，回退到WebSpeech:', e);
+                }
+            }
 
             // 停止当前播放
             if (currentUtterance) {
@@ -2328,16 +2467,16 @@
             currentUtterance.rate = parseFloat(localStorage.getItem('voiceRate') || '1.0');
             currentUtterance.volume = parseFloat(localStorage.getItem('voiceVolume') || '1.0');
 
-            currentUtterance.onstart = function() {
+            currentUtterance.onstart = function () {
                 console.log('🔊 开始播放语音');
             };
 
-            currentUtterance.onend = function() {
+            currentUtterance.onend = function () {
                 console.log('🔊 播放结束');
                 currentUtterance = null;
             };
 
-            currentUtterance.onerror = function(event) {
+            currentUtterance.onerror = function (event) {
                 console.error('语音播放错误:', event.error);
                 currentUtterance = null;
             };
@@ -2618,7 +2757,7 @@
             // 如果是助手消息，使用Markdown渲染；用户消息保持纯文本
             if (role === 'assistant') {
                 textDiv.innerHTML = marked.parse(content);
-                
+
                 // v0.8.0 语音播放AI回复
                 setTimeout(() => {
                     speakText(content);
