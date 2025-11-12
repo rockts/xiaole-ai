@@ -807,7 +807,7 @@ async def snooze_reminder(reminder_id: int, minutes: int = 5):
         password=os.getenv('DB_PASS', 'Xiaole2025User'),
         client_encoding='UTF8'
     )
-    
+
     try:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             # 获取当前提醒
@@ -851,7 +851,7 @@ async def snooze_reminder(reminder_id: int, minutes: int = 5):
 async def confirm_reminder(reminder_id: int):
     """用户确认提醒（点击"已知道"） - 写入历史并禁用非重复提醒"""
     success = await reminder_manager.confirm_reminder(reminder_id)
-    
+
     return {
         "success": success,
         "message": "Reminder confirmed" if success else "Confirm failed"

@@ -351,10 +351,10 @@ class ReminderManager:
     async def check_and_notify_reminder(self, reminder_id: int) -> bool:
         """
         检查提醒并通过WebSocket推送通知（不写入历史）
-        
+
         Args:
             reminder_id: 提醒ID
-            
+
         Returns:
             是否成功推送
         """
@@ -366,11 +366,11 @@ class ReminderManager:
                     SELECT * FROM reminders WHERE reminder_id = %s
                 """, (reminder_id,))
                 reminder = cur.fetchone()
-                
+
                 if not reminder:
                     logger.error(f"Reminder {reminder_id} not found")
                     return False
-                
+
                 reminder = dict(reminder)
 
                 # 更新last_triggered（标记为已通知但未确认）
@@ -380,7 +380,7 @@ class ReminderManager:
                         trigger_count = COALESCE(trigger_count, 0) + 1
                     WHERE reminder_id = %s
                 """, (reminder_id,))
-                
+
                 conn.commit()
 
                 logger.info(
@@ -420,10 +420,10 @@ class ReminderManager:
     async def confirm_reminder(self, reminder_id: int) -> bool:
         """
         用户确认提醒（点击"已知道"），记录历史并禁用
-        
+
         Args:
             reminder_id: 提醒ID
-            
+
         Returns:
             是否成功
         """
@@ -435,11 +435,11 @@ class ReminderManager:
                     SELECT * FROM reminders WHERE reminder_id = %s
                 """, (reminder_id,))
                 reminder = cur.fetchone()
-                
+
                 if not reminder:
                     logger.error(f"Reminder {reminder_id} not found")
                     return False
-                
+
                 reminder = dict(reminder)
 
                 # 记录提醒历史（用户已确认）

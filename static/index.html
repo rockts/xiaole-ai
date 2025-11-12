@@ -1931,7 +1931,7 @@
                     <div style="margin: 20px 0;">
                         <div id="tasksList"
                             style="background: #f8f9fa; padding: 15px; border-radius: 10px; min-height: 200px;">
-                            <div class="loading">点击"刷新"加载任务</div>
+                            <div class="loading">正在加载任务...</div>
                         </div>
                     </div>
                 </div>
@@ -2713,6 +2713,11 @@
                 // 自动加载主动问答历史
                 const userId = 'default_user';
                 loadProactiveQA(userId);
+            }
+            if (tabName === 'tasks') {
+                // 自动加载任务列表，默认显示待完成任务
+                document.getElementById('taskStatusFilter').value = 'pending';
+                loadTasks();
             }
             if (tabName === 'reminders') {
                 // 自动加载提醒列表
@@ -6990,21 +6995,21 @@
         function markReminderAsRead(reminderId) {
             // 调用confirm API，写入历史并禁用非重复提醒
             confirmReminder(reminderId);
-            
+
             // 更新未读计数
             unreadReminderCount = Math.max(0, unreadReminderCount - 1);
             updateReminderBadge();
         }
-        
+
         // 确认提醒（写入历史）
         async function confirmReminder(reminderId) {
             try {
                 const response = await fetch(`${API_BASE}/api/reminders/${reminderId}/confirm`, {
                     method: 'POST'
                 });
-                
+
                 const data = await response.json();
-                
+
                 if (data.success) {
                     console.log(`✅ 提醒已确认: ${reminderId}`);
                 } else {
