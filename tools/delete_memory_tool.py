@@ -7,7 +7,7 @@ import logging
 from datetime import datetime, timedelta
 from sqlalchemy import and_, or_
 from db_setup import Memory, SessionLocal
-from tool_manager import Tool
+from tool_manager import Tool, ToolParameter
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +39,34 @@ class DeleteMemoryTool(Tool):
 - 删除最近5分钟的记忆：{"time_range": "5分钟前", "confirm": true}
 - 删除对话类记忆：{"tags": "对话", "confirm": true}
 """
+        # 定义参数
+        self.parameters = [
+            ToolParameter(
+                name="keywords",
+                param_type="string",
+                description="要删除的记忆中包含的关键词",
+                required=False
+            ),
+            ToolParameter(
+                name="time_range",
+                param_type="string",
+                description="时间范围（如：5分钟前、1小时前、昨天）",
+                required=False
+            ),
+            ToolParameter(
+                name="tags",
+                param_type="string",
+                description="记忆标签（可选）",
+                required=False
+            ),
+            ToolParameter(
+                name="confirm",
+                param_type="boolean",
+                description="是否确认删除（true表示确认）",
+                required=False,
+                default=False
+            )
+        ]
     
     def _parse_time_range(self, time_str: str) -> Optional[datetime]:
         """解析时间范围字符串，返回起始时间"""
