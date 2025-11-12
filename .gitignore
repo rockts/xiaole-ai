@@ -63,11 +63,17 @@ htmlcov/
 # 归档文件
 archive/
 
-# 上传文件和工作区
+# 上传文件和临时目录
 uploads/
 workspace/
+demos/
+files/
 
 # 测试文件
 test_*.py
 !tests/test_*.py
 
+# 临时文件
+.cleanupplan.txt
+*.tmp
+*.bak
