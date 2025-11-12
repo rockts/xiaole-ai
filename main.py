@@ -1,5 +1,5 @@
 from fastapi import (
-    FastAPI, WebSocket, WebSocketDisconnect, 
+    FastAPI, WebSocket, WebSocketDisconnect,
     File, UploadFile, HTTPException
 )
 from fastapi.middleware.cors import CORSMiddleware
@@ -23,9 +23,9 @@ import shutil
 from pathlib import Path
 
 app = FastAPI(
-    title="小乐AI管家",
-    version="0.7.1",
-    description="支持智能图片记忆和课程表管理的AI助手"
+    title="小乐 AI 管家",
+    description="个人 AI 助手系统",
+    version="0.8.0",
 )
 
 # 配置CORS，允许网页访问API
