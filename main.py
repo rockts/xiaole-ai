@@ -9,6 +9,7 @@ from conflict_detector import ConflictDetector
 from proactive_qa import ProactiveQA  # v0.3.0 主动问答
 from reminder_manager import get_reminder_manager  # v0.5.0 主动提醒
 from scheduler import get_scheduler  # v0.5.0 定时调度
+from baidu_voice_tool import baidu_voice_tool  # v0.8.0 百度语音识别
 
 app = FastAPI(
     title="小乐AI管家",
@@ -1093,6 +1094,71 @@ async def upload_image(file: UploadFile = File(...)):
             "success": False,
             "error": f"上传失败: {str(e)}"
         }
+
+
+# ========================================
+# v0.8.0 语音识别接口（百度API）
+# ========================================
+
+@app.post("/api/voice/recognize")
+async def voice_recognize(file: UploadFile = File(...)):
+    """
+    语音识别接口（使用百度API）
+    
+    Args:
+        file: 音频文件（wav/pcm/amr/m4a格式）
+        
+    Returns:
+        dict: {"success": True, "text": "识别结果"}
+    """
+    try:
+        # 检查服务是否可用
+        if not baidu_voice_tool.is_enabled():
+            return {
+                "success": False,
+                "error": "百度语音服务未配置，请设置环境变量"
+            }
+        
+        # 读取音频数据
+        audio_data = await file.read()
+        
+        # 检测音频格式
+        filename = file.filename.lower() if file.filename else ""
+        if filename.endswith('.wav'):
+            format_type = 'wav'
+        elif filename.endswith('.pcm'):
+            format_type = 'pcm'
+        elif filename.endswith('.amr'):
+            format_type = 'amr'
+        elif filename.endswith('.m4a'):
+            format_type = 'm4a'
+        else:
+            format_type = 'wav'  # 默认wav
+        
+        # 调用识别
+        result = await baidu_voice_tool.recognize(
+            audio_data,
+            format=format_type,
+            rate=16000
+        )
+        
+        return result
+    
+    except Exception as e:
+        return {
+            "success": False,
+            "error": f"语音识别失败: {str(e)}"
+        }
+
+
+@app.get("/api/voice/status")
+def voice_status():
+    """检查语音服务状态"""
+    return {
+        "enabled": baidu_voice_tool.is_enabled(),
+        "service": "百度语音识别",
+        "provider": "Baidu AI"
+    }
 
 
 @app.post("/api/vision/analyze")

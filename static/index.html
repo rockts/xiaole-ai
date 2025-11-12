@@ -1570,6 +1570,17 @@
 
                         <div class="setting-item">
                             <div class="setting-label">
+                                <span class="setting-name">语音识别服务</span>
+                                <span class="setting-desc">选择语音识别提供商</span>
+                            </div>
+                            <select id="voiceProvider" class="setting-select" onchange="updateVoiceProvider(this.value)">
+                                <option value="google">Google (需科学上网)</option>
+                                <option value="baidu">百度语音 (推荐)</option>
+                            </select>
+                        </div>
+
+                        <div class="setting-item">
+                            <div class="setting-label">
                                 <span class="setting-name">自动播放AI回复</span>
                                 <span class="setting-desc">AI回复后自动播放语音</span>
                             </div>
@@ -1887,6 +1898,13 @@
 
         // ==================== v0.8.0 语音设置功能 ====================
 
+        // 更新语音服务提供商
+        function updateVoiceProvider(provider) {
+            localStorage.setItem('useBaiduVoice', provider === 'baidu');
+            const providerName = provider === 'baidu' ? '百度语音' : 'Google语音';
+            showToast(`✅ 已切换到${providerName}识别`, 'success');
+        }
+
         // 更新语音自动播放设置
         function updateVoiceAutoPlay(enabled) {
             localStorage.setItem('voiceAutoPlay', enabled);
@@ -1908,10 +1926,12 @@
 
         // 初始化语音设置
         function initVoiceSettings() {
+            const useBaiduVoice = localStorage.getItem('useBaiduVoice') === 'true';
             const autoPlay = localStorage.getItem('voiceAutoPlay') === 'true';
             const rate = localStorage.getItem('voiceRate') || '1.0';
             const volume = localStorage.getItem('voiceVolume') || '1.0';
 
+            document.getElementById('voiceProvider').value = useBaiduVoice ? 'baidu' : 'google';
             document.getElementById('voiceAutoPlay').checked = autoPlay;
             document.getElementById('voiceRate').value = rate;
             document.getElementById('voiceRateValue').textContent = rate + 'x';
@@ -2109,6 +2129,18 @@
 
         // 切换语音输入
         function toggleVoiceInput() {
+            // 优先使用百度语音识别
+            const useBaiduVoice = localStorage.getItem('useBaiduVoice') === 'true';
+            
+            if (useBaiduVoice) {
+                toggleBaiduVoiceInput();
+            } else {
+                toggleGoogleVoiceInput();
+            }
+        }
+
+        // Google 语音识别（原方法）
+        function toggleGoogleVoiceInput() {
             // 检查网络连接
             if (!navigator.onLine) {
                 alert('⚠️ 网络未连接\n\n语音识别需要网络连接，请检查您的网络设置。');
@@ -2116,7 +2148,7 @@
             }
 
             // 诊断语音识别可用性
-            console.log('🔍 语音识别诊断:');
+            console.log('🔍 Google语音识别诊断:');
             console.log('- 浏览器:', navigator.userAgent);
             console.log('- 在线状态:', navigator.onLine);
             console.log('- 语音识别支持:', 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window);
@@ -2173,6 +2205,110 @@
             
             voiceBtn.classList.remove('recording');
             voiceStatus.style.display = 'none';
+            
+            // 停止百度录音
+            if (window.baiduMediaRecorder && window.baiduMediaRecorder.state !== 'inactive') {
+                window.baiduMediaRecorder.stop();
+            }
+        }
+
+        // ==================== 百度语音识别 ====================
+        
+        let baiduMediaRecorder = null;
+        let baiduAudioChunks = [];
+
+        async function toggleBaiduVoiceInput() {
+            if (isRecording) {
+                // 停止录音
+                if (baiduMediaRecorder && baiduMediaRecorder.state !== 'inactive') {
+                    baiduMediaRecorder.stop();
+                }
+                return;
+            }
+
+            try {
+                // 请求麦克风权限
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                
+                // 显示录音状态
+                isRecording = true;
+                const voiceBtn = document.getElementById('voiceBtn');
+                const voiceStatus = document.getElementById('voiceStatus');
+                const voiceText = document.getElementById('voiceText');
+                
+                voiceBtn.classList.add('recording');
+                voiceStatus.style.display = 'flex';
+                voiceText.textContent = '正在录音...（使用百度API）';
+                
+                // 创建录音器
+                baiduMediaRecorder = new MediaRecorder(stream);
+                baiduAudioChunks = [];
+                
+                baiduMediaRecorder.ondataavailable = (event) => {
+                    if (event.data.size > 0) {
+                        baiduAudioChunks.push(event.data);
+                    }
+                };
+                
+                baiduMediaRecorder.onstop = async () => {
+                    // 停止所有音轨
+                    stream.getTracks().forEach(track => track.stop());
+                    
+                    // 合并音频数据
+                    const audioBlob = new Blob(baiduAudioChunks, { type: 'audio/wav' });
+                    
+                    // 显示上传状态
+                    voiceText.textContent = '正在识别...';
+                    
+                    // 发送到后端识别
+                    try {
+                        const formData = new FormData();
+                        formData.append('file', audioBlob, 'audio.wav');
+                        
+                        const response = await fetch('/api/voice/recognize', {
+                            method: 'POST',
+                            body: formData
+                        });
+                        
+                        const result = await response.json();
+                        
+                        if (result.success) {
+                            // 识别成功
+                            console.log('✅ 百度语音识别结果:', result.text);
+                            const input = document.getElementById('messageInput');
+                            input.textContent = result.text;
+                            input.focus();
+                            showToast('✅ 识别成功', 'success');
+                        } else {
+                            // 识别失败
+                            console.error('❌ 识别失败:', result.error);
+                            showToast('❌ 识别失败: ' + result.error, 'error');
+                        }
+                    } catch (error) {
+                        console.error('❌ 请求失败:', error);
+                        showToast('❌ 识别请求失败', 'error');
+                    } finally {
+                        stopVoiceInput();
+                    }
+                };
+                
+                // 开始录音
+                baiduMediaRecorder.start();
+                console.log('🎤 百度语音录音开始');
+                
+            } catch (error) {
+                console.error('❌ 麦克风访问失败:', error);
+                
+                let errorMsg = '无法访问麦克风';
+                if (error.name === 'NotAllowedError') {
+                    errorMsg = '麦克风权限被拒绝\n\n请在浏览器设置中允许麦克风访问';
+                } else if (error.name === 'NotFoundError') {
+                    errorMsg = '未找到麦克风设备\n\n请检查麦克风是否正常连接';
+                }
+                
+                alert('❌ ' + errorMsg);
+                stopVoiceInput();
+            }
         }
 
         // 语音播放AI回复
