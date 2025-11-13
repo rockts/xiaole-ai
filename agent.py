@@ -290,13 +290,19 @@ class XiaoLeAgent:
         current_date = datetime.now().strftime("%Y年%m月%d日")
         current_datetime = datetime.now().strftime("%Y年%m月%d日 %H:%M")
 
-        # 替换各种可能的日期占位符
+        # 替换各种可能的日期占位符（支持{{}}和[]两种格式）
         replacements = {
             r'\{\{当前日期\}\}': current_date,
             r'\{\{当前时间\}\}': current_datetime,
             r'\{\{今天\}\}': current_date,
             r'\{\{date\}\}': current_date,
             r'\{\{datetime\}\}': current_datetime,
+            r'\[当前日期\]': current_date,
+            r'\[当前时间\]': current_datetime,
+            r'\[具体时间\]': current_datetime,
+            r'\[今天\]': current_date,
+            r'\[date\]': current_date,
+            r'\[datetime\]': current_datetime,
         }
 
         for pattern, replacement in replacements.items():
