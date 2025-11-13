@@ -335,8 +335,10 @@ def chat(
         vision_tool = VisionTool()
 
         try:
-            # 调用图片识别 - 使用详细的表格识别prompt
-            ocr_prompt = '''这是一张学生课程表。请仔细识别表格中的内容：
+            # 智能选择识别prompt
+            # 如果用户问题提到课程表，使用表格专用prompt
+            if prompt and any(kw in prompt for kw in ['课程表', '课表', '时间表', '上课']):
+                ocr_prompt = '''这是一张学生课程表。请仔细识别表格中的内容：
 1. 表头有：星期一、星期二、星期三、星期四、星期五
 2. 左侧行标题有：晨读、第1节、第2节...第7节、午休、课后辅导
 3. 每个格子可能有课程名称（如"科学"）和编号（如"(5)"）
@@ -346,8 +348,18 @@ def chat(
 周一：晨读-XX, 第1节-XX, 第2节-XX...
 周二：...
 依此类推。不要省略任何信息。'''
+                print("\n🔍 图片识别 - 使用课程表专用prompt")
+            else:
+                # 通用识别prompt - 增强品牌识别能力
+                ocr_prompt = '''请详细描述这张图片的内容，包括：
+1. 主体物品或场景是什么
+2. 图片中的文字信息（如有）- 特别注意识别品牌标识，如果看到部分文字如"ckin"、"ickin"等，请推测完整品牌名（如Luckin瑞幸咖啡、Starbucks星巴克等）
+3. 颜色、品牌、标识等细节
+4. 其他值得注意的特征
 
-            print("\n🔍 图片识别 - 使用表格专用prompt")
+常见咖啡品牌参考：Luckin(瑞幸)、Starbucks(星巴克)、Costa、瑞幸咖啡等。
+请尽可能详细和准确地描述，如识别出品牌请直接说明。'''
+                print("\n🔍 图片识别 - 使用通用识别prompt")
 
             vision_result = vision_tool.analyze_image(
                 image_path=image_path,
@@ -365,13 +377,26 @@ def chat(
                 print(f"{'='*60}\n")
 
                 # 构建包含图片识别结果的完整消息
+                # 使用更清晰的提示词，让AI知道这是它自己识别的内容
                 if prompt:
                     combined_prompt = (
-                        f"[图片内容]: {vision_description}\n\n"
-                        f"[用户问题]: {prompt}"
+                        f"<vision_result>\n"
+                        f"我通过视觉能力识别到的图片内容：\n"
+                        f"{vision_description}\n"
+                        f"</vision_result>\n\n"
+                        f"用户问题：{prompt}\n\n"
+                        f"请基于我识别到的图片内容回答用户的问题。"
+                        f"如果识别到品牌相关的文字片段（如'ckin'、'kin'等），请结合常见品牌推理出完整品牌名。"
+                        f"直接回答用户的实际问题，不要说'这不是XXX'。"
                     )
                 else:
-                    combined_prompt = f"[图片内容]: {vision_description}"
+                    combined_prompt = (
+                        f"<vision_result>\n"
+                        f"我通过视觉能力识别到的图片内容：\n"
+                        f"{vision_description}\n"
+                        f"</vision_result>\n\n"
+                        f"请分析并解释这张图片的内容。"
+                    )
 
                 # 智能判断是否需要保存图片记忆
                 # 1. 用户明确要求记住
@@ -416,8 +441,11 @@ def chat(
                     print("ℹ️ 图片不需要记忆（普通照片）")
 
                 # 使用包含图片内容的完整消息进行对话
+                # 但保存到数据库时只保存用户的原始输入
                 return xiaole.chat(
-                    combined_prompt, session_id, user_id, response_style
+                    combined_prompt, session_id, user_id, response_style,
+                    image_path=image_path,
+                    original_user_prompt=prompt  # 用户的原始输入
                 )
             else:
                 # 图片识别失败，返回错误信息

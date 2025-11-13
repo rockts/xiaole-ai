@@ -97,7 +97,7 @@ class VisionTool:
             }
 
             data = {
-                "model": "qwen-vl-max",  # 使用 max 版本，识别更准确
+                "model": "qwen-vl-plus",  # 尝试 qwen-vl-plus 模型
                 "input": {
                     "messages": [{
                         "role": "user",
@@ -110,17 +110,33 @@ class VisionTool:
                 "parameters": {}
             }
 
-            response = requests.post(
-                url, headers=headers, json=data, timeout=30)
-            response.raise_for_status()
-            result = response.json()
+            # 增加超时时间到60秒，添加重试逻辑
+            max_retries = 2
+            last_error = None
+            for attempt in range(max_retries):
+                try:
+                    response = requests.post(
+                        url, headers=headers, json=data, timeout=60)
+                    response.raise_for_status()
+                    result = response.json()
+                    break  # 成功则跳出重试循环
+                except requests.exceptions.Timeout as e:
+                    last_error = e
+                    if attempt < max_retries - 1:
+                        print(
+                            f"⏳ Qwen API超时，正在重试 ({attempt + 1}/{max_retries})...")
+                        continue
+                    else:
+                        raise  # 最后一次失败则抛出异常
+                except Exception as e:
+                    raise  # 其他错误直接抛出
 
             if result.get('output') and result['output'].get('choices'):
                 description = result['output']['choices'][0]['message']['content'][0]['text']
                 return {
                     'success': True,
                     'description': description,
-                    'model': 'qwen-vl-max',
+                    'model': 'qwen-vl-plus',
                     'timestamp': datetime.now().isoformat()
                 }
             else:
@@ -334,7 +350,11 @@ class VisionTool:
                 result = self.analyze_with_qwen(image_path, prompt)
                 if result['success']:
                     return result
-                print(f"⚠️ Qwen失败: {result.get('error')}")
+                error_msg = result.get('error')
+                details = result.get('details', '')
+                print(f"⚠️ Qwen失败: {error_msg}")
+                if details:
+                    print(f"   详细错误: {details[:500]}")
 
             if valid_claude:
                 result = self.analyze_with_claude(image_path, prompt)

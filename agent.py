@@ -441,7 +441,8 @@ class XiaoLeAgent:
         return thought
 
     def chat(self, prompt, session_id=None, user_id="default_user",
-             response_style="balanced"):
+             response_style="balanced", image_path=None,
+             original_user_prompt=None):
         """
         v0.6.0: 支持上下文的对话方法（支持响应风格）
 
@@ -587,7 +588,11 @@ class XiaoLeAgent:
             reply = reminder_text + "\n\n" + reply
 
         # 保存用户消息和助手回复到会话表
-        self.conversation.add_message(session_id, "user", prompt)
+        # 如果有original_user_prompt，保存原始输入；否则保存完整prompt
+        user_message = original_user_prompt if original_user_prompt else prompt
+        self.conversation.add_message(
+            session_id, "user", user_message, image_path=image_path
+        )
         self.conversation.add_message(session_id, "assistant", reply)
 
         # 智能提取：让AI判断是否有关键事实需要记住

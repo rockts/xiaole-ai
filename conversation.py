@@ -68,12 +68,13 @@ class ConversationManager:
         self.session.commit()
         return session_id
 
-    def add_message(self, session_id, role, content):
+    def add_message(self, session_id, role, content, image_path=None):
         """添加消息到对话会话"""
         message = Message(
             session_id=session_id,
             role=role,
-            content=content
+            content=content,
+            image_path=image_path
         )
         self.session.add(message)
         self.session.commit()
@@ -100,7 +101,9 @@ class ConversationManager:
                 "role": m.role,
                 "content": m.content,
                 "timestamp": m.created_at.strftime('%Y-%m-%d %H:%M:%S'),
-                "created_at": m.created_at.strftime('%Y-%m-%d %H:%M:%S')
+                "created_at": m.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                "image_path": (m.image_path if hasattr(m, 'image_path')
+                               else None)
             }
             for m in messages
         ]

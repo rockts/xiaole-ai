@@ -3929,19 +3929,23 @@
 
             // 检查是否处于编辑模式 v0.6.0
             if (editingMessage) {
-                // 更新消息内容
-                const contentDiv = editingMessage.querySelector('.message-content');
-                contentDiv.textContent = message;
-
+                // 删除原来的消息及其后续的AI回复
+                const messageId = editingMessage.dataset.messageId;
+                
+                // 找到该消息后的第一条AI回复并删除
+                let nextElement = editingMessage.nextElementSibling;
+                if (nextElement && nextElement.classList.contains('assistant')) {
+                    nextElement.remove();
+                }
+                
+                // 删除原用户消息
+                editingMessage.remove();
+                
                 // 清除编辑状态
                 clearEditingState();
-                input.textContent = '';
-                sendBtn.disabled = false;
-                input.contentEditable = 'true';
-                input.focus();
-
-                showToast('消息已更新', 'success');
-                return;
+                
+                // 继续正常发送流程，触发新的回复
+                // 不要 return，让代码继续执行下面的发送逻辑
             }
 
             // 显示用户消息（包含图片）
@@ -4173,6 +4177,24 @@
                 img.onclick = () => openImageViewer(`/${imagePath}`);
                 imageDiv.appendChild(img);
                 contentDiv.appendChild(imageDiv);
+
+                // 清理消息内容：移除视觉识别结果的XML标签
+                // 只保留用户问题部分
+                const userQuestionMatch = content.match(/用户问题：(.+?)(?=\n\n请基于|$)/s);
+                if (userQuestionMatch) {
+                    content = userQuestionMatch[1].trim();
+                } else {
+                    // 兼容旧格式：移除 [图片内容]: 和 [用户问题]: 标记
+                    const oldFormatMatch = content.match(/\[用户问题\]:\s*(.+)/s);
+                    if (oldFormatMatch) {
+                        content = oldFormatMatch[1].trim();
+                    } else {
+                        // 移除 <vision_result> 标签内容
+                        content = content.replace(/<vision_result>[\s\S]*?<\/vision_result>/g, '').trim();
+                        // 移除"请基于..."等系统提示
+                        content = content.replace(/\n\n请基于.*?问题。?$/s, '').trim();
+                    }
+                }
             }
 
             // 添加文本内容
@@ -4248,7 +4270,7 @@
                 editBtn.className = 'message-action-btn edit';
                 editBtn.innerHTML = '✏️';
                 editBtn.title = '编辑消息';
-                editBtn.onclick = () => editMessage(messageDiv, content);
+                editBtn.onclick = () => editMessage(messageDiv, content, imagePath);
 
                 actionsDiv.appendChild(copyBtn);
                 actionsDiv.appendChild(editBtn);
@@ -4278,18 +4300,25 @@
 
         let editingMessage = null;
         let originalContent = '';
+        let editingImagePath = null;
 
         // 编辑消息
-        function editMessage(messageDiv, content) {
+        function editMessage(messageDiv, content, imagePath = null) {
             const input = document.getElementById('messageInput');
 
             // 保存编辑状态
             editingMessage = messageDiv;
             originalContent = input.textContent;
+            editingImagePath = imagePath;
 
             // 将消息内容加载到输入框
             input.textContent = content;
             input.focus();
+
+            // 如果有图片，显示图片预览
+            if (imagePath) {
+                showImagePreviewInInput(imagePath);
+            }
 
             // 显示编辑提示
             showEditingIndicator();
@@ -4313,6 +4342,7 @@
         // 清除编辑状态
         function clearEditingState() {
             editingMessage = null;
+            editingImagePath = null;
             originalContent = '';
 
             const indicator = document.querySelector('.editing-indicator');
@@ -4897,7 +4927,8 @@
                 const messages = data.messages || data.history || [];
                 if (messages.length > 0) {
                     messages.forEach(msg => {
-                        addMessage(msg.role, msg.content, null, null, false);  // 历史消息不播放语音
+                        // 传递 image_path 参数，历史消息不播放语音
+                        addMessage(msg.role, msg.content, null, msg.image_path, false);
                     });
                 }
 
@@ -8015,6 +8046,41 @@
             if (fileInput) {
                 fileInput.value = '';
             }
+        }
+
+        /**
+         * 在输入框中显示已存在的图片预览（用于编辑消息）
+         */
+        function showImagePreviewInInput(imagePath) {
+            console.log('🖼️ showImagePreviewInInput called', { imagePath });
+            
+            // 创建预览容器
+            const previewHtml = `
+                <div class="image-preview" id="imagePreview">
+                    <div class="image-preview-header">
+                        <span>📷 原消息图片</span>
+                        <button onclick="removeImagePreview()" class="remove-btn">✕</button>
+                    </div>
+                    <img src="/${imagePath}" alt="预览图" style="max-width: 200px; max-height: 200px; border-radius: 8px;">
+                    <div class="image-preview-actions">
+                        <div style="font-size: 13px; color: var(--text-secondary); margin-top: 8px;">
+                            💡 编辑消息时保留原图片
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // 插入到输入框上方
+            const inputContainer = document.querySelector('.input-container');
+            const existing = document.getElementById('imagePreview');
+            if (existing) {
+                existing.remove();
+            }
+            inputContainer.insertAdjacentHTML('beforebegin', previewHtml);
+            
+            // 设置上传的图片路径，以便发送时使用
+            uploadedImagePath = imagePath;
+            console.log('✅ Preview inserted for editing');
         }
 
         /**
