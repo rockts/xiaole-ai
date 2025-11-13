@@ -462,49 +462,31 @@ def chat(
 
     # 没有图片，正常对话
     result = xiaole.chat(prompt, session_id, user_id, response_style)
-    
+
     # v0.7.0: 智能追问 - 分析对话后判断是否需要主动追问
     try:
         # 获取实际使用的session_id（可能是新创建的）
-        actual_session_id = result.get('session_id') if isinstance(result, dict) else session_id
-        
+        actual_session_id = result.get('session_id') if isinstance(
+            result, dict) else session_id
+
+        # v0.7.1: 禁用自动追问功能
+        # 保留后台分析能力，但不自动添加追问到回复中
+        # 小乐可以通过正常对话主动提问
         if actual_session_id:
-            # 分析对话，检测是否需要追问
-            qa_result = proactive_qa.analyze_conversation(actual_session_id, user_id)
-            
-            if qa_result.get('needs_followup') and qa_result.get('questions'):
-                # 获取置信度最高的问题
-                questions = sorted(
-                    qa_result['questions'],
-                    key=lambda x: x.get('confidence', 0),
-                    reverse=True
-                )
-                
-                top_question = questions[0]
-                
-                # 只有置信度>70才追问（避免过度打扰）
-                if top_question.get('confidence', 0) > 70:
-                    # 生成追问
-                    followup = proactive_qa.generate_followup_question(
-                        top_question.get('question', ''),
-                        top_question.get('missing_info', []),
-                        top_question.get('ai_response', ''),
-                        top_question.get('type', 'incomplete'),
-                        top_question.get('reason', '')
-                    )
-                    
-                    # 在回复中添加追问（使用自然的格式）
-                    if isinstance(result, dict):
-                        original_reply = result.get('reply', '')
-                        result['reply'] = f"{original_reply}\n\n💭 {followup}"
-                        result['has_followup'] = True
-                        result['followup_type'] = top_question.get('type')
-                        
-                        print(f"✅ 智能追问已添加: [{top_question.get('type')}] {followup}")
+            # 后台记录潜在的追问点（用于调试和分析）
+            try:
+                qa_result = proactive_qa.analyze_conversation(
+                    actual_session_id, user_id)
+
+                if qa_result.get('needs_followup'):
+                    count = len(qa_result.get('questions', []))
+                    print(f"📊 检测到 {count} 个潜在追问点（已禁用自动追问）")
+            except Exception as e:
+                print(f"⚠️ 追问分析异常: {e}")
     except Exception as e:
         # 追问功能出错不影响正常对话
-        print(f"⚠️ 智能追问功能异常: {e}")
-    
+        print(f"⚠️ 追问模块异常: {e}")
+
     return result
 
 

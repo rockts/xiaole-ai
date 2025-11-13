@@ -4001,9 +4001,10 @@
                     currentSessionId = data.session_id;
                     addMessage('assistant', data.reply);
 
-                    if (data.followup) {
-                        showFollowupSuggestion(data.followup);
-                    }
+                    // v0.7.1: 已禁用追问弹窗，小乐通过正常对话主动提问
+                    // if (data.followup) {
+                    //     showFollowupSuggestion(data.followup);
+                    // }
                 } else {
                     addMessage('assistant', '抱歉，出现错误：' + (data.detail || '未知错误'));
                 }
@@ -4370,7 +4371,38 @@
         // 复制消息
         async function copyMessage(content, button) {
             try {
-                await navigator.clipboard.writeText(content);
+                // 如果content包含HTML标签，提取纯文本
+                let textToCopy = content;
+
+                // 创建临时div来解析HTML并提取纯文本
+                if (content.includes('<') || content.includes('>')) {
+                    const tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = content;
+
+                    // 处理代码块：直接提取文本，不修改DOM
+                    const codeBlocks = tempDiv.querySelectorAll('pre code');
+                    let processedText = tempDiv.innerHTML;
+                    codeBlocks.forEach(code => {
+                        const codeText = code.textContent;
+                        const pre = code.closest('pre');
+                        if (pre) {
+                            const placeholder = `___CODE_BLOCK___${codeText}___END_CODE___`;
+                            processedText = processedText.replace(pre.outerHTML, placeholder);
+                        }
+                    });
+
+                    // 重新设置HTML
+                    tempDiv.innerHTML = processedText;
+
+                    // 获取纯文本
+                    textToCopy = tempDiv.textContent
+                        .replace(/___CODE_BLOCK___/g, '\n```\n')
+                        .replace(/___END_CODE___/g, '\n```\n')
+                        .replace(/\n{3,}/g, '\n\n')  // 移除多余空行
+                        .trim();
+                }
+
+                await navigator.clipboard.writeText(textToCopy);
 
                 // 临时改变按钮显示
                 const originalText = button.innerHTML;

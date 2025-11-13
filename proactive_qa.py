@@ -72,7 +72,23 @@ class SmartTrigger:
             "可能", "大概", "应该", "或许", "不太确定",
             "我猜", "似乎", "好像", "也许"
         ]
-        if any(marker in answer for marker in uncertainty_markers):
+
+        # 排除明确性词汇（避免误判）
+        certainty_indicators = [
+            "已经", "确认", "明确", "肯定", "一定", "必须",
+            "完成", "删除", "更新", "修改", "保存"
+        ]
+
+        # 如果回答中包含明确性词汇，降低触发概率
+        has_certainty = any(
+            indicator in answer for indicator in certainty_indicators
+        )
+        has_uncertainty = any(
+            marker in answer for marker in uncertainty_markers
+        )
+
+        # 只有在有不确定词且没有明确词时才触发
+        if has_uncertainty and not has_certainty:
             return True, "模糊回答_需要明确"
 
         # 2. 检测回答过短（问题复杂但回答简单）
@@ -95,7 +111,7 @@ class SmartTrigger:
         """
         检测新信息与历史记忆的冲突
         返回: (是否冲突, 冲突的旧信息)
-        
+
         v0.7.0优化: 使用更智能的相似度匹配
         """
         # 从记忆层获取相关历史facts（使用recall方法）
@@ -105,13 +121,13 @@ class SmartTrigger:
             # 1. 简单冲突检测：检查否定词
             if self._has_negation_conflict(new_fact, old_fact):
                 return True, old_fact
-            
+
             # 2. 语义冲突检测：内容相似但含义相反
             if self._has_semantic_conflict(new_fact, old_fact):
                 return True, old_fact
 
         return False, ""
-    
+
     def _has_semantic_conflict(self, new: str, old: str) -> bool:
         """
         检测语义冲突（更智能的匹配）
@@ -130,43 +146,44 @@ class SmartTrigger:
             for word in remove_words:
                 result = result.replace(word, "")
             return result.strip()
-        
+
         new_subject = extract_subject(new)
         old_subject = extract_subject(old)
-        
+
         # 如果主题词相似度>70%，但含义相反
         if new_subject and old_subject:
-            similarity = self._calculate_text_similarity(new_subject, old_subject)
+            similarity = self._calculate_text_similarity(
+                new_subject, old_subject)
             if similarity > 0.7:
                 # 检查情感极性是否相反
                 positive_words = ["喜欢", "爱", "想", "要", "会", "能", "是", "有"]
                 negative_words = ["不喜欢", "讨厌", "不想", "不要", "不会",
-                                 "不能", "不是", "没有", "无", "非"]
-                
+                                  "不能", "不是", "没有", "无", "非"]
+
                 new_is_positive = any(w in new for w in positive_words)
                 new_is_negative = any(w in new for w in negative_words)
                 old_is_positive = any(w in old for w in positive_words)
                 old_is_negative = any(w in old for w in negative_words)
-                
+
                 # 一个积极一个消极 → 冲突
                 if (new_is_positive and old_is_negative) or \
                    (new_is_negative and old_is_positive):
                     return True
-        
+
         return False
-    
+
     def _calculate_text_similarity(self, text1: str, text2: str) -> float:
         """计算文本相似度（0-1）"""
         if not text1 or not text2:
             return 0.0
-        
+
         # 字符级Jaccard相似度
         chars1 = set(text1)
         chars2 = set(text2)
-        
+
         intersection = len(chars1 & chars2)
         union = len(chars1 | chars2)
-        
+
         return intersection / union if union > 0 else 0.0
 
     def _has_negation_conflict(self, new: str, old: str) -> bool:
@@ -240,12 +257,12 @@ class SmartTrigger:
             if match:
                 return match.group(1)
         return "任务"
-    
+
     def detect_user_impatience(self, session_id: str) -> tuple[bool, str]:
         """
         检测用户不耐烦情绪
         返回: (是否不耐烦, 原因)
-        
+
         v0.7.0新增: 情感感知，避免过度追问
         """
         # 获取最近3条用户消息
@@ -253,32 +270,32 @@ class SmartTrigger:
             Message.session_id == session_id,
             Message.role == "user"
         ).order_by(Message.created_at.desc()).limit(3).all()
-        
+
         if len(recent_user_msgs) < 2:
             return False, ""
-        
+
         # 不耐烦标志词
         impatience_markers = [
             "别问了", "不要问", "够了", "算了", "随便", "无所谓",
             "不想说", "不用", "不需要", "停", "别", "烦",
             "知道了", "明白了", "懂了", "行了", "好了"
         ]
-        
+
         # 检查最近的消息
         latest_msg = recent_user_msgs[0].content
         for marker in impatience_markers:
             if marker in latest_msg:
                 return True, f"用户表达不耐烦: '{marker}'"
-        
+
         # 检测重复短回复（如连续的"嗯"、"好"）
         if len(recent_user_msgs) >= 2:
             msg1 = recent_user_msgs[0].content.strip()
             msg2 = recent_user_msgs[1].content.strip()
-            
+
             if len(msg1) <= 2 and len(msg2) <= 2:
                 if msg1 == msg2 or msg1 in ["嗯", "哦", "好", "行"]:
                     return True, "用户连续短回复，可能失去兴趣"
-        
+
         return False, ""
 
 
@@ -480,7 +497,7 @@ class ProactiveQA:
             # v0.6.2: 检查是否应该冷却
             if self._should_cooldown():
                 return {"needs_followup": False, "questions": []}
-            
+
             # v0.7.0: 情感感知 - 检测用户是否不耐烦
             is_impatient, reason = self.smart_trigger.detect_user_impatience(
                 session_id

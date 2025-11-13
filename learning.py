@@ -43,7 +43,7 @@ Base = declarative_base()
 class KnowledgeNode(Base):
     """知识节点 - 用户学到的每个知识点"""
     __tablename__ = 'knowledge_nodes'
-    
+
     id = Column(Integer, primary_key=True)
     user_id = Column(String(255), nullable=False, index=True)
     topic = Column(String(255), nullable=False, index=True)  # 主题
@@ -59,7 +59,7 @@ class KnowledgeNode(Base):
 class LearningProgress(Base):
     """学习进度 - 用户对某个主题的整体掌握情况"""
     __tablename__ = 'learning_progress'
-    
+
     id = Column(Integer, primary_key=True)
     user_id = Column(String(255), nullable=False, index=True)
     topic = Column(String(255), nullable=False, index=True)
@@ -74,7 +74,7 @@ class LearningProgress(Base):
 class LearningPreference(Base):
     """学习偏好 - 用户的学习方式和兴趣"""
     __tablename__ = 'learning_preferences'
-    
+
     id = Column(Integer, primary_key=True)
     user_id = Column(String(255), nullable=False, unique=True, index=True)
     preferred_topics = Column(Text)  # 偏好主题（JSON列表）
@@ -90,12 +90,12 @@ class LearningPreference(Base):
 # ====================
 class LearningManager:
     """学习层管理器"""
-    
+
     def __init__(self):
         self.session = SessionLocal()
         # 确保表存在
         Base.metadata.create_all(engine)
-    
+
     def add_knowledge(
         self,
         user_id: str,
@@ -107,7 +107,7 @@ class LearningManager:
     ) -> int:
         """
         添加新知识点
-        
+
         Args:
             user_id: 用户ID
             topic: 主题（如"Python编程"、"咖啡知识"）
@@ -115,7 +115,7 @@ class LearningManager:
             session_id: 来源会话ID
             mastery_level: 初始掌握程度（默认0.3，表示初步了解）
             related_topics: 关联主题列表
-        
+
         Returns:
             知识点ID
         """
@@ -125,7 +125,7 @@ class LearningManager:
             topic=topic,
             content=content
         ).first()
-        
+
         if existing:
             # 更新掌握程度（每次提到都增加）
             existing.mastery_level = min(
@@ -133,11 +133,11 @@ class LearningManager:
             )
             existing.updated_at = datetime.now()
             self.session.commit()
-            
+
             # 更新进度
             self._update_progress(user_id, topic)
             return existing.id
-        
+
         # 创建新知识点
         knowledge = KnowledgeNode(
             user_id=user_id,
@@ -150,12 +150,12 @@ class LearningManager:
         )
         self.session.add(knowledge)
         self.session.commit()
-        
+
         # 更新进度
         self._update_progress(user_id, topic)
-        
+
         return knowledge.id
-    
+
     def _update_progress(self, user_id: str, topic: str):
         """更新学习进度"""
         # 统计该主题下的所有知识点
@@ -163,20 +163,20 @@ class LearningManager:
             user_id=user_id,
             topic=topic
         ).all()
-        
+
         if not knowledge_list:
             return
-        
+
         total = len(knowledge_list)
         mastered = sum(1 for k in knowledge_list if k.mastery_level >= 0.7)
         avg_mastery = sum(k.mastery_level for k in knowledge_list) / total
-        
+
         # 更新或创建进度记录
         progress = self.session.query(LearningProgress).filter_by(
             user_id=user_id,
             topic=topic
         ).first()
-        
+
         if progress:
             progress.total_knowledge_count = total
             progress.mastered_count = mastered
@@ -192,9 +192,9 @@ class LearningManager:
                 last_learned_at=datetime.now()
             )
             self.session.add(progress)
-        
+
         self.session.commit()
-    
+
     def get_knowledge_gaps(
         self,
         user_id: str,
@@ -202,7 +202,7 @@ class LearningManager:
     ) -> List[Dict]:
         """
         获取知识空白（掌握程度低的知识点）
-        
+
         Returns:
             [
                 {
@@ -214,13 +214,13 @@ class LearningManager:
             ]
         """
         query = self.session.query(KnowledgeNode).filter_by(user_id=user_id)
-        
+
         if topic:
             query = query.filter_by(topic=topic)
-        
+
         # 找出掌握程度<0.5的知识点
         gaps = query.filter(KnowledgeNode.mastery_level < 0.5).all()
-        
+
         result = []
         for gap in gaps:
             result.append({
@@ -230,11 +230,11 @@ class LearningManager:
                 'gap_score': 1.0 - gap.mastery_level,
                 'last_updated': gap.updated_at.isoformat()
             })
-        
+
         # 按空白程度排序
         result.sort(key=lambda x: x['gap_score'], reverse=True)
         return result
-    
+
     def get_learning_progress(
         self,
         user_id: str,
@@ -242,7 +242,7 @@ class LearningManager:
     ) -> List[Dict]:
         """
         获取学习进度报告
-        
+
         Returns:
             [
                 {
@@ -258,12 +258,12 @@ class LearningManager:
         query = self.session.query(LearningProgress).filter_by(
             user_id=user_id
         )
-        
+
         if topic:
             query = query.filter_by(topic=topic)
-        
+
         progress_list = query.all()
-        
+
         result = []
         for p in progress_list:
             progress_pct = (
@@ -281,9 +281,9 @@ class LearningManager:
                     if p.last_learned_at else None
                 )
             })
-        
+
         return result
-    
+
     def recommend_topics(
         self,
         user_id: str,
@@ -291,7 +291,7 @@ class LearningManager:
     ) -> List[Dict]:
         """
         推荐相关话题（基于已学知识）
-        
+
         Returns:
             [
                 {
@@ -305,10 +305,10 @@ class LearningManager:
         knowledge_list = self.session.query(KnowledgeNode).filter_by(
             user_id=user_id
         ).all()
-        
+
         if not knowledge_list:
             return []
-        
+
         # 提取所有关联主题
         related_topics_count = {}
         for k in knowledge_list:
@@ -321,10 +321,10 @@ class LearningManager:
                         )
                 except:
                     pass
-        
+
         # 排除已经学习的主题
         learned_topics = set(k.topic for k in knowledge_list)
-        
+
         recommendations = []
         for topic, count in related_topics_count.items():
             if topic not in learned_topics:
@@ -333,11 +333,11 @@ class LearningManager:
                     'reason': f'与你已学的{count}个知识点相关',
                     'relevance': count / len(knowledge_list)
                 })
-        
+
         # 按相关度排序
         recommendations.sort(key=lambda x: x['relevance'], reverse=True)
         return recommendations[:limit]
-    
+
     def detect_learning_plateau(
         self,
         user_id: str,
@@ -346,7 +346,7 @@ class LearningManager:
     ) -> Tuple[bool, str]:
         """
         检测学习平台期（长时间无进步）
-        
+
         Returns:
             (是否进入平台期, 原因)
         """
@@ -355,25 +355,25 @@ class LearningManager:
             user_id=user_id,
             topic=topic
         ).first()
-        
+
         if not progress:
             return False, ""
-        
+
         # 检查最近是否有学习
         if progress.last_learned_at:
             days_since_last = (
                 datetime.now() - progress.last_learned_at
             ).days
-            
+
             if days_since_last > days:
                 return True, f"已经{days_since_last}天没有学习{topic}了"
-        
+
         # 检查是否掌握程度停滞
         if progress.avg_mastery_level < 0.5 and progress.total_knowledge_count > 5:
             return True, f"{topic}掌握程度偏低（{progress.avg_mastery_level:.0%}）"
-        
+
         return False, ""
-    
+
     def close(self):
         """关闭会话"""
         self.session.close()
@@ -399,7 +399,7 @@ def get_learning_manager() -> LearningManager:
 if __name__ == "__main__":
     # 测试学习层功能
     lm = LearningManager()
-    
+
     # 添加一些测试数据
     print("=" * 60)
     print("测试1: 添加知识点")
@@ -417,7 +417,7 @@ if __name__ == "__main__":
         mastery_level=0.3
     )
     print("✅ 知识点已添加")
-    
+
     print("\n" + "=" * 60)
     print("测试2: 查询学习进度")
     progress = lm.get_learning_progress("test_user")
@@ -426,7 +426,7 @@ if __name__ == "__main__":
         print(f"进度: {p['progress']}%")
         print(f"已掌握: {p['mastered']}/{p['total_knowledge']}")
         print(f"平均掌握度: {p['avg_mastery']}")
-    
+
     print("\n" + "=" * 60)
     print("测试3: 检测知识空白")
     gaps = lm.get_knowledge_gaps("test_user")
@@ -436,7 +436,7 @@ if __name__ == "__main__":
         print(f"掌握度: {gap['mastery_level']:.0%}")
         print(f"空白分数: {gap['gap_score']:.2f}")
         print()
-    
+
     lm.close()
     print("=" * 60)
     print("所有测试完成！")
