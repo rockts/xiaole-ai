@@ -831,22 +831,22 @@ class XiaoLeAgent:
         params = {
             'concise': {
                 'temperature': 0.3,  # 更确定性
-                'max_tokens': 256,   # 更短
+                'max_tokens': 512,   # 简短回复
                 'top_p': 0.8
             },
             'balanced': {
                 'temperature': 0.5,  # 适中
-                'max_tokens': 512,   # 适中
+                'max_tokens': 2048,  # 适中（支持长文本）
                 'top_p': 0.9
             },
             'detailed': {
                 'temperature': 0.7,  # 更创造性
-                'max_tokens': 1024,  # 更长
+                'max_tokens': 4096,  # 更长（支持长文章）
                 'top_p': 0.95
             },
             'professional': {
                 'temperature': 0.4,  # 较确定性
-                'max_tokens': 768,   # 较长
+                'max_tokens': 3072,  # 较长（专业长文）
                 'top_p': 0.85
             }
         }

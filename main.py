@@ -66,6 +66,15 @@ class TTSRequest(BaseModel):
     audio_format: str = "mp3"  # mp3|wav|pcm
 
 
+# v0.8.1: 用户反馈请求体
+class FeedbackRequest(BaseModel):
+    session_id: str
+    message_content: str
+    feedback_type: str  # 'good' or 'bad'
+    timestamp: str
+    user_id: str = "default_user"
+
+
 xiaole = XiaoLeAgent()
 conflict_detector = ConflictDetector()  # v0.3.0 冲突检测器
 proactive_qa = ProactiveQA()  # v0.3.0 主动问答分析器
@@ -1760,6 +1769,122 @@ def delete_document_api(doc_id: int):
             "success": success
         }
     except Exception as e:
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
+# ==================== v0.8.1 用户反馈系统 ====================
+
+@app.post("/api/feedback")
+async def submit_feedback(feedback: FeedbackRequest):
+    """
+    提交用户反馈
+    用于记录用户对AI回复的评价，帮助改进模型
+    """
+    try:
+        from reminder_manager import get_db_connection
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # 插入反馈记录
+        cursor.execute("""
+            INSERT INTO message_feedback 
+            (session_id, user_id, message_content, feedback_type, created_at)
+            VALUES (%s, %s, %s, %s, %s)
+            RETURNING feedback_id
+        """, (
+            feedback.session_id,
+            feedback.user_id,
+            feedback.message_content,
+            feedback.feedback_type,
+            feedback.timestamp
+        ))
+
+        feedback_id = cursor.fetchone()[0]
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+        # 如果是负面反馈，可以触发额外的学习机制
+        if feedback.feedback_type == 'bad':
+            # TODO: 未来可以在这里添加自动改进逻辑
+            # 例如：分析错误模式、调整提示词等
+            pass
+
+        return {
+            "success": True,
+            "feedback_id": feedback_id,
+            "message": "反馈已记录，感谢您的反馈！"
+        }
+
+    except Exception as e:
+        print(f"❌ 反馈提交失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/feedback/stats")
+def get_feedback_stats():
+    """
+    获取反馈统计数据
+    用于分析AI回复质量
+    """
+    try:
+        from reminder_manager import get_db_connection
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # 获取总体统计
+        cursor.execute("""
+            SELECT 
+                feedback_type,
+                COUNT(*) as count,
+                DATE(created_at) as date
+            FROM message_feedback
+            WHERE created_at >= NOW() - INTERVAL '30 days'
+            GROUP BY feedback_type, DATE(created_at)
+            ORDER BY date DESC
+        """)
+
+        stats = []
+        for row in cursor.fetchall():
+            stats.append({
+                "feedback_type": row[0],
+                "count": row[1],
+                "date": str(row[2])
+            })
+
+        # 获取总体好评率
+        cursor.execute("""
+            SELECT 
+                SUM(CASE WHEN feedback_type = 'good' THEN 1 ELSE 0 END) as good_count,
+                SUM(CASE WHEN feedback_type = 'bad' THEN 1 ELSE 0 END) as bad_count,
+                COUNT(*) as total_count
+            FROM message_feedback
+        """)
+
+        row = cursor.fetchone()
+        summary = {
+            "good_count": row[0] or 0,
+            "bad_count": row[1] or 0,
+            "total_count": row[2] or 0,
+            "satisfaction_rate": round((row[0] or 0) / (row[2] or 1) * 100, 2) if row[2] else 0
+        }
+
+        cursor.close()
+        conn.close()
+
+        return {
+            "success": True,
+            "stats": stats,
+            "summary": summary
+        }
+
+    except Exception as e:
+        print(f"❌ 获取反馈统计失败: {e}")
         return {
             "success": False,
             "error": str(e)
