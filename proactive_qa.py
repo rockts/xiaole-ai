@@ -1,12 +1,13 @@
 """
-主动问答模块 - v0.6.2 优化版
-识别用户未完整回答的问题，主动追问，提升对话体验
+主动问答模块 - v0.7.0 智能优化版
+基于上下文、记忆和不确定性的智能提问系统
 
-v0.6.0更新:
-- 优化置信度计算算法
-- 改进追问生成的自然度
-- 添加可配置的阈值
-- 减少误判率
+v0.7.0 重大更新:
+- 集成记忆层，读取用户偏好和历史学习内容
+- 基于"知识空白"和"不确定性"触发提问
+- 检测信息冲突（新旧信息不一致）
+- 任务反馈追踪（任务完成但未反馈）
+- 上下文连贯性分析
 
 v0.6.2更新:
 - 添加问题去重机制，避免重复追问
@@ -17,6 +18,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from db_setup import ProactiveQuestion, Message
 from datetime import datetime, timedelta
+from memory import MemoryManager
+from learning import get_learning_manager  # v0.7.0 学习层集成
 import os
 import re
 import json
@@ -40,6 +43,243 @@ engine = create_engine(
     else {'client_encoding': 'utf8'}
 )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+
+# ====================
+# 智能触发器类 - v0.7.0新增
+# ====================
+class SmartTrigger:
+    """
+    基于上下文和不确定性的智能触发器
+
+    触发场景：
+    1. 知识空白：用户提问但AI回答模糊/不完整
+    2. 信息冲突：新回答与历史记忆矛盾
+    3. 任务反馈：任务完成但用户未反馈效果
+    4. 学习延续：上次话题中断，可继续深入
+    """
+
+    def __init__(self, memory_manager: MemoryManager):
+        self.memory = memory_manager
+
+    def detect_knowledge_gap(self, question: str, answer: str) -> tuple[bool, str]:
+        """
+        检测知识空白
+        返回: (是否有空白, 缺失信息类型)
+        """
+        # 1. 检测模糊回答标记词
+        uncertainty_markers = [
+            "可能", "大概", "应该", "或许", "不太确定",
+            "我猜", "似乎", "好像", "也许"
+        ]
+        if any(marker in answer for marker in uncertainty_markers):
+            return True, "模糊回答_需要明确"
+
+        # 2. 检测回答过短（问题复杂但回答简单）
+        if len(question) > 20 and len(answer) < 50:
+            return True, "回答过简_需要展开"
+
+        # 3. 检测缺少关键信息（如时间、地点、方式）
+        question_lower = question.lower()
+        if any(word in question_lower for word in ["什么时候", "when", "何时"]):
+            if not any(word in answer for word in ["时间", "日期", "点", "月", "年"]):
+                return True, "缺少时间信息"
+
+        if any(word in question_lower for word in ["怎么", "如何", "how"]):
+            if len(answer) < 100:  # 方法类问题回答应该详细
+                return True, "缺少步骤说明"
+
+        return False, ""
+
+    def detect_memory_conflict(self, new_fact: str) -> tuple[bool, str]:
+        """
+        检测新信息与历史记忆的冲突
+        返回: (是否冲突, 冲突的旧信息)
+        
+        v0.7.0优化: 使用更智能的相似度匹配
+        """
+        # 从记忆层获取相关历史facts（使用recall方法）
+        memories = self.memory.recall(tag="facts", keyword=None, limit=10)
+
+        for old_fact in memories:
+            # 1. 简单冲突检测：检查否定词
+            if self._has_negation_conflict(new_fact, old_fact):
+                return True, old_fact
+            
+            # 2. 语义冲突检测：内容相似但含义相反
+            if self._has_semantic_conflict(new_fact, old_fact):
+                return True, old_fact
+
+        return False, ""
+    
+    def _has_semantic_conflict(self, new: str, old: str) -> bool:
+        """
+        检测语义冲突（更智能的匹配）
+        例如："喜欢咖啡" vs "讨厌咖啡"
+        """
+        # 提取主题词（名词）
+        def extract_subject(text: str) -> str:
+            """简单提取主题词"""
+            # 移除常见动词和情感词
+            remove_words = [
+                "喜欢", "不喜欢", "爱", "讨厌", "想", "不想",
+                "要", "不要", "会", "不会", "能", "不能",
+                "是", "不是", "有", "没有"
+            ]
+            result = text
+            for word in remove_words:
+                result = result.replace(word, "")
+            return result.strip()
+        
+        new_subject = extract_subject(new)
+        old_subject = extract_subject(old)
+        
+        # 如果主题词相似度>70%，但含义相反
+        if new_subject and old_subject:
+            similarity = self._calculate_text_similarity(new_subject, old_subject)
+            if similarity > 0.7:
+                # 检查情感极性是否相反
+                positive_words = ["喜欢", "爱", "想", "要", "会", "能", "是", "有"]
+                negative_words = ["不喜欢", "讨厌", "不想", "不要", "不会",
+                                 "不能", "不是", "没有", "无", "非"]
+                
+                new_is_positive = any(w in new for w in positive_words)
+                new_is_negative = any(w in new for w in negative_words)
+                old_is_positive = any(w in old for w in positive_words)
+                old_is_negative = any(w in old for w in negative_words)
+                
+                # 一个积极一个消极 → 冲突
+                if (new_is_positive and old_is_negative) or \
+                   (new_is_negative and old_is_positive):
+                    return True
+        
+        return False
+    
+    def _calculate_text_similarity(self, text1: str, text2: str) -> float:
+        """计算文本相似度（0-1）"""
+        if not text1 or not text2:
+            return 0.0
+        
+        # 字符级Jaccard相似度
+        chars1 = set(text1)
+        chars2 = set(text2)
+        
+        intersection = len(chars1 & chars2)
+        union = len(chars1 | chars2)
+        
+        return intersection / union if union > 0 else 0.0
+
+    def _has_negation_conflict(self, new: str, old: str) -> bool:
+        """检测否定冲突（如"喜欢咖啡" vs "不喜欢咖啡"）"""
+        negation_words = ["不", "没", "无", "非", "never", "no", "not"]
+
+        # 提取关键词（去除否定词）
+        new_clean = new
+        old_clean = old
+        for neg in negation_words:
+            new_clean = new_clean.replace(neg, "")
+            old_clean = old_clean.replace(neg, "")
+
+        # 如果去除否定词后相似，但原文中一个有否定词一个没有→冲突
+        if new_clean == old_clean:
+            new_has_neg = any(neg in new for neg in negation_words)
+            old_has_neg = any(neg in old for neg in negation_words)
+            if new_has_neg != old_has_neg:
+                return True
+
+        return False
+
+    def detect_task_feedback_missing(self, session_id: str) -> tuple[bool, str]:
+        """
+        检测任务完成但缺少反馈
+        返回: (是否需要反馈, 任务描述)
+
+        场景：AI执行了文件操作/提醒设置，但用户没有确认效果
+        """
+        # 获取最近5条消息
+        recent = self.memory.session.query(Message).filter(
+            Message.session_id == session_id
+        ).order_by(Message.created_at.desc()).limit(5).all()
+
+        if not recent:
+            return False, ""
+
+        # 检测任务执行标志
+        task_keywords = ["已设置", "已保存", "已创建", "完成", "done", "created"]
+        feedback_keywords = ["谢谢", "好的", "收到", "明白了", "不错", "很好"]
+
+        for msg in recent[:3]:  # 只检查最近3条
+            if msg.role == "assistant":
+                content = msg.content.lower()
+                # AI提到完成任务
+                if any(kw in content for kw in task_keywords):
+                    # 检查后续是否有用户反馈
+                    has_feedback = False
+                    for next_msg in recent:
+                        if next_msg.created_at > msg.created_at and next_msg.role == "user":
+                            if any(kw in next_msg.content for kw in feedback_keywords):
+                                has_feedback = True
+                                break
+
+                    if not has_feedback:
+                        # 提取任务描述
+                        task_desc = self._extract_task_description(msg.content)
+                        return True, task_desc
+
+        return False, ""
+
+    def _extract_task_description(self, text: str) -> str:
+        """从AI回复中提取任务描述"""
+        # 简单提取：找"已"字前的动词短语
+        patterns = [
+            r"([\u4e00-\u9fa5]{2,6})已",  # "设置提醒已"
+            r"已([\u4e00-\u9fa5]{2,6})",  # "已创建文件"
+        ]
+        for pattern in patterns:
+            match = re.search(pattern, text)
+            if match:
+                return match.group(1)
+        return "任务"
+    
+    def detect_user_impatience(self, session_id: str) -> tuple[bool, str]:
+        """
+        检测用户不耐烦情绪
+        返回: (是否不耐烦, 原因)
+        
+        v0.7.0新增: 情感感知，避免过度追问
+        """
+        # 获取最近3条用户消息
+        recent_user_msgs = self.memory.session.query(Message).filter(
+            Message.session_id == session_id,
+            Message.role == "user"
+        ).order_by(Message.created_at.desc()).limit(3).all()
+        
+        if len(recent_user_msgs) < 2:
+            return False, ""
+        
+        # 不耐烦标志词
+        impatience_markers = [
+            "别问了", "不要问", "够了", "算了", "随便", "无所谓",
+            "不想说", "不用", "不需要", "停", "别", "烦",
+            "知道了", "明白了", "懂了", "行了", "好了"
+        ]
+        
+        # 检查最近的消息
+        latest_msg = recent_user_msgs[0].content
+        for marker in impatience_markers:
+            if marker in latest_msg:
+                return True, f"用户表达不耐烦: '{marker}'"
+        
+        # 检测重复短回复（如连续的"嗯"、"好"）
+        if len(recent_user_msgs) >= 2:
+            msg1 = recent_user_msgs[0].content.strip()
+            msg2 = recent_user_msgs[1].content.strip()
+            
+            if len(msg1) <= 2 and len(msg2) <= 2:
+                if msg1 == msg2 or msg1 in ["嗯", "哦", "好", "行"]:
+                    return True, "用户连续短回复，可能失去兴趣"
+        
+        return False, ""
 
 
 class ProactiveQA:
@@ -77,6 +317,10 @@ class ProactiveQA:
         self.max_recent = 10  # 保留最近10个问题用于去重
         self.cooldown_seconds = 300  # 同一问题冷却时间（5分钟）
         self.last_ask_time = None  # 上次追问时间
+
+        # v0.7.0: 集成记忆管理器和智能触发器
+        self.memory = MemoryManager()
+        self.smart_trigger = SmartTrigger(self.memory)
 
     def is_question(self, text: str) -> bool:
         """判断文本是否为问句"""
@@ -236,6 +480,14 @@ class ProactiveQA:
             # v0.6.2: 检查是否应该冷却
             if self._should_cooldown():
                 return {"needs_followup": False, "questions": []}
+            
+            # v0.7.0: 情感感知 - 检测用户是否不耐烦
+            is_impatient, reason = self.smart_trigger.detect_user_impatience(
+                session_id
+            )
+            if is_impatient:
+                print(f"😔 检测到用户不耐烦: {reason}，停止追问")
+                return {"needs_followup": False, "questions": []}
 
             # 反转消息顺序（从旧到新）
             messages = list(reversed(messages))
@@ -282,6 +534,62 @@ class ProactiveQA:
                                 "confidence": confidence,
                                 "ai_response": ai_response
                             })
+
+            # v0.7.0: 智能触发 - 检测知识空白、信息冲突、任务反馈
+            for i in range(len(messages) - 1):
+                current_msg = messages[i]
+                next_msg = messages[i + 1]
+
+                if (current_msg.role == "user" and
+                        next_msg.role == "assistant"):
+
+                    user_text = current_msg.content
+                    ai_response = next_msg.content
+
+                    # 1. 知识空白检测
+                    has_gap, gap_type = self.smart_trigger.detect_knowledge_gap(
+                        user_text, ai_response
+                    )
+                    if has_gap:
+                        needs_followup_list.append({
+                            "question": user_text,
+                            "type": "knowledge_gap",
+                            "missing_info": [gap_type],
+                            "confidence": 75,
+                            "ai_response": ai_response,
+                            "reason": f"检测到{gap_type}"
+                        })
+
+                    # 2. 信息冲突检测（从AI回复中提取可能的fact）
+                    if len(ai_response) > 30:  # 只分析较长的回复
+                        has_conflict, old_fact = (
+                            self.smart_trigger.detect_memory_conflict(
+                                ai_response[:200]  # 取前200字符
+                            )
+                        )
+                        if has_conflict:
+                            needs_followup_list.append({
+                                "question": user_text,
+                                "type": "memory_conflict",
+                                "missing_info": ["信息冲突"],
+                                "confidence": 80,
+                                "ai_response": ai_response,
+                                "reason": f"与历史记忆冲突: {old_fact}"
+                            })
+
+            # 3. 任务反馈检测（检查整个会话）
+            needs_feedback, task_desc = (
+                self.smart_trigger.detect_task_feedback_missing(session_id)
+            )
+            if needs_feedback:
+                needs_followup_list.append({
+                    "question": f"{task_desc}完成情况反馈",
+                    "type": "task_feedback",
+                    "missing_info": ["用户反馈"],
+                    "confidence": 70,
+                    "ai_response": "",
+                    "reason": f"任务'{task_desc}'已完成，但用户未反馈效果"
+                })
 
             # 检查是否有需要追问的问题
             needs_followup = len(needs_followup_list) > 0
@@ -381,10 +689,15 @@ class ProactiveQA:
         return min(max(confidence, 0), 100)
 
     def generate_followup_question(
-        self, original_question: str, missing_info: list, ai_response: str
+        self, original_question: str, missing_info: list, ai_response: str,
+        question_type: str = "incomplete", reason: str = ""
     ) -> str:
         """
         生成追问内容
+
+        v0.7.0优化:
+        - 支持多种触发类型（知识空白、信息冲突、任务反馈）
+        - 更智能的上下文感知追问
 
         v0.6.0优化:
         - 更自然的表达方式
@@ -393,6 +706,34 @@ class ProactiveQA:
         """
         import random
 
+        # v0.7.0: 新类型追问
+        if question_type == "knowledge_gap":
+            if "模糊回答" in reason:
+                return "刚才的回答中我看到有些不确定的地方，能再确认一下吗？"
+            elif "回答过简" in reason:
+                return "这个问题可以再详细说说吗？"
+            elif "缺少时间" in reason:
+                return "具体是什么时候呢？"
+            elif "缺少步骤" in reason:
+                return "能说说具体怎么操作吗？"
+
+        if question_type == "memory_conflict":
+            old_info = reason.split(":")[-1].strip() if ":" in reason else ""
+            if old_info:
+                return f"我记得之前你说过「{old_info}」，这次的说法好像不太一样？"
+            else:
+                return "这个信息和之前的记忆有点不一样，能确认一下吗？"
+
+        if question_type == "task_feedback":
+            task = original_question.replace("完成情况反馈", "").strip()
+            templates = [
+                f"刚才的{task}完成了，效果怎么样？",
+                f"{task}已经设置好了，还有什么需要调整的吗？",
+                f"关于{task}，有什么问题或建议吗？"
+            ]
+            return random.choice(templates)
+
+        # 原有逻辑：不完整回答追问
         # 截取问题（太长则省略）
         question_preview = original_question
         if len(original_question) > 40:

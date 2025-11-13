@@ -3931,19 +3931,19 @@
             if (editingMessage) {
                 // 删除原来的消息及其后续的AI回复
                 const messageId = editingMessage.dataset.messageId;
-                
+
                 // 找到该消息后的第一条AI回复并删除
                 let nextElement = editingMessage.nextElementSibling;
                 if (nextElement && nextElement.classList.contains('assistant')) {
                     nextElement.remove();
                 }
-                
+
                 // 删除原用户消息
                 editingMessage.remove();
-                
+
                 // 清除编辑状态
                 clearEditingState();
-                
+
                 // 继续正常发送流程，触发新的回复
                 // 不要 return，让代码继续执行下面的发送逻辑
             }
@@ -8053,7 +8053,7 @@
          */
         function showImagePreviewInInput(imagePath) {
             console.log('🖼️ showImagePreviewInInput called', { imagePath });
-            
+
             // 创建预览容器
             const previewHtml = `
                 <div class="image-preview" id="imagePreview">
@@ -8077,7 +8077,7 @@
                 existing.remove();
             }
             inputContainer.insertAdjacentHTML('beforebegin', previewHtml);
-            
+
             // 设置上传的图片路径，以便发送时使用
             uploadedImagePath = imagePath;
             console.log('✅ Preview inserted for editing');

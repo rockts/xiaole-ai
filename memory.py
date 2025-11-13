@@ -58,11 +58,11 @@ class MemoryManager:
                 Memory.tag == "facts",
                 Memory.content == content
             ).first()
-            
+
             if existing:
                 print(f"⚠️ 跳过重复 facts: {content[:50]}")
                 return existing.id
-        
+
         memory = Memory(
             content=content,
             tag=tag
@@ -450,24 +450,24 @@ class MemoryManager:
     def cleanup_old_conversations(self, days=7):
         """
         清理超过指定天数的 conversation 记忆
-        
+
         Args:
             days: 保留天数，默认7天
-        
+
         Returns:
             删除的记忆数量
         """
         cutoff_date = datetime.now() - timedelta(days=days)
-        
+
         old_conversations = self.session.query(Memory).filter(
             Memory.tag.like('conversation:%'),
             Memory.created_at < cutoff_date
         ).all()
-        
+
         count = len(old_conversations)
         for mem in old_conversations:
             self.session.delete(mem)
-        
+
         self.session.commit()
         print(f"🗑️ 清理了 {count} 条超过{days}天的conversation记忆")
         return count

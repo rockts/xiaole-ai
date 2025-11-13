@@ -248,15 +248,15 @@ class ReminderScheduler:
         """清理旧记忆 - 每天凌晨4点执行"""
         try:
             logger.info("Starting memory cleanup...")
-            
+
             # 清理7天前的conversation记忆
             count = self.memory_manager.cleanup_old_conversations(days=7)
-            
+
             logger.info(
                 f"Memory cleanup complete: "
                 f"removed {count} old conversation memories"
             )
-            
+
         except Exception as e:
             logger.error(f"Error cleaning up memories: {e}")
 
