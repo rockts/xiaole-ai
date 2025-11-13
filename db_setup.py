@@ -62,6 +62,7 @@ class Message(Base):
     role = Column(String(20))  # user / assistant
     content = Column(Text)
     created_at = Column(DateTime, default=datetime.now)
+    image_path = Column(String(500))  # v0.8.1 图片路径
 
 
 class UserBehavior(Base):

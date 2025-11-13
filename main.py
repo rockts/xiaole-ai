@@ -1,5 +1,5 @@
 from fastapi import (
-    FastAPI, WebSocket, WebSocketDisconnect, 
+    FastAPI, WebSocket, WebSocketDisconnect,
     File, UploadFile, HTTPException
 )
 from fastapi.middleware.cors import CORSMiddleware
@@ -19,13 +19,11 @@ from scheduler import get_scheduler  # v0.5.0 定时调度
 from baidu_voice_tool import baidu_voice_tool  # v0.8.0 百度语音识别
 from document_summarizer import DocumentSummarizer  # v0.8.0 Phase 3 文档总结
 import time
-import shutil
-from pathlib import Path
 
 app = FastAPI(
-    title="小乐AI管家",
-    version="0.7.1",
-    description="支持智能图片记忆和课程表管理的AI助手"
+    title="小乐 AI 管家",
+    description="个人 AI 助手系统",
+    version="0.8.0",
 )
 
 # 配置CORS，允许网页访问API
@@ -66,6 +64,15 @@ class TTSRequest(BaseModel):
     pitch: int = 5
     volume: int = 5
     audio_format: str = "mp3"  # mp3|wav|pcm
+
+
+# v0.8.1: 用户反馈请求体
+class FeedbackRequest(BaseModel):
+    session_id: str
+    message_content: str
+    feedback_type: str  # 'good' or 'bad'
+    timestamp: str
+    user_id: str = "default_user"
 
 
 xiaole = XiaoLeAgent()
@@ -328,8 +335,10 @@ def chat(
         vision_tool = VisionTool()
 
         try:
-            # 调用图片识别 - 使用详细的表格识别prompt
-            ocr_prompt = '''这是一张学生课程表。请仔细识别表格中的内容：
+            # 智能选择识别prompt
+            # 如果用户问题提到课程表，使用表格专用prompt
+            if prompt and any(kw in prompt for kw in ['课程表', '课表', '时间表', '上课']):
+                ocr_prompt = '''这是一张学生课程表。请仔细识别表格中的内容：
 1. 表头有：星期一、星期二、星期三、星期四、星期五
 2. 左侧行标题有：晨读、第1节、第2节...第7节、午休、课后辅导
 3. 每个格子可能有课程名称（如"科学"）和编号（如"(5)"）
@@ -339,8 +348,18 @@ def chat(
 周一：晨读-XX, 第1节-XX, 第2节-XX...
 周二：...
 依此类推。不要省略任何信息。'''
+                print("\n🔍 图片识别 - 使用课程表专用prompt")
+            else:
+                # 通用识别prompt - 增强品牌识别能力
+                ocr_prompt = '''请详细描述这张图片的内容，包括：
+1. 主体物品或场景是什么
+2. 图片中的文字信息（如有）- 特别注意识别品牌标识，如果看到部分文字如"ckin"、"ickin"等，请推测完整品牌名（如Luckin瑞幸咖啡、Starbucks星巴克等）
+3. 颜色、品牌、标识等细节
+4. 其他值得注意的特征
 
-            print(f"\n🔍 图片识别 - 使用表格专用prompt")
+常见咖啡品牌参考：Luckin(瑞幸)、Starbucks(星巴克)、Costa、瑞幸咖啡等。
+请尽可能详细和准确地描述，如识别出品牌请直接说明。'''
+                print("\n🔍 图片识别 - 使用通用识别prompt")
 
             vision_result = vision_tool.analyze_image(
                 image_path=image_path,
@@ -352,16 +371,32 @@ def chat(
                 vision_description = vision_result.get('description', '')
 
                 print(f"\n{'='*60}")
-                print(f"🔍 调试：图片识别结果")
+                print("🔍 调试：图片识别结果")
                 print(f"识别内容长度: {len(vision_description)} 字符")
                 print(f"前800字符: {vision_description[:800]}")
                 print(f"{'='*60}\n")
 
                 # 构建包含图片识别结果的完整消息
+                # 使用更清晰的提示词，让AI知道这是它自己识别的内容
                 if prompt:
-                    combined_prompt = f"[图片内容]: {vision_description}\n\n[用户问题]: {prompt}"
+                    combined_prompt = (
+                        f"<vision_result>\n"
+                        f"我通过视觉能力识别到的图片内容：\n"
+                        f"{vision_description}\n"
+                        f"</vision_result>\n\n"
+                        f"用户问题：{prompt}\n\n"
+                        f"请基于我识别到的图片内容回答用户的问题。"
+                        f"如果识别到品牌相关的文字片段（如'ckin'、'kin'等），请结合常见品牌推理出完整品牌名。"
+                        f"直接回答用户的实际问题，不要说'这不是XXX'。"
+                    )
                 else:
-                    combined_prompt = f"[图片内容]: {vision_description}"
+                    combined_prompt = (
+                        f"<vision_result>\n"
+                        f"我通过视觉能力识别到的图片内容：\n"
+                        f"{vision_description}\n"
+                        f"</vision_result>\n\n"
+                        f"请分析并解释这张图片的内容。"
+                    )
 
                 # 智能判断是否需要保存图片记忆
                 # 1. 用户明确要求记住
@@ -386,7 +421,9 @@ def chat(
                     important_content_indicators = [
                         '课程表', '时间表', '日程', '表格', '证件']
                     should_memorize = any(
-                        ind in vision_description for ind in important_content_indicators)
+                        ind in vision_description
+                        for ind in important_content_indicators
+                    )
 
                 if should_memorize:
                     try:
@@ -401,10 +438,15 @@ def chat(
                     except Exception as e:
                         print(f"⚠️ 保存图片记忆失败: {e}")
                 else:
-                    print(f"ℹ️ 图片不需要记忆（普通照片）")
+                    print("ℹ️ 图片不需要记忆（普通照片）")
 
                 # 使用包含图片内容的完整消息进行对话
-                return xiaole.chat(combined_prompt, session_id, user_id, response_style)
+                # 但保存到数据库时只保存用户的原始输入
+                return xiaole.chat(
+                    combined_prompt, session_id, user_id, response_style,
+                    image_path=image_path,
+                    original_user_prompt=prompt  # 用户的原始输入
+                )
             else:
                 # 图片识别失败，返回错误信息
                 error_msg = vision_result.get('error', '未知错误')
@@ -419,7 +461,33 @@ def chat(
             }
 
     # 没有图片，正常对话
-    return xiaole.chat(prompt, session_id, user_id, response_style)
+    result = xiaole.chat(prompt, session_id, user_id, response_style)
+
+    # v0.7.0: 智能追问 - 分析对话后判断是否需要主动追问
+    try:
+        # 获取实际使用的session_id（可能是新创建的）
+        actual_session_id = result.get('session_id') if isinstance(
+            result, dict) else session_id
+
+        # v0.7.1: 禁用自动追问功能
+        # 保留后台分析能力，但不自动添加追问到回复中
+        # 小乐可以通过正常对话主动提问
+        if actual_session_id:
+            # 后台记录潜在的追问点（用于调试和分析）
+            try:
+                qa_result = proactive_qa.analyze_conversation(
+                    actual_session_id, user_id)
+
+                if qa_result.get('needs_followup'):
+                    count = len(qa_result.get('questions', []))
+                    print(f"📊 检测到 {count} 个潜在追问点（已禁用自动追问）")
+            except Exception as e:
+                print(f"⚠️ 追问分析异常: {e}")
+    except Exception as e:
+        # 追问功能出错不影响正常对话
+        print(f"⚠️ 追问模块异常: {e}")
+
+    return result
 
 
 @app.get("/sessions")
@@ -777,51 +845,79 @@ async def toggle_reminder(reminder_id: int, user_id: str = "default_user"):
 
 @app.post("/api/reminders/{reminder_id}/trigger")
 async def trigger_reminder_manually(reminder_id: int):
-    """手动触发提醒"""
-    success = await reminder_manager.trigger_reminder(reminder_id)
+    """手动触发提醒（测试用） - 只推送通知不写历史"""
+    success = await reminder_manager.check_and_notify_reminder(reminder_id)
     return {
         "success": success,
-        "message": "Reminder triggered" if success else "Trigger failed"
+        "message": "Reminder notified" if success else "Notify failed"
     }
 
 
 @app.post("/api/reminders/{reminder_id}/snooze")
 async def snooze_reminder(reminder_id: int, minutes: int = 5):
-    """延迟提醒（稍后提醒）"""
+    """延迟提醒（稍后提醒）- 不写入历史，只延迟触发时间"""
     from datetime import datetime, timedelta
     import json
+    import psycopg2
+    from psycopg2.extras import RealDictCursor
 
-    # 获取当前提醒
-    conn = await reminder_manager.get_connection()
-    reminder = await conn.fetchrow(
-        "SELECT * FROM reminders WHERE reminder_id = $1",
-        reminder_id
+    # 获取数据库连接
+    conn = psycopg2.connect(
+        host=os.getenv('DB_HOST', '192.168.88.188'),
+        port=os.getenv('DB_PORT', '5432'),
+        database=os.getenv('DB_NAME', 'xiaole_ai'),
+        user=os.getenv('DB_USER', 'xiaole_user'),
+        password=os.getenv('DB_PASS', 'Xiaole2025User'),
+        client_encoding='UTF8'
     )
 
-    if not reminder:
-        return {"success": False, "error": "Reminder not found"}
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            # 获取当前提醒
+            cur.execute(
+                "SELECT * FROM reminders WHERE reminder_id = %s",
+                (reminder_id,)
+            )
+            reminder = cur.fetchone()
 
-    # 计算新的触发时间（当前时间 + minutes分钟）
-    new_trigger_time = datetime.now() + timedelta(minutes=minutes)
+            if not reminder:
+                return {"success": False, "error": "Reminder not found"}
 
-    # 更新trigger_condition
-    trigger_condition = json.loads(reminder['trigger_condition'])
-    new_time_str = new_trigger_time.strftime('%Y-%m-%d %H:%M:%S')
-    trigger_condition['datetime'] = new_time_str
+            # 计算新的触发时间（当前时间 + minutes分钟）
+            new_trigger_time = datetime.now() + timedelta(minutes=minutes)
 
-    success = await reminder_manager.update_reminder(
-        reminder_id,
-        trigger_condition=json.dumps(trigger_condition),
-        enabled=True  # 确保提醒是启用状态
-    )
+            # 更新trigger_condition
+            trigger_condition = json.loads(reminder['trigger_condition'])
+            new_time_str = new_trigger_time.strftime('%Y-%m-%d %H:%M:%S')
+            trigger_condition['datetime'] = new_time_str
+
+            success = await reminder_manager.update_reminder(
+                reminder_id,
+                trigger_condition=json.dumps(trigger_condition),
+                last_triggered=None,  # 清除last_triggered，允许重新触发
+                enabled=True  # 确保提醒是启用状态
+            )
+
+            return {
+                "success": success,
+                "new_trigger_time": new_time_str,
+                "message": (
+                    f"Reminder snoozed for {minutes} minutes"
+                    if success else "Snooze failed"
+                )
+            }
+    finally:
+        conn.close()
+
+
+@app.post("/api/reminders/{reminder_id}/confirm")
+async def confirm_reminder(reminder_id: int):
+    """用户确认提醒（点击"已知道"） - 写入历史并禁用非重复提醒"""
+    success = await reminder_manager.confirm_reminder(reminder_id)
 
     return {
         "success": success,
-        "new_trigger_time": new_time_str,
-        "message": (
-            f"Reminder snoozed for {minutes} minutes"
-            if success else "Snooze failed"
-        )
+        "message": "Reminder confirmed" if success else "Confirm failed"
     }
 
 
@@ -851,17 +947,17 @@ async def check_reminders(user_id: str = "default_user"):
 
     all_triggered = time_triggered + behavior_triggered
 
-    # 触发所有需要触发的提醒
+    # 触发所有需要触发的提醒（只推送通知）
     results = []
     for reminder in all_triggered:
-        success = await reminder_manager.trigger_reminder(
+        success = await reminder_manager.check_and_notify_reminder(
             reminder['reminder_id']
         )
         results.append({
             "reminder_id": reminder['reminder_id'],
             "title": reminder.get('title', 'Untitled'),
             "content": reminder['content'],
-            "triggered": success
+            "notified": success
         })
 
     return {
@@ -1005,7 +1101,7 @@ async def save_schedule(request: dict):
         dict: 保存结果
     """
     try:
-        user_id = request.get("user_id", "default_user")
+        # user_id = request.get("user_id", "default_user")  # 暂未使用
         schedule = request.get("schedule", {})
 
         if not schedule:
@@ -1727,6 +1823,122 @@ def delete_document_api(doc_id: int):
             "success": success
         }
     except Exception as e:
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
+# ==================== v0.8.1 用户反馈系统 ====================
+
+@app.post("/api/feedback")
+async def submit_feedback(feedback: FeedbackRequest):
+    """
+    提交用户反馈
+    用于记录用户对AI回复的评价，帮助改进模型
+    """
+    try:
+        from reminder_manager import get_db_connection
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # 插入反馈记录
+        cursor.execute("""
+            INSERT INTO message_feedback 
+            (session_id, user_id, message_content, feedback_type, created_at)
+            VALUES (%s, %s, %s, %s, %s)
+            RETURNING feedback_id
+        """, (
+            feedback.session_id,
+            feedback.user_id,
+            feedback.message_content,
+            feedback.feedback_type,
+            feedback.timestamp
+        ))
+
+        feedback_id = cursor.fetchone()[0]
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+        # 如果是负面反馈，可以触发额外的学习机制
+        if feedback.feedback_type == 'bad':
+            # TODO: 未来可以在这里添加自动改进逻辑
+            # 例如：分析错误模式、调整提示词等
+            pass
+
+        return {
+            "success": True,
+            "feedback_id": feedback_id,
+            "message": "反馈已记录，感谢您的反馈！"
+        }
+
+    except Exception as e:
+        print(f"❌ 反馈提交失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/feedback/stats")
+def get_feedback_stats():
+    """
+    获取反馈统计数据
+    用于分析AI回复质量
+    """
+    try:
+        from reminder_manager import get_db_connection
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # 获取总体统计
+        cursor.execute("""
+            SELECT 
+                feedback_type,
+                COUNT(*) as count,
+                DATE(created_at) as date
+            FROM message_feedback
+            WHERE created_at >= NOW() - INTERVAL '30 days'
+            GROUP BY feedback_type, DATE(created_at)
+            ORDER BY date DESC
+        """)
+
+        stats = []
+        for row in cursor.fetchall():
+            stats.append({
+                "feedback_type": row[0],
+                "count": row[1],
+                "date": str(row[2])
+            })
+
+        # 获取总体好评率
+        cursor.execute("""
+            SELECT 
+                SUM(CASE WHEN feedback_type = 'good' THEN 1 ELSE 0 END) as good_count,
+                SUM(CASE WHEN feedback_type = 'bad' THEN 1 ELSE 0 END) as bad_count,
+                COUNT(*) as total_count
+            FROM message_feedback
+        """)
+
+        row = cursor.fetchone()
+        summary = {
+            "good_count": row[0] or 0,
+            "bad_count": row[1] or 0,
+            "total_count": row[2] or 0,
+            "satisfaction_rate": round((row[0] or 0) / (row[2] or 1) * 100, 2) if row[2] else 0
+        }
+
+        cursor.close()
+        conn.close()
+
+        return {
+            "success": True,
+            "stats": stats,
+            "summary": summary
+        }
+
+    except Exception as e:
+        print(f"❌ 获取反馈统计失败: {e}")
         return {
             "success": False,
             "error": str(e)

@@ -52,6 +52,17 @@ class MemoryManager:
             tag: tag/category
             initial_importance: importance score (0-1) - 暂时未使用，等待数据库迁移
         """
+        # 去重检查：如果是 facts 标签，检查是否已存在相同内容
+        if tag == "facts":
+            existing = self.session.query(Memory).filter(
+                Memory.tag == "facts",
+                Memory.content == content
+            ).first()
+
+            if existing:
+                print(f"⚠️ 跳过重复 facts: {content[:50]}")
+                return existing.id
+
         memory = Memory(
             content=content,
             tag=tag
@@ -435,3 +446,28 @@ class MemoryManager:
                 "low (<0.3)": low_importance
             }
         }
+
+    def cleanup_old_conversations(self, days=7):
+        """
+        清理超过指定天数的 conversation 记忆
+
+        Args:
+            days: 保留天数，默认7天
+
+        Returns:
+            删除的记忆数量
+        """
+        cutoff_date = datetime.now() - timedelta(days=days)
+
+        old_conversations = self.session.query(Memory).filter(
+            Memory.tag.like('conversation:%'),
+            Memory.created_at < cutoff_date
+        ).all()
+
+        count = len(old_conversations)
+        for mem in old_conversations:
+            self.session.delete(mem)
+
+        self.session.commit()
+        print(f"🗑️ 清理了 {count} 条超过{days}天的conversation记忆")
+        return count

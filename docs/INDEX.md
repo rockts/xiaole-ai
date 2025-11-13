@@ -1,6 +1,6 @@
 # 小乐 AI 文档索引
 
-> 更新时间：2025-11-12  
+> 更新时间：2025-11-14  
 > 当前版本：v0.7.1
 
 ---
@@ -33,27 +33,24 @@
 | [VISION_TEST_GUIDE.md](VISION_TEST_GUIDE.md)     | 图片识别测试 | ✅ v0.7.0 |
 | [FILE_TOOL_GUIDE.md](FILE_TOOL_GUIDE.md)         | 文件工具使用 | ✅ v0.5.0 |
 
-### 4️⃣ 版本计划与完成报告
+### 4️⃣ 版本发布记录
 
-| 文档                                                                         | 说明                | 状态       |
-| ---------------------------------------------------------------------------- | ------------------- | ---------- |
-| [v0.5.0_PLAN.md](v0.5.0_PLAN.md)                                             | v0.5.0 开发计划     | ✅ 已完成   |
-| [v0.5.0_COMPLETED.md](v0.5.0_COMPLETED.md)                                   | v0.5.0 完成报告     | ✅ 已归档   |
-| [v0.6.0_PLAN.md](v0.6.0_PLAN.md)                                             | v0.6.0 开发计划     | 🚧 部分实现 |
-| [v0.7.0_MEMORY_SCHEDULE_MANAGEMENT.md](v0.7.0_MEMORY_SCHEDULE_MANAGEMENT.md) | v0.7.0 记忆和课程表 | ✅ 已完成   |
-| [v0.7.1_COMPLETED.md](v0.7.1_COMPLETED.md)                                   | v0.7.1 完成报告     | ✅ 最新     |
-| [NEXT_DEVELOPMENT.md](NEXT_DEVELOPMENT.md)                                   | v0.8.0 下一步计划   | 📋 规划中   |
+| 文档                                         | 说明              | 状态     |
+| -------------------------------------------- | ----------------- | -------- |
+| [v0.8.0_RELEASE.md](v0.8.0_RELEASE.md)       | v0.8.0 发布说明   | ✅ 最新   |
+| [v0.7.1_COMPLETED.md](v0.7.1_COMPLETED.md)   | v0.7.1 完成报告   | ✅ 已完成 |
+| [NEXT_DEVELOPMENT.md](NEXT_DEVELOPMENT.md)   | 下一步开发计划    | 📋 规划中 |
+| [archived/v0.7.0/](archived/v0.7.0/)         | v0.7.0 系列文档   | 📦 已归档 |
+| [archived/v0.6.0/](archived/v0.6.0/)         | v0.6.0 系列文档   | 📦 已归档 |
+| [archived/v0.5.0/](archived/v0.5.0/)         | v0.5.0 系列文档   | 📦 已归档 |
 
-### 5️⃣ 开发日志与问题修复
+### 5️⃣ 开发日志与项目状态
 
-| 文档                                             | 说明         | 类型       |
-| ------------------------------------------------ | ------------ | ---------- |
-| [DEVELOPMENT_LOG.md](DEVELOPMENT_LOG.md)         | 开发日志     | 📝 持续更新 |
-| [PROJECT_STATUS.md](PROJECT_STATUS.md)           | 项目状态     | 📊 状态跟踪 |
-| [CURRENT_STATUS.md](CURRENT_STATUS.md)           | 当前状态     | ⚠️ 可能过时 |
-| [IMAGE_MEMORY_FIX.md](IMAGE_MEMORY_FIX.md)       | 图片记忆修复 | 🐛 v0.7.1   |
-| [PROACTIVE_QA_FIX.md](PROACTIVE_QA_FIX.md)       | 主动问答修复 | 🐛 v0.3.0   |
-| [SEARCH_INTENT_ISSUE.md](SEARCH_INTENT_ISSUE.md) | 搜索意图问题 | 🐛 已修复   |
+| 文档                                     | 说明       | 类型       |
+| ---------------------------------------- | ---------- | ---------- |
+| [DEVELOPMENT_LOG.md](DEVELOPMENT_LOG.md) | 开发日志   | 📝 持续更新 |
+| [PROJECT_STATUS.md](PROJECT_STATUS.md)   | 项目状态   | 📊 状态跟踪 |
+| [archived/issues/](archived/issues/)     | 问题修复集 | 🐛 已归档   |
 
 ### 6️⃣ 技术方案与优化
 
@@ -68,13 +65,13 @@
 
 ### 7️⃣ 已归档文档
 
-| 文档 | 说明 | 位置 |
-|------|------|------|
-| [CLAUDE_DONE.md](archived/CLAUDE_DONE.md) | Claude 集成完成 | 📦 archived/ |
-| [SETUP_CLAUDE.md](archived/SETUP_CLAUDE.md) | Claude 配置（旧） | 📦 archived/ |
-| [PROACTIVE_QA_TEST.md](archived/PROACTIVE_QA_TEST.md) | 主动问答测试（旧） | 📦 archived/ |
-| [xiaole_ai_plan.md](archived/xiaole_ai_plan.md) | 初始规划 | 📦 archived/ |
-| [CURRENT_STATUS.md](archived/CURRENT_STATUS.md) | 当前状态（旧） | 📦 archived/ |
+| 目录                         | 说明             | 位置         |
+| ---------------------------- | ---------------- | ------------ |
+| [archived/v0.7.0/](archived/v0.7.0/) | v0.7.0 版本文档  | 📦 已归档     |
+| [archived/v0.6.0/](archived/v0.6.0/) | v0.6.0 版本文档  | 📦 已归档     |
+| [archived/v0.5.0/](archived/v0.5.0/) | v0.5.0 版本文档  | 📦 已归档     |
+| [archived/issues/](archived/issues/) | 历史问题修复文档 | 📦 已归档     |
+| [archived/](archived/)       | 其他历史文档     | 📦 archived/ |
 
 ### 8️⃣ 架构图
 
@@ -89,12 +86,12 @@
 ### 💬 对话系统
 - TEST_GUIDE.md
 - FOLLOWUP_TEST_GUIDE.md
-- PROACTIVE_QA_FIX.md
+- v0.7.1_COMPLETED.md（追问功能优化）
 
 ### 🧠 记忆管理
-- IMAGE_MEMORY_FIX.md
 - SEMANTIC_SEARCH_REPORT.md
-- v0.7.0_MEMORY_SCHEDULE_MANAGEMENT.md
+- v0.8.0_RELEASE.md（记忆层优化）
+- archived/v0.7.0/（记忆和课程表开发）
 
 ### 🔧 工具系统
 - FILE_TOOL_GUIDE.md
@@ -104,11 +101,13 @@
 ### 🖼️ 图片识别
 - QWEN_VISION_SETUP.md
 - VISION_TEST_GUIDE.md
-- IMAGE_MEMORY_FIX.md
+- v0.8.0_RELEASE.md（图片记忆优化）
 
-### 📅 课程表
-- v0.7.0_MEMORY_SCHEDULE_MANAGEMENT.md
-- v0.7.1_COMPLETED.md
+### 🗣️ 语音功能
+- BAIDU_VOICE_SETUP.md
+- VOICE_USER_GUIDE.md
+- VOICE_QUICK_TEST.md
+- archived/issues/VOICE_NETWORK_ERROR_SOLUTION.md
 
 ### ⚙️ 配置部署
 - DEEPSEEK_SETUP.md
@@ -130,9 +129,9 @@
 ### 开发者深入
 1. architecture.png（架构理解）
 2. DEVELOPMENT_LOG.md（开发历程）
-3. v0.7.1_COMPLETED.md（最新特性）
-4. NEXT_DEVELOPMENT.md（未来计划）
-5. 相关功能模块文档
+3. v0.8.0_RELEASE.md（最新版本）
+4. PROJECT_STATUS.md（项目现状）
+5. NEXT_DEVELOPMENT.md（未来计划）
 
 ---
 

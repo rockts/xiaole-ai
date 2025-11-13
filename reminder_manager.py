@@ -348,49 +348,46 @@ class ReminderManager:
 
         return triggered
 
-    async def trigger_reminder(self, reminder_id: int) -> bool:
+    async def check_and_notify_reminder(self, reminder_id: int) -> bool:
         """
-        触发提醒，记录历史
+        检查提醒并通过WebSocket推送通知（不写入历史）
 
         Args:
             reminder_id: 提醒ID
 
         Returns:
-            是否成功
+            是否成功推送
         """
         conn = get_db_connection()
         try:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
-                # 更新last_triggered
+                # 获取提醒信息
+                cur.execute("""
+                    SELECT * FROM reminders WHERE reminder_id = %s
+                """, (reminder_id,))
+                reminder = cur.fetchone()
+
+                if not reminder:
+                    logger.error(f"Reminder {reminder_id} not found")
+                    return False
+
+                reminder = dict(reminder)
+
+                # 更新last_triggered（标记为已通知但未确认）
                 cur.execute("""
                     UPDATE reminders
                     SET last_triggered = CURRENT_TIMESTAMP,
                         trigger_count = COALESCE(trigger_count, 0) + 1
                     WHERE reminder_id = %s
-                    RETURNING *
                 """, (reminder_id,))
-                reminder = dict(cur.fetchone())
-
-                # 记录提醒历史
-                cur.execute("""
-                    INSERT INTO reminder_history (
-                        reminder_id, user_id, content, triggered_at
-                    ) VALUES (%s, %s, %s, CURRENT_TIMESTAMP)
-                """, (
-                    reminder_id,
-                    reminder['user_id'],
-                    reminder['content']
-                ))
 
                 conn.commit()
 
-                # 如果是非重复提醒，禁用它
-                if not reminder.get('repeat'):
-                    await self.update_reminder(reminder_id, enabled=False)
+                logger.info(
+                    f"Notified reminder {reminder_id} (not confirmed yet)"
+                )
 
-                logger.info(f"Triggered reminder {reminder_id}")
-
-                # WebSocket实时推送提醒
+                # WebSocket实时推送提醒（用户需要确认）
                 if self.websocket_broadcast:
                     try:
                         await self.websocket_broadcast({
@@ -405,14 +402,75 @@ class ReminderManager:
                             }
                         })
                         logger.info(f"WebSocket推送提醒 {reminder_id}")
+                        return True
                     except Exception as ws_error:
                         logger.error(f"WebSocket推送失败: {ws_error}")
+                        return False
+                else:
+                    logger.warning("No WebSocket broadcast callback available")
+                    return False
 
+        except Exception as e:
+            conn.rollback()
+            logger.error(f"Failed to notify reminder: {e}")
+            return False
+        finally:
+            conn.close()
+
+    async def confirm_reminder(self, reminder_id: int) -> bool:
+        """
+        用户确认提醒（点击"已知道"），记录历史并禁用
+
+        Args:
+            reminder_id: 提醒ID
+
+        Returns:
+            是否成功
+        """
+        conn = get_db_connection()
+        try:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                # 获取提醒信息
+                cur.execute("""
+                    SELECT * FROM reminders WHERE reminder_id = %s
+                """, (reminder_id,))
+                reminder = cur.fetchone()
+
+                if not reminder:
+                    logger.error(f"Reminder {reminder_id} not found")
+                    return False
+
+                reminder = dict(reminder)
+
+                # 记录提醒历史（用户已确认）
+                cur.execute("""
+                    INSERT INTO reminder_history (
+                        reminder_id, user_id, content, triggered_at
+                    ) VALUES (%s, %s, %s, CURRENT_TIMESTAMP)
+                """, (
+                    reminder_id,
+                    reminder['user_id'],
+                    reminder['content']
+                ))
+
+                # 如果是非重复提醒，禁用它
+                if not reminder.get('repeat'):
+                    cur.execute("""
+                        UPDATE reminders
+                        SET enabled = false
+                        WHERE reminder_id = %s
+                    """, (reminder_id,))
+
+                conn.commit()
+
+                logger.info(
+                    f"Confirmed reminder {reminder_id} (written to history)"
+                )
                 return True
 
         except Exception as e:
             conn.rollback()
-            logger.error(f"Failed to trigger reminder: {e}")
+            logger.error(f"Failed to confirm reminder: {e}")
             return False
         finally:
             conn.close()

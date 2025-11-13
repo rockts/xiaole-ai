@@ -1,6 +1,6 @@
 # 小乐 AI 管家
 
-> v0.8.0 - 智能交互版 🎉 | v0.7.1 - 记忆修复版 ✅ | v0.6.0 - 智能增强版
+> v0.8.0 - 智能交互版 🎉 | 当前稳定版本
 
 个人 AI 助手，支持**语音交互**、**多轮任务规划**、**长文本总结**、长期记忆、对话管理、用户行为学习、工具调用和任务执行、主动提醒和实时推送、智能图片记忆、课程表管理。
 
@@ -360,69 +360,56 @@ tail -f logs/xiaole_ai.log
 本项目使用 Git Flow 分支策略：
 
 ### 分支说明
-- `main`: 稳定版本分支
-- `develop`: 开发分支（日常开发在此进行）
+- `main`: 稳定版本分支（生产环境）
+- `develop`: 开发分支（日常开发）
 - `feature/*`: 功能分支
 - `hotfix/*`: 紧急修复分支
-
-### 自动提交工具
-
-项目提供了两个自动提交工具，会自动更新 CHANGELOG.md：
-
-#### 1. 交互式提交（推荐）
-
-```bash
-./scripts/auto_commit.sh
-```
-
-功能：
-- 🔍 自动检测修改文件
-- 🤖 智能推荐提交类型和范围
-- 📝 交互式输入提交信息
-- 📋 自动更新 CHANGELOG
-- 🚀 可选推送到远程
-
-#### 2. 快速提交
-
-```bash
-# 基本用法
-./scripts/quick_commit.sh "提交描述" [类型] [范围]
-
-# 示例
-./scripts/quick_commit.sh "修复记忆查询bug" fix memory
-./scripts/quick_commit.sh "添加语音功能" feat agent
-./scripts/quick_commit.sh "更新文档" docs
-```
-
-#### 提交类型
-- `feat`: ✨ 新功能
-- `fix`: 🐛 Bug修复
-- `docs`: 📝 文档更新
-- `style`: 🎨 代码格式/样式
-- `refactor`: ♻️ 代码重构
-- `perf`: ⚡ 性能优化
-- `test`: 🧪 测试相关
-- `chore`: 🔧 构建/工具
-- `config`: ⚙️ 配置修改
 
 ### 开发流程
 
 ```bash
-# 1. 切换到 develop 分支
+# 1. 从develop分支创建功能分支
 git checkout develop
+git checkout -b feature/new-feature
 
-# 2. 拉取最新代码
-git pull origin develop
+# 2. 开发并提交
+git add .
+git commit -m "feat: 添加新功能"
 
-# 3. 进行开发...
+# 3. 完成后合并到develop
+git checkout develop
+git merge feature/new-feature
 
-# 4. 使用自动提交工具
+# 4. 测试稳定后合并到main
+git checkout main
+git merge develop --no-ff -m "release: v0.x.0"
+git tag v0.x.0
+git push origin main --tags
+```
+
+### 提交规范
+
+使用语义化提交信息：
+
+```bash
+feat: ✨ 新功能
+fix: 🐛 Bug修复
+docs: 📝 文档更新
+style: 🎨 代码格式
+refactor: ♻️ 代码重构
+perf: ⚡ 性能优化
+test: 🧪 测试相关
+chore: 🔧 构建/工具
+```
+
+### 自动提交工具
+
+```bash
+# 交互式提交（推荐）
 ./scripts/auto_commit.sh
 
-# 5. 功能完成后合并到 main
-git checkout main
-git merge develop
-git push origin main
+# 快速提交
+./scripts/quick_commit.sh "提交描述" [类型] [范围]
 ```
 
 ## 已知限制
@@ -468,7 +455,7 @@ git push origin main
 - [x] 稍后提醒功能（5分钟延迟）
 - [x] 浏览器原生通知支持
 
-### ✅ v0.6.0 - 智能增强版（已完成）🆕
+### ✅ v0.6.0 - 智能增强版（已完成）
 
 **Phase 1: 问题修复** ✅
 - [x] 搜索工具网络优化（代理支持、超时处理、结果缓存）
@@ -484,18 +471,6 @@ git push origin main
 - [x] 消息删除功能
 - [x] 消息搜索功能（高亮显示）
 
-**Phase 3: AI能力增强**
-- [x] 图片识别（Qwen-VL）✅ v0.7.0已实现
-- [ ] 语音交互（Web Speech API）→ v0.8.0 优先级最高
-- [ ] 长文本总结 → v0.8.0
-- [ ] 多轮任务规划 → v0.8.0
-
-**Phase 4: 新功能开发（规划中）**
-- [ ] 系统操作工具（启动应用、控制音量）
-- [ ] 智能家居控制（HomeAssistant集成）
-- [ ] 日程管理（日历同步）
-- [ ] 知识库问答（RAG + pgvector）
-
 > 详细规划：[v0.6.0_PLAN.md](docs/v0.6.0_PLAN.md)
 
 ### ✅ v0.7.0 - 课程表管理（已完成）
@@ -504,7 +479,7 @@ git push origin main
 - [x] 课程信息记忆存储
 - [x] 课程查询API
 
-### ✅ v0.7.1 - 记忆和图片智能优化（已完成）🆕
+### ✅ v0.7.1 - 记忆和图片智能优化（已完成）
 - [x] 修复记忆管理bug（Memory.user_id字段问题）
 - [x] 智能图片记忆（自动识别重要图片）
 - [x] 记忆Markdown渲染
@@ -515,26 +490,41 @@ git push origin main
 - [x] 课程表页面自动加载
 - [x] 无课显示空白优化
 
-### 🚧 v0.8.0 - 下一代交互体验（规划中）
+### ✅ v0.8.0 - 智能交互版（已完成）🎉
 
-**Phase 1: 语音交互功能** ⭐ 优先级最高
-- [ ] Web Speech API语音输入/输出
-- [ ] 麦克风按钮和语音波形动画
-- [ ] 自动播放开关和语速调节
+**Phase 1: 语音交互功能** ✅
+- [x] Web Speech API语音输入/输出
+- [x] 百度语音识别和语音合成
+- [x] 麦克风按钮和语音波形动画
+- [x] 自动播放开关和语速调节
+- [x] 4种音色选择和音量控制
 
-**Phase 2: 多轮任务规划** ⭐ 优先级高
-- [ ] AI自动拆解复杂任务
-- [ ] 任务执行引擎和进度追踪
-- [ ] 任务可视化界面
+**Phase 2: 多轮任务规划** ✅
+- [x] AI自动拆解复杂任务
+- [x] 任务执行引擎和进度追踪
+- [x] 任务可视化界面
+- [x] 7个任务管理API端点
 
-**Phase 3: 长文本总结**
-- [ ] PDF/Word/TXT文档上传
-- [ ] 智能分段总结
-- [ ] 关键信息提取
+**Phase 3: 长文本总结** ✅
+- [x] PDF/Word/TXT/Markdown文档上传
+- [x] 智能分段总结（分块+多级总结）
+- [x] 关键信息提取（5-10个要点）
+- [x] Markdown格式导出功能
 
-> 详细规划：[NEXT_DEVELOPMENT.md](docs/NEXT_DEVELOPMENT.md)
+> 详细说明：[v0.8.0_RELEASE.md](docs/v0.8.0_RELEASE.md)
 
-**已知问题（v0.7.1）：**
+### 🚀 v0.9.0 - 下一步计划（规划中）
+
+**优先考虑的方向：**
+- [ ] 系统操作工具增强（启动应用、控制音量等）
+- [ ] 智能家居控制（HomeAssistant集成）
+- [ ] 日程管理增强（日历同步、会议纪要）
+- [ ] 知识库问答（RAG + pgvector）
+- [ ] 多模态交互优化（图片+语音+文本联动）
+- [ ] 移动端适配
+- [ ] 性能优化和体验提升
+
+**已知问题（v0.8.0）：**
 - 行为分析功能已隐藏（待优化）
 - 网络搜索工具偶尔超时（需要代理优化）
 

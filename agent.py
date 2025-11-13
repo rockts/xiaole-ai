@@ -73,7 +73,7 @@ class XiaoLeAgent:
             from tools import (
                 weather_tool, system_info_tool,
                 time_tool, calculator_tool, reminder_tool,
-                search_tool, file_tool
+                search_tool, file_tool, delete_memory_tool
             )
 
             # 注册工具
@@ -84,6 +84,7 @@ class XiaoLeAgent:
             self.tool_registry.register(reminder_tool)  # v0.5.0 提醒工具
             self.tool_registry.register(search_tool)  # v0.5.0 搜索工具
             self.tool_registry.register(file_tool)  # v0.5.0 文件工具
+            self.tool_registry.register(delete_memory_tool)  # v0.8.1 删除记忆
 
             logger.info(
                 f"✅ 工具注册完成，共 "
@@ -289,13 +290,19 @@ class XiaoLeAgent:
         current_date = datetime.now().strftime("%Y年%m月%d日")
         current_datetime = datetime.now().strftime("%Y年%m月%d日 %H:%M")
 
-        # 替换各种可能的日期占位符
+        # 替换各种可能的日期占位符（支持{{}}和[]两种格式）
         replacements = {
             r'\{\{当前日期\}\}': current_date,
             r'\{\{当前时间\}\}': current_datetime,
             r'\{\{今天\}\}': current_date,
             r'\{\{date\}\}': current_date,
             r'\{\{datetime\}\}': current_datetime,
+            r'\[当前日期\]': current_date,
+            r'\[当前时间\]': current_datetime,
+            r'\[具体时间\]': current_datetime,
+            r'\[今天\]': current_date,
+            r'\[date\]': current_date,
+            r'\[datetime\]': current_datetime,
         }
 
         for pattern, replacement in replacements.items():
@@ -326,12 +333,17 @@ class XiaoLeAgent:
 - **用户的偏好和规则**（例如"我不喜欢..."、"只算..."）
 - **对AI回答的补充说明**（例如"实际上..."、"其实..."）
 
+**不要提取以下内容：**
+1. **临时任务和提醒**（例如"提醒我..."、"帮我..."、"查询..."、"告诉我..."）
+2. **一次性操作**（例如"搜索..."、"计算..."、"创建提醒..."）
+3. **工具调用请求**（例如"设置闹钟"、"查天气"、"删除记忆"）
+4. 闲聊内容（例如"今天天气好"、"你好"）
+
 **重要规则：**
-1. 只提取用户主动告诉的信息，不要推测
-2. 如果只是闲聊（如"今天天气好"、"你好"），返回"无"
-3. **特别注意用户的纠正**：如果用户指出AI的错误，这是重要信息
-4. **区分主语**：家人的信息必须标注关系（如"儿子姓名：xxx"），不要写成"用户姓名"
-5. 提取格式：简洁的陈述句，例如"用户姓名：张三"、"儿子学校：逸夫中学"、"统计课程数量时不算晨读"
+1. 只提取用户主动告诉的**长期有效**的信息，不要推测
+2. **特别注意用户的纠正**：如果用户指出AI的错误，这是重要信息
+3. **区分主语**：家人的信息必须标注关系（如"儿子姓名：xxx"），不要写成"用户姓名"
+4. 提取格式：简洁的陈述句，例如"用户姓名：张三"、"儿子学校：逸夫中学"、"统计课程数量时不算晨读"
 
 请直接返回提取结果，如果没有需要记住的信息就返回"无"。"""
 
@@ -435,7 +447,8 @@ class XiaoLeAgent:
         return thought
 
     def chat(self, prompt, session_id=None, user_id="default_user",
-             response_style="balanced"):
+             response_style="balanced", image_path=None,
+             original_user_prompt=None):
         """
         v0.6.0: 支持上下文的对话方法（支持响应风格）
 
@@ -581,7 +594,11 @@ class XiaoLeAgent:
             reply = reminder_text + "\n\n" + reply
 
         # 保存用户消息和助手回复到会话表
-        self.conversation.add_message(session_id, "user", prompt)
+        # 如果有original_user_prompt，保存原始输入；否则保存完整prompt
+        user_message = original_user_prompt if original_user_prompt else prompt
+        self.conversation.add_message(
+            session_id, "user", user_message, image_path=image_path
+        )
         self.conversation.add_message(session_id, "assistant", reply)
 
         # 智能提取：让AI判断是否有关键事实需要记住
@@ -825,22 +842,22 @@ class XiaoLeAgent:
         params = {
             'concise': {
                 'temperature': 0.3,  # 更确定性
-                'max_tokens': 256,   # 更短
+                'max_tokens': 512,   # 简短回复
                 'top_p': 0.8
             },
             'balanced': {
                 'temperature': 0.5,  # 适中
-                'max_tokens': 512,   # 适中
+                'max_tokens': 2048,  # 适中（支持长文本）
                 'top_p': 0.9
             },
             'detailed': {
                 'temperature': 0.7,  # 更创造性
-                'max_tokens': 1024,  # 更长
+                'max_tokens': 4096,  # 更长（支持长文章）
                 'top_p': 0.95
             },
             'professional': {
                 'temperature': 0.4,  # 较确定性
-                'max_tokens': 768,   # 较长
+                'max_tokens': 3072,  # 较长（专业长文）
                 'top_p': 0.85
             }
         }
@@ -862,6 +879,10 @@ class XiaoLeAgent:
 
         if not tool_name:
             return None
+
+        # 添加调试日志
+        logger.info(f"🔧 准备调用工具: {tool_name}")
+        logger.info(f"📋 工具参数: {params}")
 
         # 调用工具（异步方法需要同步执行）
         try:
@@ -1153,7 +1174,7 @@ class XiaoLeAgent:
                     course_indicators = mem.count('节') + mem.count('科学') + \
                         mem.count('数学') + mem.count('语文')
                     if course_indicators >= 3:  # 至少出现3次课程相关词
-                        logger.info(f"    ⭐ [课程表内容]")
+                        logger.info("    ⭐ [课程表内容]")
 
             if all_memories:
                 context = "记忆库（按时间倒序，最新在前）：\n" + \

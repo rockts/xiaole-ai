@@ -14,6 +14,7 @@ from apscheduler.triggers.cron import CronTrigger
 
 from reminder_manager import get_reminder_manager
 from proactive_chat import get_proactive_chat
+from memory import MemoryManager
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +32,7 @@ class ReminderScheduler:
         self.scheduler = AsyncIOScheduler()
         self.reminder_manager = get_reminder_manager()
         self.proactive_chat = get_proactive_chat()
+        self.memory_manager = MemoryManager()
         self.is_running = False
 
     def start(self):
@@ -75,6 +77,15 @@ class ReminderScheduler:
             replace_existing=True
         )
 
+        # 任务5: 每天凌晨4点清理旧记忆
+        self.scheduler.add_job(
+            self.cleanup_old_memories,
+            trigger=CronTrigger(hour=4, minute=0),
+            id='cleanup_old_memories',
+            name='清理旧记忆',
+            replace_existing=True
+        )
+
         self.scheduler.start()
         self.is_running = True
         logger.info("Reminder scheduler started")
@@ -104,7 +115,7 @@ class ReminderScheduler:
                 )
 
                 for reminder in triggered:
-                    success = await self.reminder_manager.trigger_reminder(
+                    success = await self.reminder_manager.check_and_notify_reminder(
                         reminder['reminder_id']
                     )
                     if success:
@@ -139,7 +150,7 @@ class ReminderScheduler:
                 )
 
                 for reminder in triggered:
-                    success = await self.reminder_manager.trigger_reminder(
+                    success = await self.reminder_manager.check_and_notify_reminder(
                         reminder['reminder_id']
                     )
                     if success:
@@ -232,6 +243,22 @@ class ReminderScheduler:
             "total_jobs": len(self.scheduler.get_jobs()),
             "jobs": self.get_jobs()
         }
+
+    async def cleanup_old_memories(self):
+        """清理旧记忆 - 每天凌晨4点执行"""
+        try:
+            logger.info("Starting memory cleanup...")
+
+            # 清理7天前的conversation记忆
+            count = self.memory_manager.cleanup_old_conversations(days=7)
+
+            logger.info(
+                f"Memory cleanup complete: "
+                f"removed {count} old conversation memories"
+            )
+
+        except Exception as e:
+            logger.error(f"Error cleaning up memories: {e}")
 
 
 # 全局单例
