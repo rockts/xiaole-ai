@@ -4,10 +4,6 @@ __pycache__/
 *$py.class
 *.so
 .Python
-.venv/
-venv/
-env/
-ENV/
 build/
 develop-eggs/
 dist/
@@ -24,56 +20,52 @@ wheels/
 .installed.cfg
 *.egg
 
-# 环境变量
-.env
-.env.local
+# Virtual Environment
+.venv/
+venv/
+ENV/
+env/
 
-# 数据库
-*.db
-*.sqlite
-*.sqlite3
-
-# 向量缓存
-vector_cache.pkl
-chroma_db/
-
-# 日志
-logs/
-*.log
-server.log
-
-# IDE
+# IDEs
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
 
-# macOS
+# Environment
+.env
+.env.local
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+logs/*.log
+*.log
+
+# OS
 .DS_Store
+Thumbs.db
 
-# 测试
-.pytest_cache/
-.coverage
-htmlcov/
-
-# Jupyter
-.ipynb_checkpoints/
-
-# 归档文件
+# Project specific
+uploads/*
+!uploads/.gitkeep
+files/*
+!files/.gitkeep
 archive/
-
-# 上传文件和临时目录
-uploads/
-workspace/
-demos/
-files/
-
-# 测试文件
-test_*.py
-!tests/test_*.py
-
-# 临时文件
+test_*.txt
+*_result.txt
+check_result.py
+quick_check.py
+save_result.py
+test_baidu_sdk.py
+test_model_names.py
 .cleanupplan.txt
-*.tmp
-*.bak
+repo_structure.txt
+
+# Keep example files
+!.env.example
+!.env.baidu.example
