@@ -6118,7 +6118,7 @@
                 }
                 const targetTime = new Date(timeStr);
                 const element = document.getElementById(`countdown-${reminderId}`);
-                
+
                 if (!element) return;
 
                 function update() {
@@ -6148,7 +6148,7 @@
                     }
 
                     element.innerHTML = `⏳ 剩余时间: ${timeStr}`;
-                    
+
                     // 根据剩余时间改变颜色
                     if (diff < 5 * 60 * 1000) {
                         element.style.color = '#ef4444'; // 5分钟内红色
