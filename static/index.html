@@ -6050,6 +6050,11 @@
                                     <div style="font-size: 14px; color: #666; margin-bottom: 8px;">
                                         ${reminder.content}
                                     </div>
+                                    ${!isTriggered && reminder.reminder_type === 'time' ? `
+                                        <div id="countdown-${reminder.reminder_id}" style="font-size: 13px; color: #667eea; margin-bottom: 8px; font-weight: 500;">
+                                            ⏳ 计算中...
+                                        </div>
+                                    ` : ''}
                                     <div style="display: flex; gap: 10px; flex-wrap: wrap; font-size: 12px;">
                                         <span style="background: #e0e7ff; color: #4f46e5; padding: 3px 8px; border-radius: 4px;">
                                             ${typeEmoji[reminder.reminder_type] || '📌'} ${reminder.reminder_type}
@@ -6089,8 +6094,80 @@
                 html += '</div>';
                 container.innerHTML = html;
 
+                // 更新所有时间提醒的倒计时
+                displayReminders.forEach(reminder => {
+                    if (!reminder.last_triggered && !reminder.trigger_count && reminder.reminder_type === 'time') {
+                        updateCountdown(reminder.reminder_id, reminder.trigger_condition);
+                    }
+                });
+
             } catch (error) {
                 container.innerHTML = `<div class="error">加载失败: ${error.message}</div>`;
+            }
+        }
+
+        // 更新倒计时显示
+        function updateCountdown(reminderId, triggerCondition) {
+            try {
+                const condition = JSON.parse(triggerCondition);
+                const targetTime = new Date(condition.datetime);
+                const element = document.getElementById(`countdown-${reminderId}`);
+                
+                if (!element) return;
+
+                function update() {
+                    const now = new Date();
+                    const diff = targetTime - now;
+
+                    if (diff <= 0) {
+                        element.innerHTML = '⏰ 即将触发...';
+                        element.style.color = '#ef4444';
+                        return;
+                    }
+
+                    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+                    let timeStr = '';
+                    if (days > 0) {
+                        timeStr = `${days}天${hours}小时`;
+                    } else if (hours > 0) {
+                        timeStr = `${hours}小时${minutes}分钟`;
+                    } else if (minutes > 0) {
+                        timeStr = `${minutes}分${seconds}秒`;
+                    } else {
+                        timeStr = `${seconds}秒`;
+                    }
+
+                    element.innerHTML = `⏳ 剩余时间: ${timeStr}`;
+                    
+                    // 根据剩余时间改变颜色
+                    if (diff < 5 * 60 * 1000) {
+                        element.style.color = '#ef4444'; // 5分钟内红色
+                    } else if (diff < 60 * 60 * 1000) {
+                        element.style.color = '#f59e0b'; // 1小时内橙色
+                    } else {
+                        element.style.color = '#667eea'; // 正常蓝色
+                    }
+                }
+
+                update();
+                // 每秒更新一次
+                const intervalId = setInterval(update, 1000);
+                // 存储interval ID以便后续清理
+                if (!window.countdownIntervals) {
+                    window.countdownIntervals = {};
+                }
+                // 清理旧的interval
+                if (window.countdownIntervals[reminderId]) {
+                    clearInterval(window.countdownIntervals[reminderId]);
+                }
+                window.countdownIntervals[reminderId] = intervalId;
+
+            } catch (error) {
+                console.error('更新倒计时失败:', error);
             }
         }
 
