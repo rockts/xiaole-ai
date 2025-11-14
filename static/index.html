@@ -404,12 +404,18 @@
             flex: 1;
             overflow-y: auto;
             overflow-x: hidden;
-            padding: 32px 20px 120px;
             background: var(--container-bg);
             transition: background 0.3s ease;
-            max-width: 900px;
-            margin: 0 auto;
             width: 100%;
+            display: flex;
+            justify-content: center;
+        }
+
+        .chat-inner {
+            width: 100%;
+            max-width: 820px;
+            padding: 32px 32px 140px;
+            margin: 0 auto;
         }
 
         .chat-container::-webkit-scrollbar {
@@ -453,17 +459,18 @@
         }
 
         .message-content {
-            max-width: 70%;
-            padding: 14px 18px;
-            border-radius: 16px;
+            max-width: 740px;
+            padding: 16px 20px;
+            border-radius: 14px;
             word-wrap: break-word;
             word-break: break-word;
             overflow-wrap: break-word;
             white-space: pre-wrap;
-            transition: all 0.2s ease;
+            transition: background 0.2s ease, border-color 0.2s ease;
             position: relative;
-            line-height: 1.6;
+            line-height: 1.65;
             font-size: 15px;
+            margin: 0 auto;
         }
 
         .message-image {
@@ -625,6 +632,7 @@
         .message.ai .message-content {
             background: var(--message-ai-bg);
             color: var(--message-ai-text);
+            border: 1px solid var(--border-color);
         }
 
         .message-content code {
@@ -639,6 +647,7 @@
         .message.assistant .message-content {
             background: var(--message-ai-bg);
             color: var(--message-ai-text);
+            border: 1px solid var(--border-color);
         }
 
         /* Markdown 样式 */
@@ -653,12 +662,13 @@
 
         .message.assistant .message-content ul,
         .message.assistant .message-content ol {
-            margin: 0.5em 0;
-            padding-left: 20px;
+            margin: 0.6em 0;
+            padding-left: 1.2em;
         }
 
         .message.assistant .message-content li {
-            margin: 0.3em 0;
+            margin: 0.35em 0;
+            line-height: 1.5;
         }
 
         .message.assistant .message-content code {
@@ -2288,7 +2298,7 @@
             <div id="sessionInfo" class="session-info" style="display: none;">
                 <div class="session-title-display">💬 <span id="currentSessionTitle"></span></div>
             </div>
-            <div class="chat-container" id="chatContainer"></div>
+            <div class="chat-container" id="chatContainer"><div class="chat-inner" id="chatInner"></div></div>
             <!-- 图片上传输入（隐藏） -->
             <input type="file" id="imageUpload" accept="image/*" style="display: none;"
                 onchange="handleImageUpload(event)" onclick="console.log('📂 File input clicked')"
