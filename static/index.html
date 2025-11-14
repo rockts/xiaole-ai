@@ -7207,7 +7207,12 @@
             actionsDiv.innerHTML = '<span style="color: #10b981;">✅ 已标记为已读</span>';
 
             // 标记已读
-            markReminderAsRead(reminderId);
+            await markReminderAsRead(reminderId);
+
+            // 刷新提醒列表（如果在提醒页面）
+            if (typeof loadReminders === 'function') {
+                loadReminders();
+            }
 
             // 1秒后关闭
             setTimeout(() => {
@@ -7258,9 +7263,9 @@
             console.log(`未读提醒: ${unreadReminderCount}`);
         }
 
-        function markReminderAsRead(reminderId) {
+        async function markReminderAsRead(reminderId) {
             // 调用confirm API，写入历史并禁用非重复提醒
-            confirmReminder(reminderId);
+            await confirmReminder(reminderId);
 
             // 更新未读计数
             unreadReminderCount = Math.max(0, unreadReminderCount - 1);
