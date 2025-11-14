@@ -6110,7 +6110,13 @@
         function updateCountdown(reminderId, triggerCondition) {
             try {
                 const condition = JSON.parse(triggerCondition);
-                const targetTime = new Date(condition.datetime);
+                // 处理时区：如果时间字符串没有时区信息，当作本地时间处理
+                let timeStr = condition.datetime;
+                if (!timeStr.includes('T') && !timeStr.includes('Z') && !timeStr.includes('+')) {
+                    // 格式：YYYY-MM-DD HH:MM:SS，当作本地时间
+                    timeStr = timeStr.replace(' ', 'T');
+                }
+                const targetTime = new Date(timeStr);
                 const element = document.getElementById(`countdown-${reminderId}`);
                 
                 if (!element) return;
