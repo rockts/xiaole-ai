@@ -106,7 +106,7 @@
             border-right: 1px solid var(--border-color);
             display: flex;
             flex-direction: column;
-            transition: all 0.3s ease;
+            transition: width 0.2s ease;
             z-index: 100;
         }
 
@@ -125,12 +125,9 @@
         }
 
         .sidebar-logo {
-            font-size: 20px;
-            font-weight: bold;
-            background: linear-gradient(135deg, var(--button-gradient-start), var(--button-gradient-end));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--button-gradient-start);
         }
 
         /* 主内容区域 */
@@ -161,7 +158,6 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            transition: all 0.3s ease;
         }
 
         .top-bar-left {
@@ -171,9 +167,9 @@
         }
 
         .menu-toggle {
-            width: 40px;
-            height: 40px;
-            border-radius: 10px;
+            width: 36px;
+            height: 36px;
+            border-radius: 6px;
             border: none;
             background: transparent;
             color: var(--text-secondary);
@@ -181,18 +177,17 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: all 0.2s;
-            font-size: 20px;
+            transition: all 0.15s;
+            font-size: 18px;
         }
 
         .menu-toggle:hover {
-            background: var(--input-bg);
-            color: var(--text-primary);
+            background: var(--tab-hover);
         }
 
         .new-chat-btn {
-            padding: 10px 20px;
-            border-radius: 10px;
+            padding: 8px 16px;
+            border-radius: 8px;
             border: 1px solid var(--border-color);
             background: var(--card-bg);
             color: var(--text-primary);
@@ -202,11 +197,12 @@
             gap: 8px;
             font-size: 14px;
             font-weight: 500;
-            transition: all 0.2s;
+            transition: all 0.15s;
         }
 
         .new-chat-btn:hover {
-            background: var(--input-bg);
+            background: var(--tab-hover);
+            border-color: var(--button-gradient-start);
         }
 
         .top-bar-right {
@@ -259,32 +255,31 @@
         }
 
         .nav-item {
-            padding: 12px 16px;
-            border-radius: 8px;
+            padding: 10px 12px;
+            border-radius: 6px;
             cursor: pointer;
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 10px;
             color: var(--text-secondary);
             font-size: 14px;
             font-weight: 500;
-            margin-bottom: 4px;
-            transition: all 0.2s;
+            margin-bottom: 2px;
+            transition: all 0.15s;
         }
 
         .nav-item:hover {
-            background: var(--input-bg);
-            color: var(--text-primary);
+            background: var(--tab-hover);
         }
 
         .nav-item.active {
-            background: var(--input-bg);
+            background: var(--tab-hover);
             color: var(--button-gradient-start);
         }
 
         .nav-icon {
-            font-size: 18px;
-            width: 20px;
+            font-size: 16px;
+            width: 18px;
             text-align: center;
         }
 
@@ -879,18 +874,16 @@
             right: 20px;
             width: 350px;
             background: var(--card-bg);
-            border-radius: 12px;
-            box-shadow: 0 8px 24px var(--shadow-heavy);
+            border-radius: 10px;
+            box-shadow: 0 4px 12px var(--shadow-heavy);
             z-index: 10000;
-            animation: slideIn 0.3s ease-out;
-            opacity: 1;
-            transition: opacity 0.3s, background 0.3s ease, box-shadow 0.3s ease;
+            animation: slideIn 0.25s ease-out;
             border: 1px solid var(--card-border);
         }
 
         @keyframes slideIn {
             from {
-                transform: translateX(400px);
+                transform: translateX(100%);
                 opacity: 0;
             }
 
@@ -917,15 +910,15 @@
 
         .reminder-notification-title {
             flex: 1;
-            font-weight: bold;
-            font-size: 16px;
+            font-weight: 600;
+            font-size: 15px;
             color: var(--text-primary);
         }
 
         .reminder-notification-close {
             background: none;
             border: none;
-            font-size: 20px;
+            font-size: 18px;
             color: var(--text-tertiary);
             cursor: pointer;
             padding: 0;
@@ -935,12 +928,11 @@
             align-items: center;
             justify-content: center;
             border-radius: 4px;
-            transition: all 0.3s ease;
+            transition: all 0.15s;
         }
 
         .reminder-notification-close:hover {
-            background: var(--input-bg);
-            color: var(--text-primary);
+            background: var(--tab-hover);
         }
 
         .reminder-notification-body {
@@ -1160,34 +1152,33 @@
 
         /* v0.6.0 Phase 4: 图片上传功能 */
         .upload-image-btn {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: var(--button-gradient-start);
             color: white;
             border: none;
-            padding: 10px 16px;
-            border-radius: 20px;
+            padding: 8px 14px;
+            border-radius: 8px;
             cursor: pointer;
             font-size: 14px;
-            transition: all 0.3s;
+            transition: all 0.15s;
             display: flex;
             align-items: center;
             gap: 5px;
         }
 
         .upload-image-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+            opacity: 0.9;
         }
 
         /* v0.8.0 语音输入功能 */
         .voice-input-btn {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            background: var(--button-gradient-start);
             color: white;
             border: none;
-            padding: 10px 16px;
-            border-radius: 20px;
+            padding: 8px 14px;
+            border-radius: 8px;
             cursor: pointer;
             font-size: 14px;
-            transition: all 0.3s;
+            transition: all 0.15s;
             display: flex;
             align-items: center;
             gap: 5px;
@@ -1195,25 +1186,24 @@
         }
 
         .voice-input-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(245, 87, 108, 0.3);
+            opacity: 0.9;
         }
 
         .voice-input-btn.recording {
-            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+            background: #ef4444;
             animation: pulse 1.5s ease-in-out infinite;
         }
 
         /* 连续对话模式按钮 */
         .conversation-mode-btn {
-            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            background: var(--button-gradient-start);
             color: white;
             border: none;
-            padding: 10px 16px;
-            border-radius: 20px;
+            padding: 8px 14px;
+            border-radius: 8px;
             cursor: pointer;
             font-size: 14px;
-            transition: all 0.3s;
+            transition: all 0.15s;
             display: flex;
             align-items: center;
             gap: 5px;
@@ -1221,12 +1211,11 @@
         }
 
         .conversation-mode-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(79, 172, 254, 0.3);
+            opacity: 0.9;
         }
 
         .conversation-mode-btn.active {
-            background: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
+            background: #0ea5e9;
             animation: breathe 2s ease-in-out infinite;
         }
 
@@ -1601,17 +1590,16 @@
         /* v0.8.0 任务管理样式 */
         .task-card {
             background: var(--card-bg);
-            padding: 15px;
-            margin-bottom: 15px;
-            border-radius: 10px;
-            box-shadow: 0 2px 5px var(--shadow-light);
-            border-left: 4px solid #667eea;
-            transition: all 0.3s ease;
+            padding: 12px 16px;
+            margin-bottom: 12px;
+            border-radius: 8px;
+            border-left: 3px solid #667eea;
+            border: 1px solid var(--card-border);
+            border-left: 3px solid #667eea;
         }
 
         .task-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px var(--shadow-heavy);
+            border-color: var(--button-gradient-start);
         }
 
         .task-card.status-pending {
