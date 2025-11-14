@@ -99,6 +99,25 @@
             width: 100%;
         }
 
+        /* 移动端遮罩层 */
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .sidebar-overlay.active {
+            display: block;
+            opacity: 1;
+        }
+
         /* 侧边栏 */
         .sidebar {
             width: 280px;
@@ -111,9 +130,19 @@
         }
 
         .sidebar.collapsed {
-            width: 0;
-            min-width: 0;
-            border-right: none;
+            width: 60px;
+            min-width: 60px;
+        }
+
+        .sidebar.collapsed .sidebar-logo,
+        .sidebar.collapsed .nav-item span:not(.nav-icon),
+        .sidebar.collapsed .theme-toggle span {
+            display: none;
+        }
+
+        .sidebar.collapsed .nav-item {
+            justify-content: center;
+            padding: 10px;
         }
 
         .sidebar-header {
@@ -183,6 +212,12 @@
 
         .menu-toggle:hover {
             background: var(--tab-hover);
+        }
+
+        .page-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
         }
 
         .new-chat-btn {
@@ -281,6 +316,32 @@
             font-size: 16px;
             width: 18px;
             text-align: center;
+        }
+
+        /* 侧边栏底部 */
+        .sidebar-footer {
+            padding: 12px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .sidebar-toggle {
+            width: 100%;
+            padding: 8px;
+            background: transparent;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.15s;
+        }
+
+        .sidebar-toggle:hover {
+            background: var(--tab-hover);
+        }
+
+        .sidebar.collapsed .sidebar-toggle {
+            padding: 8px 0;
         }
 
         /* 旧的tab样式保留用于兼容 */
@@ -1910,6 +1971,34 @@
                 padding: 0;
             }
 
+            .sidebar {
+                position: fixed;
+                left: 0;
+                top: 0;
+                height: 100vh;
+                z-index: 1000;
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+                width: 280px;
+            }
+
+            .sidebar.mobile-open {
+                transform: translateX(0);
+                box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+            }
+
+            .main-content {
+                width: 100%;
+            }
+
+            .top-bar {
+                padding: 12px 16px;
+            }
+
+            .page-title {
+                font-size: 14px;
+            }
+
             .container {
                 max-width: 100%;
                 width: 100%;
@@ -2017,30 +2106,78 @@
         </div>
     </div>
 
-    <div class="container">
-        <div class="header">
-            <button class="theme-toggle" onclick="toggleTheme()" title="切换主题">
-                <span id="themeIcon">🌙</span>
-            </button>
-            <div class="header-title">
-                🤖 小乐 AI 管家
-                <span style="font-size: 12px; opacity: 0.8; margin-left: 10px;">v0.8.0</span>
+    <div class="app-layout">
+        <!-- 移动端遮罩层 -->
+        <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+        
+        <!-- 左侧边栏 -->
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">🤖 小乐 AI</div>
+                <button class="theme-toggle" onclick="toggleTheme()" title="切换主题">
+                    <span id="themeIcon">🌙</span>
+                </button>
             </div>
-            <div style="width: 40px;"></div> <!-- 占位保持居中 -->
+
+            <!-- 功能导航 -->
+            <div class="sidebar-nav">
+                <div class="nav-item active" onclick="switchTab('chat', event)" data-tab="chat">
+                    <span class="nav-icon">💬</span>
+                    <span>对话</span>
+                </div>
+                <div class="nav-item" onclick="switchTab('sessions', event)" data-tab="sessions">
+                    <span class="nav-icon">📋</span>
+                    <span>历史对话</span>
+                </div>
+                <div class="nav-item" onclick="switchTab('memory', event)" data-tab="memory">
+                    <span class="nav-icon">🧠</span>
+                    <span>记忆</span>
+                </div>
+                <div class="nav-item" onclick="switchTab('reminders', event)" data-tab="reminders">
+                    <span class="nav-icon">🔔</span>
+                    <span>提醒</span>
+                </div>
+                <div class="nav-item" onclick="switchTab('tasks', event)" data-tab="tasks">
+                    <span class="nav-icon">✅</span>
+                    <span>任务</span>
+                </div>
+                <div class="nav-item" onclick="switchTab('documents', event)" data-tab="documents">
+                    <span class="nav-icon">📄</span>
+                    <span>文档</span>
+                </div>
+                <div class="nav-item" onclick="switchTab('schedule', event)" data-tab="schedule">
+                    <span class="nav-icon">📅</span>
+                    <span>课程表</span>
+                </div>
+                <div class="nav-item" onclick="switchTab('tools', event)" data-tab="tools">
+                    <span class="nav-icon">🔧</span>
+                    <span>工具</span>
+                </div>
+                <div class="nav-item" onclick="switchTab('settings', event)" data-tab="settings">
+                    <span class="nav-icon">⚙️</span>
+                    <span>设置</span>
+                </div>
+            </div>
+
+            <!-- 折叠按钮 -->
+            <div class="sidebar-footer">
+                <button class="sidebar-toggle" onclick="toggleSidebar()" title="折叠侧边栏">
+                    <span id="sidebarToggleIcon">◀</span>
+                </button>
+            </div>
         </div>
 
-        <div class="tabs">
-            <div class="tab active" onclick="switchTab('chat', event)">💬 聊天</div>
-            <div class="tab" onclick="switchTab('sessions', event)">📋 会话</div>
-            <div class="tab" onclick="switchTab('memory', event)">🧠 记忆</div>
-            <!-- <div class="tab" onclick="switchTab('analytics', event)">📊 行为分析</div> -->
-            <div class="tab" onclick="switchTab('tasks', event)">✅ 任务</div>
-            <div class="tab" onclick="switchTab('reminders', event)">🔔 提醒</div>
-            <div class="tab" onclick="switchTab('documents', event)">📄 文档总结</div>
-            <div class="tab" onclick="switchTab('schedule', event)">📅 课程表</div>
-            <div class="tab" onclick="switchTab('tools', event)">🔧 工具管理</div>
-            <div class="tab" onclick="switchTab('settings', event)">⚙️ 设置</div>
-        </div>
+        <!-- 主内容区域 -->
+        <div class="main-content">
+            <!-- 顶部栏 -->
+            <div class="top-bar">
+                <div class="top-bar-left">
+                    <button class="menu-toggle" onclick="toggleSidebar()" title="菜单">
+                        ☰
+                    </button>
+                    <span class="page-title" id="pageTitle">🤖 小乐 AI 管家 v0.8.0</span>
+                </div>
+            </div>
 
         <!-- 聊天界面 -->
         <div id="chat" class="tab-content active">
@@ -2663,7 +2800,8 @@
                 </div>
             </div>
         </div>
-    </div>
+        </div> <!-- 关闭 main-content -->
+    </div> <!-- 关闭 app-layout -->
 
     <!-- v0.6.0 快捷键提示栏 -->
     <div id="shortcutHints" style="
@@ -2996,15 +3134,21 @@
 
         // 切换标签页
         function switchTab(tabName, event) {
-            // 移除所有tab和内容的active状态
+            // 移除所有tab和nav-item的active状态
             document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
 
-            // 激活对应的tab按钮（如果是通过点击触发）
-            if (event && event.target) {
+            // 激活对应的nav-item（侧边栏）
+            const navItem = document.querySelector(`.nav-item[data-tab="${tabName}"]`);
+            if (navItem) {
+                navItem.classList.add('active');
+            }
+
+            // 激活对应的tab按钮（兼容旧的tabs）
+            if (event && event.target && event.target.classList.contains('tab')) {
                 event.target.classList.add('active');
             } else {
-                // 如果是程序调用，查找对应的tab按钮并激活
                 const tabButton = document.querySelector(`.tab[onclick*="${tabName}"]`);
                 if (tabButton) {
                     tabButton.classList.add('active');
@@ -8284,6 +8428,28 @@
                 }
             }
         });
+
+        /**
+         * 切换侧边栏折叠状态
+         */
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            const icon = document.getElementById('sidebarToggleIcon');
+            const isMobile = window.innerWidth <= 768;
+            
+            if (isMobile) {
+                // 移动端：显示/隐藏侧边栏
+                sidebar.classList.toggle('mobile-open');
+                overlay.classList.toggle('active');
+            } else {
+                // 桌面端：折叠/展开侧边栏
+                sidebar.classList.toggle('collapsed');
+                if (icon) {
+                    icon.textContent = sidebar.classList.contains('collapsed') ? '▶' : '◀';
+                }
+            }
+        }
 
         /**
          * 分析上传的图片
