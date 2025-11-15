@@ -6,11 +6,11 @@ let themeInitialized = false;
 export function initTheme() {
     if (themeInitialized) return;
     themeInitialized = true;
-    
+
     const settings = getSettings();
     const preference = settings.themePreference || 'system';
     applyThemePreference(preference);
-    
+
     // Add change event delegation for settings panel
     const settingsTab = document.getElementById('settings');
     if (settingsTab) {
@@ -18,7 +18,7 @@ export function initTheme() {
             const target = e.target;
             const action = target.getAttribute('data-setting-change');
             if (!action) return;
-            
+
             switch (action) {
                 case 'updateThemePreference':
                     updateThemePreference(target.value);

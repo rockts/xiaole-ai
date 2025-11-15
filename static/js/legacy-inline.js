@@ -3086,7 +3086,7 @@ async function loadLearningPatterns(userId) {
 // 全局变量：控制是否显示已过期提醒
 let showExpired = false;
 
-        // ==================== 文档总结功能已迁移至 modules/documents.js ====================// ==================== 提醒管理 ====================
+// ==================== 文档总结功能已迁移至 modules/documents.js ====================// ==================== 提醒管理 ====================
 
 async function loadReminders() {
     const container = document.getElementById('remindersList');
@@ -3962,7 +3962,7 @@ function closeCustomNotification() {
 
 // ============ v0.8.0 任务管理功能结束 ============
 
-        // ============ 课程表管理功能已迁移至 modules/schedule.js ============// ============ WebSocket实时推送 ============
+// ============ 课程表管理功能已迁移至 modules/schedule.js ============// ============ WebSocket实时推送 ============
 let ws = null;
 let wsReconnectTimer = null;
 let unreadReminderCount = 0;

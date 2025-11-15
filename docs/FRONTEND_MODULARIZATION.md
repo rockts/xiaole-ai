@@ -14,19 +14,19 @@
 
 ### 核心模块列表
 
-| 模块文件 | 职责范围 | 主要功能 |
-|---------|---------|---------|
-| `app.js` | 应用入口 | 模块导入、初始化协调、全局兼容层 |
-| `theme.js` | 主题与设置 | 主题切换、用户偏好设置、快捷键管理 |
-| `navigation.js` | 导航控制 | 侧边栏切换、标签页切换、移动端适配 |
-| `composer.js` | 消息编辑 | 消息发送、图片上传、编辑状态管理 |
-| `chat-controls.js` | 聊天控制 | 新建对话、图片查看器 |
-| `memory.js` | 记忆管理 | 记忆加载、搜索（关键词/语义）、CRUD |
-| `reminders_tasks.js` | 提醒任务 | 提醒列表、任务管理、倒计时、状态更新 |
-| `documents.js` | 文档总结 | 文档上传、列表、详情查看、导出删除 |
-| `schedule.js` | 课程表 | 加载、渲染、编辑、保存课程表 |
-| `tools.js` | 工具管理 | 工具列表、执行历史 |
-| `voice.js` | 语音交互 | 录音控制、语音播放、连续对话模式 |
+| 模块文件             | 职责范围   | 主要功能                             |
+| -------------------- | ---------- | ------------------------------------ |
+| `app.js`             | 应用入口   | 模块导入、初始化协调、全局兼容层     |
+| `theme.js`           | 主题与设置 | 主题切换、用户偏好设置、快捷键管理   |
+| `navigation.js`      | 导航控制   | 侧边栏切换、标签页切换、移动端适配   |
+| `composer.js`        | 消息编辑   | 消息发送、图片上传、编辑状态管理     |
+| `chat-controls.js`   | 聊天控制   | 新建对话、图片查看器                 |
+| `memory.js`          | 记忆管理   | 记忆加载、搜索（关键词/语义）、CRUD  |
+| `reminders_tasks.js` | 提醒任务   | 提醒列表、任务管理、倒计时、状态更新 |
+| `documents.js`       | 文档总结   | 文档上传、列表、详情查看、导出删除   |
+| `schedule.js`        | 课程表     | 加载、渲染、编辑、保存课程表         |
+| `tools.js`           | 工具管理   | 工具列表、执行历史                   |
+| `voice.js`           | 语音交互   | 录音控制、语音播放、连续对话模式     |
 
 ---
 
@@ -78,19 +78,19 @@ export function initDocuments() {
 
 ### ✅ 已完成模块化
 
-| 功能域 | 原位置 | 新位置 | 状态 |
-|-------|--------|--------|------|
-| 主题切换 | legacy-inline.js | modules/theme.js | ✅ 完成 |
-| 导航控制 | legacy-inline.js | modules/navigation.js | ✅ 完成 |
-| 消息编辑 | legacy-inline.js | modules/composer.js | ✅ 完成 |
-| 图片查看 | legacy-inline.js | modules/chat-controls.js | ✅ 完成 |
-| 记忆搜索 | legacy-inline.js | modules/memory.js | ✅ 完成 |
+| 功能域   | 原位置           | 新位置                     | 状态   |
+| -------- | ---------------- | -------------------------- | ------ |
+| 主题切换 | legacy-inline.js | modules/theme.js           | ✅ 完成 |
+| 导航控制 | legacy-inline.js | modules/navigation.js      | ✅ 完成 |
+| 消息编辑 | legacy-inline.js | modules/composer.js        | ✅ 完成 |
+| 图片查看 | legacy-inline.js | modules/chat-controls.js   | ✅ 完成 |
+| 记忆搜索 | legacy-inline.js | modules/memory.js          | ✅ 完成 |
 | 提醒管理 | legacy-inline.js | modules/reminders_tasks.js | ✅ 完成 |
 | 任务管理 | legacy-inline.js | modules/reminders_tasks.js | ✅ 完成 |
-| 文档总结 | legacy-inline.js | modules/documents.js | ✅ 完成 |
-| 课程表 | legacy-inline.js | modules/schedule.js | ✅ 完成 |
-| 工具管理 | legacy-inline.js | modules/tools.js | ✅ 完成 |
-| 语音交互 | legacy-inline.js | modules/voice.js | ✅ 完成 |
+| 文档总结 | legacy-inline.js | modules/documents.js       | ✅ 完成 |
+| 课程表   | legacy-inline.js | modules/schedule.js        | ✅ 完成 |
+| 工具管理 | legacy-inline.js | modules/tools.js           | ✅ 完成 |
+| 语音交互 | legacy-inline.js | modules/voice.js           | ✅ 完成 |
 
 ### ⚠️ 保留在 legacy-inline.js
 

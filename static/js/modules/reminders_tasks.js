@@ -75,12 +75,12 @@ export async function loadReminders() {
 
         if (reminders.length === 0) {
             container.innerHTML = '<div style="color:#999;text-align:center;padding:20px;">还没有提醒，点击"创建提醒"来添加！</div>';
-            updateReminderStats(0,0,0);
+            updateReminderStats(0, 0, 0);
             return;
         }
 
         // 统计
-        let activeCount=0, disabledCount=0, triggeredCount=0;
+        let activeCount = 0, disabledCount = 0, triggeredCount = 0;
         reminders.forEach(r => {
             if (r.trigger_count > 0 || r.last_triggered) {
                 triggeredCount++;
@@ -128,35 +128,35 @@ function renderReminderCard(reminder) {
     const statusText = isTriggered ? '已触发' : (reminder.enabled ? '启用' : '禁用');
     const cardBg = isTriggered ? '#f3f4f6' : 'white';
     const cardOpacity = isTriggered ? 'opacity:0.8;' : '';
-    const typeEmoji = { time:'⏰', weather:'🌤️', behavior:'👤', habit:'🎯' };
+    const typeEmoji = { time: '⏰', weather: '🌤️', behavior: '👤', habit: '🎯' };
 
     return `<div style='background:${cardBg};padding:15px;border-radius:10px;border-left:4px solid ${priority.color};${cardOpacity}'>
         <div style='display:flex;justify-content:space-between;align-items:start;margin-bottom:10px;'>
             <div style='flex:1;'>
-                <div style='font-size:16px;font-weight:bold;color:#333;margin-bottom:5px;'>${priority.emoji} ${reminder.title||'无标题'} ${isTriggered?'<span style="font-size:12px;color:#9ca3af;margin-left:8px;">📜 已触发</span>':''}</div>
+                <div style='font-size:16px;font-weight:bold;color:#333;margin-bottom:5px;'>${priority.emoji} ${reminder.title || '无标题'} ${isTriggered ? '<span style="font-size:12px;color:#9ca3af;margin-left:8px;">📜 已触发</span>' : ''}</div>
                 <div style='font-size:14px;color:#666;margin-bottom:8px;'>${reminder.content}</div>
-                ${!isTriggered && reminder.reminder_type==='time'?`<div id='countdown-${reminder.reminder_id}' style='font-size:13px;color:#667eea;margin-bottom:8px;font-weight:500;'>⏳ 计算中...</div>`:''}
+                ${!isTriggered && reminder.reminder_type === 'time' ? `<div id='countdown-${reminder.reminder_id}' style='font-size:13px;color:#667eea;margin-bottom:8px;font-weight:500;'>⏳ 计算中...</div>` : ''}
                 <div style='display:flex;gap:10px;flex-wrap:wrap;font-size:12px;'>
-                    <span style='background:#e0e7ff;color:#4f46e5;padding:3px 8px;border-radius:4px;'>${typeEmoji[reminder.reminder_type]||'📌'} ${reminder.reminder_type}</span>
+                    <span style='background:#e0e7ff;color:#4f46e5;padding:3px 8px;border-radius:4px;'>${typeEmoji[reminder.reminder_type] || '📌'} ${reminder.reminder_type}</span>
                     <span style='background:${statusColor}20;color:${statusColor};padding:3px 8px;border-radius:4px;'>● ${statusText}</span>
                     <span style='background:${priority.color}20;color:${priority.color};padding:3px 8px;border-radius:4px;'>优先级: ${priority.label}</span>
-                    ${reminder.repeat?'<span style="background:#fef3c7;color:#d97706;padding:3px 8px;border-radius:4px;">🔄 重复</span>':''}
+                    ${reminder.repeat ? '<span style="background:#fef3c7;color:#d97706;padding:3px 8px;border-radius:4px;">🔄 重复</span>' : ''}
                 </div>
             </div>
             <div style='display:flex;gap:5px;margin-left:10px;'>
-                ${!isTriggered?`<button data-reminder-toggle='${reminder.reminder_id}' style='padding:6px 12px;background:${reminder.enabled?'#ef4444':'#10b981'};color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:12px;'>${reminder.enabled?'禁用':'启用'}</button>`:''}
+                ${!isTriggered ? `<button data-reminder-toggle='${reminder.reminder_id}' style='padding:6px 12px;background:${reminder.enabled ? '#ef4444' : '#10b981'};color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:12px;'>${reminder.enabled ? '禁用' : '启用'}</button>` : ''}
                 <button data-reminder-delete='${reminder.reminder_id}' style='padding:6px 12px;background:#dc2626;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:12px;'>删除</button>
             </div>
         </div>
-        ${reminder.last_triggered?`<div style='font-size:11px;color:#999;margin-top:5px;'>上次触发: ${new Date(reminder.last_triggered).toLocaleString('zh-CN')} ${reminder.trigger_count?` | 触发次数: ${reminder.trigger_count}`:''}</div>`:''}
+        ${reminder.last_triggered ? `<div style='font-size:11px;color:#999;margin-top:5px;'>上次触发: ${new Date(reminder.last_triggered).toLocaleString('zh-CN')} ${reminder.trigger_count ? ` | 触发次数: ${reminder.trigger_count}` : ''}</div>` : ''}
     </div>`;
 }
 
 function updateReminderStats(active, disabled, triggered) {
-    const a=document.getElementById('activeCount');
-    const d=document.getElementById('disabledCount');
-    const t=document.getElementById('triggeredCount');
-    if(a) a.textContent=active; if(d) d.textContent=disabled; if(t) t.textContent=triggered;
+    const a = document.getElementById('activeCount');
+    const d = document.getElementById('disabledCount');
+    const t = document.getElementById('triggeredCount');
+    if (a) a.textContent = active; if (d) d.textContent = disabled; if (t) t.textContent = triggered;
 }
 
 function updateCountdown(reminderId, triggerCondition) {
@@ -263,7 +263,7 @@ async function createReminder() {
             body: JSON.stringify({
                 user_id: 'default_user',
                 reminder_type: 'time',
-                trigger_condition: { datetime: time.replace('T',' ') + ':00' },
+                trigger_condition: { datetime: time.replace('T', ' ') + ':00' },
                 title: title || '新提醒',
                 content,
                 priority,
@@ -276,13 +276,14 @@ async function createReminder() {
             loadReminders();
             alert('✅ 提醒创建成功！');
         } else {
-            alert('❌ 创建失败: ' + (data.error||'未知错误'));}
+            alert('❌ 创建失败: ' + (data.error || '未知错误'));
+        }
     } catch (e) { alert('❌ 创建失败: ' + e.message); }
 }
 
 async function toggleReminder(reminderId) {
     try {
-        const resp = await fetch(`${window.API_BASE}/api/reminders/${reminderId}/toggle`, { method:'POST' });
+        const resp = await fetch(`${window.API_BASE}/api/reminders/${reminderId}/toggle`, { method: 'POST' });
         const data = await resp.json();
         if (data.success) loadReminders(); else alert('操作失败');
     } catch (e) { alert('操作失败: ' + e.message); }
@@ -291,7 +292,7 @@ async function toggleReminder(reminderId) {
 async function deleteReminder(reminderId) {
     if (!confirm('确定要删除这条提醒吗？')) return;
     try {
-        const resp = await fetch(`${window.API_BASE}/api/reminders/${reminderId}`, { method:'DELETE' });
+        const resp = await fetch(`${window.API_BASE}/api/reminders/${reminderId}`, { method: 'DELETE' });
         const data = await resp.json();
         if (data.success) { loadReminders(); alert('✅ 删除成功'); } else { alert('❌ 删除失败'); }
     } catch (e) { alert('❌ 删除失败: ' + e.message); }
@@ -314,11 +315,11 @@ export async function loadTasks() {
         const tasks = data.tasks || [];
         updateTaskStats(tasks);
         if (tasks.length === 0) { container.innerHTML = '<div class="loading">暂无任务</div>'; return; }
-        tasks.sort((a,b)=>{
+        tasks.sort((a, b) => {
             if (a.priority !== b.priority) return b.priority - a.priority;
             if (a.status !== b.status) {
-                const order=['in_progress','pending','waiting','failed','completed','cancelled'];
-                return order.indexOf(a.status)-order.indexOf(b.status);
+                const order = ['in_progress', 'pending', 'waiting', 'failed', 'completed', 'cancelled'];
+                return order.indexOf(a.status) - order.indexOf(b.status);
             }
             return new Date(b.created_at) - new Date(a.created_at);
         });
@@ -329,47 +330,47 @@ export async function loadTasks() {
 }
 
 function renderTaskCard(task) {
-    const statusMap={pending:'待处理',in_progress:'执行中',waiting:'等待中',completed:'已完成',failed:'失败',cancelled:'已取消'};
-    const priorityMap={0:'普通',1:'重要',2:'紧急'};
-    const progress = task.total_steps>0?Math.round((task.current_step/ task.total_steps)*100):0;
-    const statusClass=task.status; const statusText=statusMap[task.status]||task.status;
-    const priorityText=priorityMap[task.priority]||'普通';
-    const createdTime=new Date(task.created_at).toLocaleString('zh-CN');
-    const updatedTime=task.updated_at?new Date(task.updated_at).toLocaleString('zh-CN'):'-';
+    const statusMap = { pending: '待处理', in_progress: '执行中', waiting: '等待中', completed: '已完成', failed: '失败', cancelled: '已取消' };
+    const priorityMap = { 0: '普通', 1: '重要', 2: '紧急' };
+    const progress = task.total_steps > 0 ? Math.round((task.current_step / task.total_steps) * 100) : 0;
+    const statusClass = task.status; const statusText = statusMap[task.status] || task.status;
+    const priorityText = priorityMap[task.priority] || '普通';
+    const createdTime = new Date(task.created_at).toLocaleString('zh-CN');
+    const updatedTime = task.updated_at ? new Date(task.updated_at).toLocaleString('zh-CN') : '-';
     return `<div class='task-card status-${statusClass}'>
       <div class='task-header'>
         <div style='flex:1;'>
           <div class='task-title'>${escapeHtml(task.title)}</div>
-          ${task.description?`<div class='task-description'>${escapeHtml(task.description)}</div>`:''}
+          ${task.description ? `<div class='task-description'>${escapeHtml(task.description)}</div>` : ''}
         </div>
         <div style='display:flex;gap:8px;align-items:flex-start;'>
           <span class='priority-badge priority-${task.priority}'>${priorityText}</span>
           <span class='task-status-badge ${statusClass}'>${statusText}</span>
         </div>
       </div>
-      ${task.total_steps>0?`<div class='task-progress'><div class='task-progress-bar'><div class='task-progress-fill' style='width:${progress}%'></div></div><div class='task-progress-text'>${task.current_step}/${task.total_steps}</div></div>`:''}
+      ${task.total_steps > 0 ? `<div class='task-progress'><div class='task-progress-bar'><div class='task-progress-fill' style='width:${progress}%'></div></div><div class='task-progress-text'>${task.current_step}/${task.total_steps}</div></div>` : ''}
       <div class='task-meta'>
         <span>📅 创建: ${createdTime}</span>
         <span>🔄 更新: ${updatedTime}</span>
-        ${task.retry_count>0?`<span>🔁 重试: ${task.retry_count}次</span>`:''}
+        ${task.retry_count > 0 ? `<span>🔁 重试: ${task.retry_count}次</span>` : ''}
       </div>
       <div class='task-actions'>
         <button class='task-btn task-btn-primary' data-task-detail='${task.id}'>📋 详情</button>
-        ${(task.status==='pending'||task.status==='waiting')?`<button class='task-btn task-btn-success' data-task-execute='${task.id}'>▶️ 执行</button>`:''}
-        ${(task.status==='in_progress'||task.status==='waiting')?`<button class='task-btn task-btn-secondary' data-task-cancel='${task.id}'>⏸️ 取消</button>`:''}
-        ${(task.status==='completed'||task.status==='failed'||task.status==='cancelled')?`<button class='task-btn task-btn-danger' data-task-delete='${task.id}'>🗑️ 删除</button>`:''}
+        ${(task.status === 'pending' || task.status === 'waiting') ? `<button class='task-btn task-btn-success' data-task-execute='${task.id}'>▶️ 执行</button>` : ''}
+        ${(task.status === 'in_progress' || task.status === 'waiting') ? `<button class='task-btn task-btn-secondary' data-task-cancel='${task.id}'>⏸️ 取消</button>` : ''}
+        ${(task.status === 'completed' || task.status === 'failed' || task.status === 'cancelled') ? `<button class='task-btn task-btn-danger' data-task-delete='${task.id}'>🗑️ 删除</button>` : ''}
       </div>
     </div>`;
 }
 
 function updateTaskStats(tasks) {
-    const stats={pending:0,in_progress:0,completed:0,failed:0};
-    tasks.forEach(t=>{ if(stats.hasOwnProperty(t.status)) stats[t.status]++; });
-    const m=(id)=>document.getElementById(id);
-    if(m('taskPendingCount')) m('taskPendingCount').textContent=stats.pending;
-    if(m('taskInProgressCount')) m('taskInProgressCount').textContent=stats.in_progress;
-    if(m('taskCompletedCount')) m('taskCompletedCount').textContent=stats.completed;
-    if(m('taskFailedCount')) m('taskFailedCount').textContent=stats.failed;
+    const stats = { pending: 0, in_progress: 0, completed: 0, failed: 0 };
+    tasks.forEach(t => { if (stats.hasOwnProperty(t.status)) stats[t.status]++; });
+    const m = (id) => document.getElementById(id);
+    if (m('taskPendingCount')) m('taskPendingCount').textContent = stats.pending;
+    if (m('taskInProgressCount')) m('taskInProgressCount').textContent = stats.in_progress;
+    if (m('taskCompletedCount')) m('taskCompletedCount').textContent = stats.completed;
+    if (m('taskFailedCount')) m('taskFailedCount').textContent = stats.failed;
 }
 
 export function showCreateTaskDialog() {
@@ -400,37 +401,37 @@ export function showCreateTaskDialog() {
       </div>
     </div>`;
     document.body.insertAdjacentHTML('beforeend', html);
-    const overlay=document.querySelector('.custom-notification-overlay');
-    if (overlay) overlay.addEventListener('click', (e)=>{ if(e.target===overlay) closeCustomNotification(); });
+    const overlay = document.querySelector('.custom-notification-overlay');
+    if (overlay) overlay.addEventListener('click', (e) => { if (e.target === overlay) closeCustomNotification(); });
     document.querySelector('[data-action="task-create-confirm"]').addEventListener('click', createTask);
     document.querySelector('[data-action="task-create-cancel"]').addEventListener('click', closeCustomNotification);
 }
 
 function createTask() {
-    const title=document.getElementById('newTaskTitle').value.trim();
-    const description=document.getElementById('newTaskDesc').value.trim();
-    const priority=parseInt(document.getElementById('newTaskPriority').value);
-    if(!title){ showNotification('❌ 请输入任务标题','error'); return; }
-    fetch(`${window.API_BASE}/api/tasks`,{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({user_id:'default_user',session_id:window.currentSessionId||'',title,description,priority})
-    }).then(r=>r.json()).then(data=>{
-        if(!data.success) throw new Error(data.error||'创建任务失败');
-        showNotification('✅ 任务创建成功','success');
+    const title = document.getElementById('newTaskTitle').value.trim();
+    const description = document.getElementById('newTaskDesc').value.trim();
+    const priority = parseInt(document.getElementById('newTaskPriority').value);
+    if (!title) { showNotification('❌ 请输入任务标题', 'error'); return; }
+    fetch(`${window.API_BASE}/api/tasks`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: 'default_user', session_id: window.currentSessionId || '', title, description, priority })
+    }).then(r => r.json()).then(data => {
+        if (!data.success) throw new Error(data.error || '创建任务失败');
+        showNotification('✅ 任务创建成功', 'success');
         closeCustomNotification();
         loadTasks();
-    }).catch(err=>{ showNotification(`❌ 创建失败: ${err.message}`,'error'); });
+    }).catch(err => { showNotification(`❌ 创建失败: ${err.message}`, 'error'); });
 }
 
-function closeCustomNotification(){ const overlay=document.querySelector('.custom-notification-overlay'); if(overlay) overlay.remove(); }
+function closeCustomNotification() { const overlay = document.querySelector('.custom-notification-overlay'); if (overlay) overlay.remove(); }
 
 // Placeholder stubs for task actions (to be modularized later if needed)
-function showTaskDetails(id){ console.log('showTaskDetails', id); }
-function executeTask(id){ console.log('executeTask', id); }
-function cancelTask(id){ console.log('cancelTask', id); }
-function deleteTask(id){ console.log('deleteTask', id); }
+function showTaskDetails(id) { console.log('showTaskDetails', id); }
+function executeTask(id) { console.log('executeTask', id); }
+function cancelTask(id) { console.log('cancelTask', id); }
+function deleteTask(id) { console.log('deleteTask', id); }
 
 // Helpers
-function escapeHtml(str){ return str ? str.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c])) : ''; }
-function showNotification(message,type){ if(window.showNotification){ window.showNotification(message,type); } else { console.log(`[${type}] ${message}`); } }
+function escapeHtml(str) { return str ? str.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', '\'': '&#39;' }[c])) : ''; }
+function showNotification(message, type) { if (window.showNotification) { window.showNotification(message, type); } else { console.log(`[${type}] ${message}`); } }

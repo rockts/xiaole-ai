@@ -46,12 +46,12 @@ export function newChat() {
     if (chatContainer) {
         chatContainer.innerHTML = '';
     }
-    
+
     const sessionInfo = document.getElementById('sessionInfo');
     if (sessionInfo) {
         sessionInfo.style.display = 'none';
     }
-    
+
     const messageInput = document.getElementById('messageInput');
     if (messageInput) {
         messageInput.focus();
