@@ -65,6 +65,11 @@ import {
     saveSchedule,
     renderSchedule
 } from './modules/schedule.js';
+import {
+    initTools,
+    loadTools,
+    loadToolHistory
+} from './modules/tools.js';
 
 // expose functions globally for existing inline handlers until HTML is refactored
 window.toggleTheme = toggleTheme;
@@ -109,6 +114,8 @@ window.deleteDocument = deleteDocument;
 window.loadSchedule = loadSchedule;
 window.saveSchedule = saveSchedule;
 window.renderSchedule = renderSchedule;
+window.loadTools = loadTools;
+window.loadToolHistory = loadToolHistory;
 
 document.addEventListener('DOMContentLoaded', () => {
     initTheme();
@@ -120,6 +127,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initRemindersTasks();
     initDocuments();
     initSchedule();
+    initTools();
 });
 
 // Future modules can register their own event delegates here as they are extracted.
