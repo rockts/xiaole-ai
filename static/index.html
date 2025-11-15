@@ -438,8 +438,8 @@
                                     最大文件大小: 10 MB
                                 </p>
                                 <input type="file" id="documentFileInput" accept=".pdf,.docx,.txt,.md"
-                                    style="display: none;" onchange="handleDocumentUpload(event)">
-                                <button onclick="document.getElementById('documentFileInput').click()"
+                                    style="display: none;">
+                                <button data-action="document-file-select"
                                     style="margin-top: 15px; padding: 12px 30px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
                                        color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold;">
                                     📁 选择文件
@@ -452,7 +452,7 @@
                             <div
                                 style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                                 <h4 style="margin: 0;">📚 文档列表</h4>
-                                <button onclick="loadDocuments()"
+                                <button data-action="documents-refresh"
                                     style="padding: 8px 16px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer;">
                                     🔄 刷新
                                 </button>
@@ -474,11 +474,11 @@
                         </h3>
 
                         <div style="margin: 15px 0; display: flex; gap: 10px;">
-                            <button onclick="loadSchedule()"
+                            <button data-action="schedule-refresh"
                                 style="padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 8px; cursor: pointer;">
                                 🔄 刷新课程表
                             </button>
-                            <button onclick="saveSchedule()"
+                            <button data-action="schedule-save"
                                 style="padding: 10px 20px; background: #10b981; color: white; border: none; border-radius: 8px; cursor: pointer;">
                                 💾 保存修改
                             </button>
@@ -605,7 +605,7 @@
                                     <input type="checkbox" id="shortcutHintsEnabled" checked
                                         onchange="toggleShortcutHints(this.checked)">
                                     <span class="switch-slider"></span>
-                                </label>
+                                </label>·
                             </div>
                         </div>
 

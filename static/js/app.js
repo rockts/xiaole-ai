@@ -51,6 +51,20 @@ import {
     loadTasks,
     showCreateTaskDialog
 } from './modules/reminders_tasks.js';
+import {
+    initDocuments,
+    loadDocuments,
+    handleDocumentUpload,
+    viewDocumentSummary,
+    exportDocumentSummary,
+    deleteDocument
+} from './modules/documents.js';
+import {
+    initSchedule,
+    loadSchedule,
+    saveSchedule,
+    renderSchedule
+} from './modules/schedule.js';
 
 // expose functions globally for existing inline handlers until HTML is refactored
 window.toggleTheme = toggleTheme;
@@ -87,6 +101,14 @@ window.showCreateReminderDialog = showCreateReminderDialog;
 window.checkReminders = checkReminders;
 window.loadTasks = loadTasks;
 window.showCreateTaskDialog = showCreateTaskDialog;
+window.loadDocuments = loadDocuments;
+window.handleDocumentUpload = handleDocumentUpload;
+window.viewDocumentSummary = viewDocumentSummary;
+window.exportDocumentSummary = exportDocumentSummary;
+window.deleteDocument = deleteDocument;
+window.loadSchedule = loadSchedule;
+window.saveSchedule = saveSchedule;
+window.renderSchedule = renderSchedule;
 
 document.addEventListener('DOMContentLoaded', () => {
     initTheme();
@@ -96,6 +118,8 @@ document.addEventListener('DOMContentLoaded', () => {
     initChatControls();
     initMemory();
     initRemindersTasks();
+    initDocuments();
+    initSchedule();
 });
 
 // Future modules can register their own event delegates here as they are extracted.
