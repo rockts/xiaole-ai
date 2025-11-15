@@ -33,6 +33,24 @@ import {
     openImageViewer,
     closeImageViewer
 } from './modules/chat-controls.js';
+import {
+    initMemory,
+    loadMemoryStats,
+    loadRecentMemories,
+    searchMemories,
+    semanticSearch,
+    editMemory,
+    deleteMemory
+} from './modules/memory.js';
+import {
+    initRemindersTasks,
+    loadReminders,
+    toggleExpiredReminders,
+    showCreateReminderDialog,
+    checkReminders,
+    loadTasks,
+    showCreateTaskDialog
+} from './modules/reminders_tasks.js';
 
 // expose functions globally for existing inline handlers until HTML is refactored
 window.toggleTheme = toggleTheme;
@@ -57,6 +75,18 @@ window.removeImagePreview = removeImagePreview;
 window.newChat = newChat;
 window.openImageViewer = openImageViewer;
 window.closeImageViewer = closeImageViewer;
+window.loadMemoryStats = loadMemoryStats;
+window.loadRecentMemories = loadRecentMemories;
+window.searchMemories = searchMemories;
+window.semanticSearch = semanticSearch;
+window.editMemory = editMemory;
+window.deleteMemory = deleteMemory;
+window.loadReminders = loadReminders;
+window.toggleExpiredReminders = toggleExpiredReminders;
+window.showCreateReminderDialog = showCreateReminderDialog;
+window.checkReminders = checkReminders;
+window.loadTasks = loadTasks;
+window.showCreateTaskDialog = showCreateTaskDialog;
 
 document.addEventListener('DOMContentLoaded', () => {
     initTheme();
@@ -64,6 +94,8 @@ document.addEventListener('DOMContentLoaded', () => {
     initNavigation();
     initComposer();
     initChatControls();
+    initMemory();
+    initRemindersTasks();
 });
 
 // Future modules can register their own event delegates here as they are extracted.

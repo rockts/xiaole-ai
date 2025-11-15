@@ -155,9 +155,9 @@
                             <div id="homeMessageInput" class="message-editor home-editor" contenteditable="true"
                                 data-placeholder="询问任何问题"></div>
                             <div class="home-actions">
-                                <button class="home-icon-btn" id="homeVoiceBtn" title="语音输入" data-action="voice">🎤</button>
-                                <button class="home-icon-btn primary" id="homeSendBtn"
-                                    title="发送">
+                                <button class="home-icon-btn" id="homeVoiceBtn" title="语音输入"
+                                    data-action="voice">🎤</button>
+                                <button class="home-icon-btn primary" id="homeSendBtn" title="发送">
                                     <span class="home-wave-icon">
                                         <span></span>
                                         <span></span>
@@ -249,9 +249,9 @@
                     <div class="search-box">
                         <input type="text" id="searchInput" placeholder="搜索记忆（支持语义理解）..."
                             style="flex: 1; padding: 10px; border: 2px solid #ddd; border-radius: 10px;">
-                        <button onclick="searchMemories()">🔍 关键词</button>
-                        <button onclick="semanticSearch()" title="支持自然语言查询，如'多大年纪'">🧠 语义</button>
-                        <button onclick="loadRecentMemories()">📋 全部</button>
+                        <button data-action="search-memories">🔍 关键词</button>
+                        <button data-action="semantic-search" title="支持自然语言查询，如'多大年纪'">🧠 语义</button>
+                        <button data-action="load-memories">📋 全部</button>
                     </div>
 
                     <div id="memoryList"></div>
@@ -336,15 +336,15 @@
                         </h3>
 
                         <div style="margin: 15px 0; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-                            <button onclick="loadTasks()"
+                            <button data-action="tasks-refresh"
                                 style="padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 8px; cursor: pointer;">
                                 🔄 刷新
                             </button>
-                            <button onclick="showCreateTaskDialog()"
+                            <button data-action="task-create"
                                 style="padding: 10px 20px; background: #10b981; color: white; border: none; border-radius: 8px; cursor: pointer;">
                                 ➕ 创建任务
                             </button>
-                            <select id="taskStatusFilter" onchange="loadTasks()"
+                            <select id="taskStatusFilter"
                                 style="padding: 8px 15px; border: 2px solid #ddd; border-radius: 8px; cursor: pointer;">
                                 <option value="">全部状态</option>
                                 <option value="pending">待处理</option>
@@ -384,21 +384,21 @@
                                 Active Perception层</span></h3>
 
                         <div style="margin: 15px 0; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-                            <button onclick="loadReminders()"
+                            <button data-action="reminders-refresh"
                                 style="padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 8px; cursor: pointer;">
                                 🔄 刷新
                             </button>
-                            <button onclick="showCreateReminderDialog()"
+                            <button data-action="reminder-create"
                                 style="padding: 10px 20px; background: #10b981; color: white; border: none; border-radius: 8px; cursor: pointer;">
                                 ➕ 创建提醒
                             </button>
-                            <button onclick="toggleExpiredReminders()"
+                            <button data-action="reminder-toggle-expired"
                                 style="padding: 10px 20px; background: #f59e0b; color: white; border: none; border-radius: 8px; cursor: pointer;">
-                                <span id="toggleExpiredBtn">�️ 显示已过期</span>
+                                <span id="toggleExpiredBtn">👁️ 显示已过期</span>
                             </button>
-                            <button onclick="checkReminders()"
+                            <button data-action="reminder-check"
                                 style="padding: 10px 20px; background: #8b5cf6; color: white; border: none; border-radius: 8px; cursor: pointer;">
-                                � 立即检查
+                                🔍 立即检查
                             </button>
                         </div>
 
