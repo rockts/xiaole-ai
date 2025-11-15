@@ -124,9 +124,10 @@ body {
     display: flex;
     flex-direction: column;
     transition: width 0.2s ease;
-    z-index: 100;
-    overflow-y: auto;
-    overflow-x: hidden;
+    z-index: 1000;
+    position: relative;
+    height: 100vh;
+    overflow: hidden;
 }
 
 .sidebar.collapsed {
@@ -186,8 +187,19 @@ body {
 }
 
 .sidebar-logo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     font-size: 18px;
     font-weight: 600;
+    color: var(--text-primary);
+}
+
+.sidebar-logo-icon {
+    width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+}
     color: var(--button-gradient-start);
 }
 
@@ -338,6 +350,20 @@ body {
 .sidebar-section {
     padding: 0 8px;
     margin-bottom: 8px;
+}
+
+/* Fixed navigation items container */
+.sidebar-inner {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+}
+
+.sidebar-inner .sidebar-section:nth-child(2) {
+    flex: 0 0 auto;
+    overflow-y: auto;
+    max-height: calc(100vh - 200px);
 }
 
 .section-header {
