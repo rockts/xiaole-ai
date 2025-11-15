@@ -70,6 +70,15 @@ import {
     loadTools,
     loadToolHistory
 } from './modules/tools.js';
+import {
+    initVoice,
+    toggleListening,
+    startListening,
+    stopListening,
+    startSpeaking,
+    stopSpeaking,
+    toggleConversationMode
+} from './modules/voice.js';
 
 // expose functions globally for existing inline handlers until HTML is refactored
 window.toggleTheme = toggleTheme;
@@ -116,6 +125,12 @@ window.saveSchedule = saveSchedule;
 window.renderSchedule = renderSchedule;
 window.loadTools = loadTools;
 window.loadToolHistory = loadToolHistory;
+window.toggleListening = toggleListening;
+window.startListening = startListening;
+window.stopListening = stopListening;
+window.startSpeaking = startSpeaking;
+window.stopSpeaking = stopSpeaking;
+window.toggleConversationMode = toggleConversationMode;
 
 document.addEventListener('DOMContentLoaded', () => {
     initTheme();
@@ -128,6 +143,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initDocuments();
     initSchedule();
     initTools();
+    initVoice();
 });
 
 // Future modules can register their own event delegates here as they are extracted.
