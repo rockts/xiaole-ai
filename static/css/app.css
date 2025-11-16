@@ -2290,10 +2290,11 @@ button:disabled {
 }
 
 #chat.chat-empty .input-wrapper {
-    width: min(720px, 92vw);
-    box-shadow: 0 10px 28px var(--shadow-heavy);
-    border-radius: 26px;
-    padding: 8px 8px 8px 16px;
+    width: min(768px, 90vw);
+    box-shadow: 0 0 0 1px var(--border-color), 0 8px 24px rgba(0, 0, 0, 0.12);
+    border-radius: 28px;
+    padding: 10px 10px 10px 20px;
+    border: none;
 }
 
 #chat.chat-empty .chat-container {
@@ -2304,7 +2305,7 @@ button:disabled {
 /* 欢迎语样式（空态） */
 .chat-welcome {
     position: absolute;
-    top: calc(var(--empty-composer-top) - 130px);
+    top: calc(var(--empty-composer-top) - 150px);
     left: 50%;
     transform: translateX(-50%);
     text-align: center;
@@ -2313,15 +2314,17 @@ button:disabled {
 }
 
 .chat-welcome .welcome-title {
-    font-size: 22px;
-    font-weight: 700;
+    font-size: 32px;
+    font-weight: 600;
     color: var(--text-primary);
-    margin-bottom: 6px;
+    margin-bottom: 12px;
+    letter-spacing: -0.5px;
 }
 
 .chat-welcome .welcome-subtitle {
-    font-size: 13px;
+    font-size: 14px;
     color: var(--text-tertiary);
+    font-weight: 400;
 }
 
 /* 侧边栏折叠时，空对话的居中不需要左偏移修正 */
