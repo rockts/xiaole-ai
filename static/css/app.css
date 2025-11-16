@@ -2276,25 +2276,25 @@ button:disabled {
 
 /* 空对话状态：在当前容器里上下左右居中输入框（ChatGPT风格） */
 #chat.chat-empty .input-container {
-    position: absolute;
-    inset: auto; /* 取消固定定位的边界 */
-    left: 50%;
-    top: var(--empty-composer-top);
-    right: auto;
-    bottom: auto;
-    transform: translate(-50%, -50%);
-    padding: 0; /* 移除底部栏的外边距与边框 */
-    background: transparent;
-    border-top: none;
-    z-index: 5;
+    position: absolute !important;
+    inset: auto !important;
+    left: 50% !important;
+    top: var(--empty-composer-top) !important;
+    right: auto !important;
+    bottom: auto !important;
+    transform: translate(-50%, -50%) !important;
+    padding: 0 !important;
+    background: transparent !important;
+    border-top: none !important;
+    z-index: 5 !important;
 }
 
 #chat.chat-empty .input-wrapper {
-    width: min(768px, 90vw);
-    box-shadow: 0 0 0 1px var(--border-color), 0 8px 24px rgba(0, 0, 0, 0.12);
-    border-radius: 28px;
-    padding: 10px 10px 10px 20px;
-    border: none;
+    width: min(768px, 90vw) !important;
+    box-shadow: 0 0 0 1px var(--border-color), 0 8px 24px rgba(0, 0, 0, 0.12) !important;
+    border-radius: 28px !important;
+    padding: 10px 10px 10px 20px !important;
+    border: none !important;
 }
 
 #chat.chat-empty .chat-container {
@@ -2304,31 +2304,33 @@ button:disabled {
 
 /* 欢迎语样式（空态） */
 .chat-welcome {
-    position: absolute;
-    top: calc(var(--empty-composer-top) - 150px);
-    left: 50%;
-    transform: translateX(-50%);
-    text-align: center;
-    color: var(--text-secondary);
-    user-select: none;
+    position: absolute !important;
+    top: calc(var(--empty-composer-top) - 150px) !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    text-align: center !important;
+    color: var(--text-secondary) !important;
+    user-select: none !important;
+    display: block !important;
+    z-index: 10 !important;
 }
 
 .chat-welcome .welcome-title {
-    font-size: 32px;
-    font-weight: 600;
-    color: var(--text-primary);
-    margin-bottom: 12px;
-    letter-spacing: -0.5px;
+    font-size: 32px !important;
+    font-weight: 600 !important;
+    color: var(--text-primary) !important;
+    margin-bottom: 12px !important;
+    letter-spacing: -0.5px !important;
 }
 
 .chat-welcome .welcome-subtitle {
-    font-size: 14px;
-    color: var(--text-tertiary);
-    font-weight: 400;
+    font-size: 14px !important;
+    color: var(--text-tertiary) !important;
+    font-weight: 400 !important;
 }
 
 /* 侧边栏折叠时，空对话的居中不需要左偏移修正 */
 .sidebar.collapsed + .main-content #chat.chat-empty .input-container {
-    left: 50%;
-    transform: translate(-50%, -50%);
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
 }

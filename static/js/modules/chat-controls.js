@@ -90,11 +90,14 @@ function setupChatEmptyObserver() {
     const container = document.getElementById('chatContainer');
     const editor = document.getElementById('messageInput');
     
-    console.log('🔍 setupChatEmptyObserver:', { chatEl, container, editor });
-    
     if (!chatEl || !container) {
         console.warn('⚠️ chat or chatContainer not found');
         return;
+    }
+
+    // 强制确保chat-empty类存在
+    if (!chatEl.classList.contains('chat-empty')) {
+        chatEl.classList.add('chat-empty');
     }
 
     const ensureWelcome = () => {
@@ -104,17 +107,20 @@ function setupChatEmptyObserver() {
             welcome.id = 'chatWelcome';
             welcome.className = 'chat-welcome';
             chatEl.appendChild(welcome);
-            console.log('✅ Created welcome element');
         }
         welcome.innerHTML = getWelcomeHTML();
+        welcome.style.display = 'block';
         return welcome;
     };
 
     const update = () => {
         const hasMessage = container.querySelector('.message') !== null;
-        console.log('🔄 Update empty state:', { hasMessage });
         
-        chatEl.classList.toggle('chat-empty', !hasMessage);
+        if (!hasMessage) {
+            chatEl.classList.add('chat-empty');
+        } else {
+            chatEl.classList.remove('chat-empty');
+        }
 
         // 动态占位文案：空态更友好
         if (editor) {
@@ -127,15 +133,17 @@ function setupChatEmptyObserver() {
         // 空态欢迎语
         const welcome = document.getElementById('chatWelcome');
         if (!hasMessage) {
-            const el = ensureWelcome();
-            el.style.display = 'block';
+            ensureWelcome();
         } else if (welcome) {
             welcome.style.display = 'none';
         }
     };
 
-    // 初始状态
-    update();
+    // 立即执行一次
+    setTimeout(() => {
+        update();
+        ensureWelcome();
+    }, 100);
 
     // 监听子树变化（消息添加/清空）
     const observer = new MutationObserver(() => update());
