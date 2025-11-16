@@ -33,6 +33,7 @@
     --danger-bg: #fee2e2;
     --danger-border: #ef4444;
     --logo-color: #1f2937;
+    --empty-composer-top: 56%;
 }
 
 /* 暗色主题 */
@@ -70,6 +71,7 @@
     --danger-bg: #4d1a1a;
     --danger-border: #ef4444;
     --logo-color: #f5f5f6;
+    --empty-composer-top: 56%;
 }
 
 * {
@@ -2277,7 +2279,7 @@ button:disabled {
     position: absolute;
     inset: auto; /* 取消固定定位的边界 */
     left: 50%;
-    top: 50%;
+    top: var(--empty-composer-top);
     right: auto;
     bottom: auto;
     transform: translate(-50%, -50%);
@@ -2302,7 +2304,7 @@ button:disabled {
 /* 欢迎语样式（空态） */
 .chat-welcome {
     position: absolute;
-    top: calc(50% - 130px);
+    top: calc(var(--empty-composer-top) - 130px);
     left: 50%;
     transform: translateX(-50%);
     text-align: center;
