@@ -38,6 +38,9 @@ export function initChatControls() {
             }
         }
     });
+
+    // 空对话状态监听：无消息时让输入框在容器内居中
+    setupChatEmptyObserver();
 }
 
 export function newChat() {
@@ -79,4 +82,35 @@ export function closeImageViewer() {
 
     modal.classList.remove('active');
     document.body.style.overflow = '';
+}
+
+// ===== 空对话检测与状态切换 =====
+function setupChatEmptyObserver() {
+    const chatEl = document.getElementById('chat');
+    const container = document.getElementById('chatContainer');
+    const editor = document.getElementById('messageInput');
+    if (!chatEl || !container) return;
+
+    const update = () => {
+        const hasMessage = container.querySelector('.message') !== null;
+        chatEl.classList.toggle('chat-empty', !hasMessage);
+
+        // 动态占位文案：空态更友好
+        if (editor) {
+            editor.setAttribute(
+                'data-placeholder',
+                !hasMessage ? '我们先从哪里开始呢？' : '发送消息或输入 / 选择技能'
+            );
+        }
+    };
+
+    // 初始状态
+    update();
+
+    // 监听子树变化（消息添加/清空）
+    const observer = new MutationObserver(() => update());
+    observer.observe(container, { childList: true, subtree: true });
+
+    // 视口尺寸变化时也刷新一次（避免布局切换时错位）
+    window.addEventListener('resize', update);
 }

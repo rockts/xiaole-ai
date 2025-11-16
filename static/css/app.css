@@ -458,6 +458,11 @@ body {
     flex-direction: column;
 }
 
+/* 让聊天容器可作为输入框居中的定位上下文 */
+#chat {
+    position: relative;
+}
+
 /* 会话信息栏 */
 .session-info {
     background: var(--button-gradient-start);
@@ -2265,4 +2270,37 @@ button:disabled {
         height: 24px;
         font-size: 13px;
     }
+}
+
+/* 空对话状态：在当前容器里上下左右居中输入框（ChatGPT风格） */
+#chat.chat-empty .input-container {
+    position: absolute;
+    inset: auto; /* 取消固定定位的边界 */
+    left: 50%;
+    top: 50%;
+    right: auto;
+    bottom: auto;
+    transform: translate(-50%, -50%);
+    padding: 0; /* 移除底部栏的外边距与边框 */
+    background: transparent;
+    border-top: none;
+    z-index: 5;
+}
+
+#chat.chat-empty .input-wrapper {
+    width: min(720px, 92vw);
+    box-shadow: 0 10px 28px var(--shadow-heavy);
+    border-radius: 26px;
+    padding: 8px 8px 8px 16px;
+}
+
+#chat.chat-empty .chat-container {
+    align-items: center;
+    justify-content: center;
+}
+
+/* 侧边栏折叠时，空对话的居中不需要左偏移修正 */
+.sidebar.collapsed + .main-content #chat.chat-empty .input-container {
+    left: 50%;
+    transform: translate(-50%, -50%);
 }
