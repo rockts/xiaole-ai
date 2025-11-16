@@ -89,7 +89,13 @@ function setupChatEmptyObserver() {
     const chatEl = document.getElementById('chat');
     const container = document.getElementById('chatContainer');
     const editor = document.getElementById('messageInput');
-    if (!chatEl || !container) return;
+    
+    console.log('🔍 setupChatEmptyObserver:', { chatEl, container, editor });
+    
+    if (!chatEl || !container) {
+        console.warn('⚠️ chat or chatContainer not found');
+        return;
+    }
 
     const ensureWelcome = () => {
         let welcome = document.getElementById('chatWelcome');
@@ -98,6 +104,7 @@ function setupChatEmptyObserver() {
             welcome.id = 'chatWelcome';
             welcome.className = 'chat-welcome';
             chatEl.appendChild(welcome);
+            console.log('✅ Created welcome element');
         }
         welcome.innerHTML = getWelcomeHTML();
         return welcome;
@@ -105,6 +112,8 @@ function setupChatEmptyObserver() {
 
     const update = () => {
         const hasMessage = container.querySelector('.message') !== null;
+        console.log('🔄 Update empty state:', { hasMessage });
+        
         chatEl.classList.toggle('chat-empty', !hasMessage);
 
         // 动态占位文案：空态更友好
