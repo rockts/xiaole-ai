@@ -2299,6 +2299,29 @@ button:disabled {
     justify-content: center;
 }
 
+/* 欢迎语样式（空态） */
+.chat-welcome {
+    position: absolute;
+    top: calc(50% - 130px);
+    left: 50%;
+    transform: translateX(-50%);
+    text-align: center;
+    color: var(--text-secondary);
+    user-select: none;
+}
+
+.chat-welcome .welcome-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 6px;
+}
+
+.chat-welcome .welcome-subtitle {
+    font-size: 13px;
+    color: var(--text-tertiary);
+}
+
 /* 侧边栏折叠时，空对话的居中不需要左偏移修正 */
 .sidebar.collapsed + .main-content #chat.chat-empty .input-container {
     left: 50%;

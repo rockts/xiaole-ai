@@ -91,6 +91,18 @@ function setupChatEmptyObserver() {
     const editor = document.getElementById('messageInput');
     if (!chatEl || !container) return;
 
+    const ensureWelcome = () => {
+        let welcome = document.getElementById('chatWelcome');
+        if (!welcome) {
+            welcome = document.createElement('div');
+            welcome.id = 'chatWelcome';
+            welcome.className = 'chat-welcome';
+            chatEl.appendChild(welcome);
+        }
+        welcome.innerHTML = getWelcomeHTML();
+        return welcome;
+    };
+
     const update = () => {
         const hasMessage = container.querySelector('.message') !== null;
         chatEl.classList.toggle('chat-empty', !hasMessage);
@@ -101,6 +113,15 @@ function setupChatEmptyObserver() {
                 'data-placeholder',
                 !hasMessage ? '我们先从哪里开始呢？' : '发送消息或输入 / 选择技能'
             );
+        }
+
+        // 空态欢迎语
+        const welcome = document.getElementById('chatWelcome');
+        if (!hasMessage) {
+            const el = ensureWelcome();
+            el.style.display = 'block';
+        } else if (welcome) {
+            welcome.style.display = 'none';
         }
     };
 
@@ -113,4 +134,36 @@ function setupChatEmptyObserver() {
 
     // 视口尺寸变化时也刷新一次（避免布局切换时错位）
     window.addEventListener('resize', update);
+}
+
+function getWelcomeHTML() {
+    const now = new Date();
+    const hour = now.getHours();
+    let greet = '你好';
+    if (hour >= 5 && hour < 11) greet = '早上好';
+    else if (hour >= 11 && hour < 14) greet = '中午好';
+    else if (hour >= 14 && hour < 18) greet = '下午好';
+    else greet = '晚上好';
+
+    const nickname = localStorage.getItem('userNickname')
+        || localStorage.getItem('nickname')
+        || localStorage.getItem('displayName')
+        || '';
+
+    const nameText = nickname ? `，${sanitize(nickname)}` : '';
+
+    return `
+        <div class="welcome-title">${greet}${nameText}</div>
+        <div class="welcome-subtitle">准备好开始了吗？</div>
+    `;
+}
+
+function sanitize(str) {
+    return String(str).replace(/[&<>"']/g, (c) => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+    })[c]);
 }
