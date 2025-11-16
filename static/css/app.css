@@ -2299,6 +2299,13 @@ button:disabled {
     position: relative !important;
 }
 
+/* 非空对话时，输入框固定在底部 */
+#chat:not(.chat-empty) .input-container {
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 280px !important;
+}
+
 #chat.chat-empty .input-container {
     position: absolute !important;
     inset: auto !important;

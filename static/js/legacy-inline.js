@@ -28,7 +28,9 @@ function initTheme() {
     const theme = savedTheme || (systemPrefersDark ? 'dark' : 'light');
 
     html.setAttribute('data-theme', theme);
-    themeIcon.textContent = theme === 'dark' ? '☀️' : '🌙';
+    if (themeIcon) {
+        themeIcon.textContent = theme === 'dark' ? '☀️' : '🌙';
+    }
 }
 
 // 页面加载时初始化主题
@@ -100,11 +102,15 @@ function applyThemePreference(preference) {
         const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
         const theme = systemPrefersDark ? 'dark' : 'light';
         html.setAttribute('data-theme', theme);
-        themeIcon.textContent = theme === 'dark' ? '☀️' : '🌙';
+        if (themeIcon) {
+            themeIcon.textContent = theme === 'dark' ? '☀️' : '🌙';
+        }
     } else {
         // 固定主题
         html.setAttribute('data-theme', preference);
-        themeIcon.textContent = preference === 'dark' ? '☀️' : '🌙';
+        if (themeIcon) {
+            themeIcon.textContent = preference === 'dark' ? '☀️' : '🌙';
+        }
         localStorage.setItem('theme', preference);
     }
 }
