@@ -829,10 +829,29 @@
     <!-- v0.6.0 性能优化模块 -->
     <script>
         // 自动生成时间戳用于破坏缓存
-        const t = Date.now();
-        document.write(`<script src="/static/performance.js?t=${t}"><\/script>`);
-        document.write(`<script src="/static/js/legacy-inline.js?t=${t}"><\/script>`);
-        document.write(`<script type="module" src="/static/js/app.js?t=${t}"><\/script>`);
+        (function() {
+            const t = Date.now();
+            const scripts = [
+                `/static/performance.js?t=${t}`,
+                `/static/js/legacy-inline.js?t=${t}`
+            ];
+            const moduleScripts = [
+                `/static/js/app.js?t=${t}`
+            ];
+            
+            scripts.forEach(src => {
+                const script = document.createElement('script');
+                script.src = src;
+                document.head.appendChild(script);
+            });
+            
+            moduleScripts.forEach(src => {
+                const script = document.createElement('script');
+                script.type = 'module';
+                script.src = src;
+                document.head.appendChild(script);
+            });
+        })();
     </script>
 </body>
 

@@ -118,6 +118,20 @@ function setupChatEmptyObserver() {
 
         if (!hasMessage) {
             chatEl.classList.add('chat-empty');
+            console.log('✅ chat-empty class added');
+            
+            // 调试：检查输入框状态
+            const inputBar = document.getElementById('chatInputBar');
+            if (inputBar) {
+                const styles = window.getComputedStyle(inputBar);
+                console.log('📍 Input bar position:', styles.position);
+                console.log('📍 Input bar display:', styles.display);
+                console.log('📍 Input bar visibility:', styles.visibility);
+                console.log('📍 Input bar top:', styles.top);
+                console.log('📍 Input bar left:', styles.left);
+            } else {
+                console.error('❌ chatInputBar not found!');
+            }
         } else {
             chatEl.classList.remove('chat-empty');
         }
