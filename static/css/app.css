@@ -33,7 +33,7 @@
     --danger-bg: #fee2e2;
     --danger-border: #ef4444;
     --logo-color: #1f2937;
-    --empty-composer-top: 56%;
+    --empty-composer-top: 50%;
 }
 
 /* 暗色主题 */
@@ -71,7 +71,7 @@
     --danger-bg: #4d1a1a;
     --danger-border: #ef4444;
     --logo-color: #f5f5f6;
-    --empty-composer-top: 56%;
+    --empty-composer-top: 50%;
 }
 
 * {
