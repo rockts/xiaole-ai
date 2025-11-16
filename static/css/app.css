@@ -414,15 +414,16 @@ color: var(--button-gradient-start);
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    flex: 1;
-    min-height: 0;
+    flex: 1 1 auto;
+    min-height: 200px;
 }
 
 .sessions-scroll {
-    flex: 1;
+    flex: 1 1 auto;
     overflow-y: auto;
     overflow-x: hidden;
-    min-height: 0;
+    min-height: 150px;
+    max-height: 400px;
 }
 
 .sidebar-toggle {
@@ -2299,7 +2300,9 @@ button:disabled {
     padding: 0 !important;
     background: transparent !important;
     border-top: none !important;
-    z-index: 5 !important;
+    z-index: 100 !important;
+    display: flex !important;
+    width: auto !important;
 }
 
 #chat.chat-empty .input-wrapper {
@@ -2308,6 +2311,7 @@ button:disabled {
     border-radius: 28px !important;
     padding: 10px 10px 10px 20px !important;
     border: none !important;
+    display: flex !important;
 }
 
 #chat.chat-empty .chat-container {
