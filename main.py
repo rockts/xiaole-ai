@@ -35,12 +35,29 @@ app.add_middleware(
     allow_headers=["*"],  # 允许所有请求头
 )
 
-# 挂载静态文件目录（使用绝对路径，避免工作目录不同导致404）
+
+# 自定义StaticFiles类，禁用缓存
+class NoCacheStaticFiles(StaticFiles):
+    async def get_response(self, path: str, scope):
+        response = await super().get_response(path, scope)
+        response.headers["Cache-Control"] = (
+            "no-cache, no-store, must-revalidate"
+        )
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+        return response
+
+
+# 挂载静态文件目录
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 STATIC_DIR = os.path.join(BASE_DIR, "static")
 UPLOADS_DIR = os.path.join(BASE_DIR, "uploads")
 
-app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+app.mount(
+    "/static",
+    NoCacheStaticFiles(directory=STATIC_DIR),
+    name="static"
+)
 app.mount("/uploads", StaticFiles(directory=UPLOADS_DIR), name="uploads")
 
 

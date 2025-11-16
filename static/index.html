@@ -4,6 +4,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>小乐 AI 管家 v0.8.0</title>
     <!-- Phase 1: External unified stylesheet -->
     <link rel="stylesheet" href="styles.css">
@@ -818,9 +821,13 @@
     </div> <!-- 关闭 app-layout -->
 
     <!-- v0.6.0 性能优化模块 -->
-    <script src="/static/performance.js?v=0.8.2"></script>
-    <script src="/static/js/legacy-inline.js?v=0.8.2"></script>
-    <script type="module" src="/static/js/app.js?v=0.8.2"></script>
+    <script>
+        // 自动生成时间戳用于破坏缓存
+        const t = Date.now();
+        document.write(`<script src="/static/performance.js?t=${t}"><\/script>`);
+        document.write(`<script src="/static/js/legacy-inline.js?t=${t}"><\/script>`);
+        document.write(`<script type="module" src="/static/js/app.js?t=${t}"><\/script>`);
+    </script>
 </body>
 
 </html>
