@@ -89,7 +89,7 @@ function setupChatEmptyObserver() {
     const chatEl = document.getElementById('chat');
     const container = document.getElementById('chatContainer');
     const editor = document.getElementById('messageInput');
-    
+
     if (!chatEl || !container) {
         console.warn('⚠️ chat or chatContainer not found');
         return;
@@ -115,7 +115,7 @@ function setupChatEmptyObserver() {
 
     const update = () => {
         const hasMessage = container.querySelector('.message') !== null;
-        
+
         if (!hasMessage) {
             chatEl.classList.add('chat-empty');
         } else {

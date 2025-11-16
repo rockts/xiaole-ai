@@ -202,7 +202,8 @@ body {
     height: 32px;
     flex-shrink: 0;
 }
-    color: var(--button-gradient-start);
+
+color: var(--button-gradient-start);
 }
 
 /* 主内容区域 */
@@ -410,6 +411,18 @@ body {
 .sidebar-footer {
     padding: 12px;
     border-top: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    flex: 1;
+    min-height: 0;
+}
+
+.sessions-scroll {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    min-height: 0;
 }
 
 .sidebar-toggle {
@@ -2313,6 +2326,9 @@ button:disabled {
     user-select: none !important;
     display: block !important;
     z-index: 10 !important;
+    overflow: visible !important;
+    white-space: nowrap !important;
+    width: auto !important;
 }
 
 .chat-welcome .welcome-title {
@@ -2321,16 +2337,20 @@ button:disabled {
     color: var(--text-primary) !important;
     margin-bottom: 12px !important;
     letter-spacing: -0.5px !important;
+    white-space: nowrap !important;
+    overflow: visible !important;
 }
 
 .chat-welcome .welcome-subtitle {
     font-size: 14px !important;
     color: var(--text-tertiary) !important;
     font-weight: 400 !important;
+    white-space: nowrap !important;
+    overflow: visible !important;
 }
 
 /* 侧边栏折叠时，空对话的居中不需要左偏移修正 */
-.sidebar.collapsed + .main-content #chat.chat-empty .input-container {
+.sidebar.collapsed+.main-content #chat.chat-empty .input-container {
     left: 50% !important;
     transform: translate(-50%, -50%) !important;
 }
