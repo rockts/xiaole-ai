@@ -201,6 +201,8 @@ export async function checkReminders() {
 }
 
 export function showCreateReminderDialog() {
+    // 禁用创建提醒对话框
+    return;
     const dialog = `
     <div class='reminder-dialog-overlay' id='reminderDialog' style='position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;justify-content:center;align-items:center;z-index:1000;'>
       <div style='background:#fff;padding:25px;border-radius:15px;max-width:500px;width:90%;'>
@@ -374,6 +376,7 @@ function updateTaskStats(tasks) {
 }
 
 export function showCreateTaskDialog() {
+    return; // 禁用对话框
     const html = `
     <div class='custom-notification-overlay' style='position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:10001;'>
       <div style='background:var(--card-bg);padding:25px;border-radius:12px;box-shadow:0 8px 24px var(--shadow-heavy);max-width:90%;max-height:80vh;overflow-y:auto;'>

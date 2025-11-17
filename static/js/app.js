@@ -132,7 +132,11 @@ window.startSpeaking = startSpeaking;
 window.stopSpeaking = stopSpeaking;
 window.toggleConversationMode = toggleConversationMode;
 
-document.addEventListener('DOMContentLoaded', () => {
+// Ensure initialization runs even when script is injected after DOMContentLoaded
+let __appInitialized = false;
+function initApp() {
+    if (__appInitialized) return;
+    __appInitialized = true;
     initTheme();
     applyInitialSettings();
     initNavigation();
@@ -144,6 +148,12 @@ document.addEventListener('DOMContentLoaded', () => {
     initSchedule();
     initTools();
     initVoice();
-});
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initApp, { once: true });
+} else {
+    initApp();
+}
 
 // Future modules can register their own event delegates here as they are extracted.

@@ -508,9 +508,16 @@ def chat(
 
 
 @app.get("/sessions")
-def get_sessions(user_id: str = "default_user", limit: int = 10):
+def get_sessions(
+    user_id: str = "default_user",
+    limit: Optional[int] = None,
+    all_sessions: bool = False
+):
     """获取用户的对话会话列表"""
-    sessions = xiaole.conversation.get_recent_sessions(user_id, limit)
+    effective_limit = None if all_sessions else limit
+    sessions = xiaole.conversation.get_recent_sessions(
+        user_id, effective_limit
+    )
     return {"sessions": sessions}
 
 
@@ -529,13 +536,39 @@ def get_session(session_id: str):
         "message_count": stats["message_count"],
         "created_at": stats["created_at"],
         "updated_at": stats["updated_at"],
-        "messages": history  # 改为messages，与前端期望的字段名一致
+        "messages": history  # 改为messages,与前端期望的字段名一致
     }
+
+
+@app.patch("/api/chat/sessions/{session_id}")
+def update_session(session_id: str, update_data: Dict[str, Any]):
+    """更新会话信息(标题、置顶状态等)"""
+    try:
+        if "title" in update_data:
+            # 更新标题
+            xiaole.conversation.update_session_title(
+                session_id, update_data["title"])
+
+        if "pinned" in update_data:
+            # 更新置顶状态
+            xiaole.conversation.update_session_pinned(
+                session_id, update_data["pinned"])
+
+        return {"message": "Session updated successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.delete("/session/{session_id}")
 def delete_session(session_id: str):
     """删除会话"""
+    xiaole.conversation.delete_session(session_id)
+    return {"message": "Session deleted"}
+
+
+@app.delete("/api/chat/sessions/{session_id}")
+def delete_session_api(session_id: str):
+    """删除会话 (新API路径)"""
     xiaole.conversation.delete_session(session_id)
     return {"message": "Session deleted"}
 

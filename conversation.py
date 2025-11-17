@@ -108,17 +108,23 @@ class ConversationManager:
             for m in messages
         ]
 
-    def get_recent_sessions(self, user_id="default_user", limit=5):
+    def get_recent_sessions(self, user_id="default_user", limit=None):
         """获取最近的对话会话"""
         try:
-            sessions = self.session.query(Conversation).filter(
+            query = self.session.query(Conversation).filter(
                 Conversation.user_id == user_id
-            ).order_by(Conversation.updated_at.desc()).limit(limit).all()
+            ).order_by(Conversation.updated_at.desc())
+
+            if limit is not None:
+                query = query.limit(limit)
+
+            sessions = query.all()
 
             return [
                 {
                     "session_id": s.session_id,
                     "title": s.title,
+                    "pinned": getattr(s, 'pinned', False),  # v0.8.1
                     "created_at": s.created_at.strftime('%Y-%m-%d %H:%M:%S'),
                     "updated_at": s.updated_at.strftime('%Y-%m-%d %H:%M:%S')
                 }
@@ -142,6 +148,32 @@ class ConversationManager:
         ).delete()
 
         self.session.commit()
+
+    def update_session_title(self, session_id, new_title):
+        """更新会话标题"""
+        conversation = self.session.query(Conversation).filter(
+            Conversation.session_id == session_id
+        ).first()
+
+        if conversation:
+            conversation.title = new_title
+            conversation.updated_at = datetime.now()
+            self.session.commit()
+            return True
+        return False
+
+    def update_session_pinned(self, session_id, pinned):
+        """更新会话置顶状态"""
+        conversation = self.session.query(Conversation).filter(
+            Conversation.session_id == session_id
+        ).first()
+
+        if conversation:
+            conversation.pinned = pinned
+            conversation.updated_at = datetime.now()
+            self.session.commit()
+            return True
+        return False
 
     def get_session_stats(self, session_id):
         """获取会话统计信息"""

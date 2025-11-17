@@ -1,0 +1,437 @@
+<template>
+  <div class="top-bar">
+    <div class="top-bar-center">
+      <input
+        v-if="isEditingTitle && isChatPage"
+        ref="titleInput"
+        v-model="editingTitle"
+        class="title-input"
+        @blur="saveTitleEdit"
+        @keydown.enter="saveTitleEdit"
+        @keydown.esc="cancelTitleEdit"
+      />
+      <span
+        v-else
+        class="page-title"
+        :class="{ editable: isChatPage }"
+        @dblclick="startEditTitle"
+      >
+        {{ pageTitle }}
+      </span>
+    </div>
+
+    <div class="top-bar-right">
+      <button class="icon-btn" @click="toggleTheme" aria-label="切换主题">
+        <svg
+          v-if="isDark"
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <circle cx="12" cy="12" r="5" />
+          <line x1="12" y1="1" x2="12" y2="3" />
+          <line x1="12" y1="21" x2="12" y2="23" />
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+          <line x1="1" y1="12" x2="3" y2="12" />
+          <line x1="21" y1="12" x2="23" y2="12" />
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+        </svg>
+        <svg
+          v-else
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+        </svg>
+      </button>
+
+      <div class="user-menu">
+        <button class="user-avatar" @click="toggleUserMenu">
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+            <circle cx="12" cy="7" r="4" />
+          </svg>
+        </button>
+
+        <transition name="dropdown">
+          <div v-if="showUserMenu" class="dropdown-menu">
+            <div class="dropdown-item">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
+              </svg>
+              <span>个人资料</span>
+            </div>
+            <div class="dropdown-item">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <circle cx="12" cy="12" r="3" />
+                <path
+                  d="M12 1v6m0 6v6M3.93 3.93l4.24 4.24m8.48 8.48l4.24 4.24M1 12h6m6 0h6M3.93 20.07l4.24-4.24m8.48-8.48l4.24-4.24"
+                />
+              </svg>
+              <span>设置</span>
+            </div>
+            <div class="dropdown-divider"></div>
+            <div class="dropdown-item danger">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                <polyline points="16 17 21 12 16 7" />
+                <line x1="21" y1="12" x2="9" y2="12" />
+              </svg>
+              <span>退出登录</span>
+            </div>
+          </div>
+        </transition>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { computed, ref, onMounted, onBeforeUnmount, watch } from "vue";
+import { useRoute } from "vue-router";
+import { useChatStore } from "@/stores/chat";
+
+const route = useRoute();
+const chatStore = useChatStore();
+const emit = defineEmits(["toggle-sidebar"]);
+
+const isDark = ref(false);
+const showUserMenu = ref(false);
+const isEditingTitle = ref(false);
+const editingTitle = ref("");
+const titleInput = ref(null);
+
+const isChatPage = computed(() => route.path.startsWith("/chat"));
+
+const pageTitle = computed(() => {
+  // 如果是聊天页面,显示当前会话标题
+  if (isChatPage.value) {
+    const sessionInfo = chatStore.sessionInfo;
+    if (sessionInfo?.title) {
+      return sessionInfo.title;
+    }
+    return "新对话";
+  }
+  return route.meta.title || "小乐 AI 管家";
+});
+
+const startEditTitle = () => {
+  if (!isChatPage.value) return;
+  isEditingTitle.value = true;
+  editingTitle.value = pageTitle.value;
+  setTimeout(() => {
+    if (titleInput.value) {
+      titleInput.value.focus();
+      titleInput.value.select();
+    }
+  }, 0);
+};
+
+const saveTitleEdit = async () => {
+  const newTitle = editingTitle.value.trim();
+  if (!newTitle || newTitle === pageTitle.value) {
+    isEditingTitle.value = false;
+    return;
+  }
+
+  const sessionId = route.params.sessionId;
+  if (!sessionId) {
+    isEditingTitle.value = false;
+    return;
+  }
+
+  try {
+    const response = await fetch(`/api/chat/sessions/${sessionId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: newTitle }),
+    });
+
+    if (response.ok) {
+      // 更新当前会话信息
+      if (chatStore.sessionInfo) {
+        chatStore.sessionInfo.title = newTitle;
+      }
+      // 重新加载会话列表以更新侧边栏
+      await chatStore.loadSessions();
+    } else {
+      console.error("标题更新失败");
+    }
+  } catch (error) {
+    console.error("标题更新失败:", error);
+  }
+
+  isEditingTitle.value = false;
+};
+
+const cancelTitleEdit = () => {
+  isEditingTitle.value = false;
+  editingTitle.value = "";
+};
+
+const toggleSidebar = () => {
+  emit("toggle-sidebar");
+};
+
+const toggleTheme = () => {
+  isDark.value = !isDark.value;
+  document.documentElement.setAttribute(
+    "data-theme",
+    isDark.value ? "dark" : "light"
+  );
+  localStorage.setItem("theme", isDark.value ? "dark" : "light");
+};
+
+const toggleUserMenu = () => {
+  showUserMenu.value = !showUserMenu.value;
+};
+
+const closeUserMenu = (e) => {
+  if (!e.target.closest(".user-menu")) {
+    showUserMenu.value = false;
+  }
+};
+
+onMounted(() => {
+  const savedTheme = localStorage.getItem("theme");
+  isDark.value = savedTheme === "dark";
+  document.documentElement.setAttribute("data-theme", savedTheme || "light");
+  document.addEventListener("click", closeUserMenu);
+});
+
+// 同步网页标题为当前对话标题
+const updateDocumentTitle = () => {
+  if (isChatPage.value) {
+    document.title = pageTitle.value || "新对话";
+  } else {
+    document.title = route.meta.title || "小乐 AI 管家";
+  }
+};
+
+// 首次和后续变化都更新
+watch(
+  [() => route.fullPath, pageTitle, isChatPage],
+  () => {
+    updateDocumentTitle();
+  },
+  { immediate: true }
+);
+
+onBeforeUnmount(() => {
+  document.removeEventListener("click", closeUserMenu);
+});
+</script>
+
+<style scoped>
+.top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 52px;
+  padding: 0 var(--space-lg);
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--border-light);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.top-bar-center {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.page-title {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-primary);
+  padding: 6px 12px;
+  border-radius: 6px;
+  transition: background var(--duration-fast) var(--ease-out);
+}
+
+.page-title.editable {
+  cursor: pointer;
+}
+
+.page-title.editable:hover {
+  background: var(--bg-hover);
+}
+
+.title-input {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-medium);
+  border-radius: 6px;
+  padding: 6px 12px;
+  outline: none;
+  min-width: 200px;
+  max-width: 400px;
+  text-align: center;
+}
+
+.title-input:focus {
+  border-color: var(--brand-primary);
+  background: var(--bg-primary);
+}
+
+.top-bar-right {
+  position: absolute;
+  right: var(--space-lg);
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+
+.icon-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.user-menu {
+  position: relative;
+}
+
+.user-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  background: var(--brand-gradient);
+  border: none;
+  border-radius: var(--radius-full);
+  color: var(--text-inverse);
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+
+.user-avatar:hover {
+  opacity: 0.9;
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 200px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-xs);
+  z-index: 1000;
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 10px var(--space-md);
+  color: var(--text-primary);
+  font-size: 13px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out);
+}
+
+.dropdown-item:hover {
+  background: var(--bg-hover);
+}
+
+.dropdown-item.danger {
+  color: var(--error);
+}
+
+.dropdown-divider {
+  height: 1px;
+  background: var(--border-light);
+  margin: var(--space-xs) 0;
+}
+
+.dropdown-enter-active {
+  animation: dropdownIn 0.15s var(--ease-out);
+}
+
+.dropdown-leave-active {
+  animation: dropdownOut 0.1s var(--ease-in);
+}
+
+@keyframes dropdownIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes dropdownOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+</style>

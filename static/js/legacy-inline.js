@@ -2115,22 +2115,11 @@ async function loadSessions() {
     container.innerHTML = '<div class="loading">加载中...</div>';
 
     try {
-        const response = await fetch(`${API_BASE}/sessions?limit=20`);
+        const response = await fetch(`${API_BASE}/sessions?all_sessions=true`);
         const data = await response.json();
 
         if (data.sessions && data.sessions.length > 0) {
-            // 按时间去重：如果多个会话title相同，只显示最新的
-            const uniqueSessions = [];
-            const seenTitles = new Set();
-
-            for (const session of data.sessions) {
-                if (!seenTitles.has(session.title)) {
-                    seenTitles.add(session.title);
-                    uniqueSessions.push(session);
-                }
-            }
-
-            container.innerHTML = uniqueSessions.map(session => `
+            container.innerHTML = data.sessions.map(session => `
                         <div class="session-item ${session.session_id === currentSessionId ? 'active' : ''}"
                              data-session-id="${session.session_id}"
                              style="cursor: pointer;">
@@ -2138,18 +2127,7 @@ async function loadSessions() {
                             <div class="session-time">
                                 创建: ${session.created_at} | 更新: ${session.updated_at}
                             </div>
-                            <div class="session-actions">
-                                <button class="session-action-btn export-md" 
-                                        onclick="exportSession('${session.session_id}', 'markdown'); event.stopPropagation();"
-                                        title="导出为Markdown">
-                                    📝
-                                </button>
-                                <button class="session-action-btn export-json" 
-                                        onclick="exportSession('${session.session_id}', 'json'); event.stopPropagation();"
-                                        title="导出为JSON">
-                                    📦
-                                </button>
-                            </div>
+                            <!-- session-actions 导出按钮已移除 -->
                         </div>
                     `).join('');
 

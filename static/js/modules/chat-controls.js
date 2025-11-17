@@ -55,6 +55,18 @@ export function newChat() {
         sessionInfo.style.display = 'none';
     }
 
+    // 切换到聊天标签页
+    document.querySelectorAll('.tab-content').forEach((content) => {
+        content.classList.remove('active');
+    });
+    const chatTab = document.getElementById('chat');
+    if (chatTab) {
+        chatTab.classList.add('active');
+    }
+
+    // 更新导航项激活状态
+    document.querySelectorAll('.nav-item').forEach((item) => item.classList.remove('active'));
+
     const messageInput = document.getElementById('messageInput');
     if (messageInput) {
         messageInput.focus();
@@ -119,7 +131,7 @@ function setupChatEmptyObserver() {
         if (!hasMessage) {
             chatEl.classList.add('chat-empty');
             console.log('✅ chat-empty class added');
-            
+
             // 调试：检查输入框状态
             const inputBar = document.getElementById('chatInputBar');
             if (inputBar) {
@@ -184,8 +196,7 @@ function getWelcomeHTML() {
     const nameText = nickname ? `，${sanitize(nickname)}` : '';
 
     return `
-        <div class="welcome-title">${greet}${nameText}</div>
-        <div class="welcome-subtitle">准备好开始了吗？</div>
+        <div class="welcome-title">${greet}${nameText}，准备好开始了吗？</div>
     `;
 }
 

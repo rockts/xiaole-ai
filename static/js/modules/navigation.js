@@ -54,21 +54,33 @@ export function toggleSidebarCollapse() {
     const overlay = document.getElementById('sidebarOverlay');
     if (!sidebar) return;
 
-    if (window.innerWidth <= MOBILE_BREAKPOINT) {
+    const isMobile = window.innerWidth <= MOBILE_BREAKPOINT;
+
+    if (isMobile) {
         sidebar.classList.toggle('mobile-open');
         if (overlay) {
             overlay.classList.toggle('active');
         }
-        return;
+    } else {
+        sidebar.classList.toggle('collapsed');
     }
-
-    sidebar.classList.toggle('collapsed');
 }
 
 export function switchTab(tabName, event) {
+    // 移除所有标签和导航项的激活状态
     document.querySelectorAll('.tab').forEach((tab) => tab.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach((item) => item.classList.remove('active'));
-    document.querySelectorAll('.tab-content').forEach((content) => content.classList.remove('active'));
+
+    // 隐藏所有内容区域(包括聊天区域和功能页面)
+    document.querySelectorAll('.tab-content').forEach((content) => {
+        content.classList.remove('active');
+    });
+
+    // 隐藏首页欢迎区
+    const homeHero = document.getElementById('homeHero');
+    if (homeHero) {
+        homeHero.style.display = 'none';
+    }
 
     const navItem = document.querySelector(`.nav-item[data-tab="${tabName}"]`);
     if (navItem) {

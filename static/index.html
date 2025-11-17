@@ -51,8 +51,13 @@
                         </svg>
                         <span>小乐 AI</span>
                     </div>
-                    <button class="theme-toggle" id="sidebarCollapseBtn" title="收起侧边栏">
-                        <span>«</span>
+                    <button class="sidebar-collapse-btn" id="sidebarCollapseBtn" title="收起侧边栏">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="3" y1="6" x2="21" y2="6"></line>
+                            <line x1="3" y1="12" x2="21" y2="12"></line>
+                            <line x1="3" y1="18" x2="21" y2="18"></line>
+                        </svg>
                     </button>
                 </div>
 
@@ -829,7 +834,7 @@
     <!-- v0.6.0 性能优化模块 -->
     <script>
         // 自动生成时间戳用于破坏缓存
-        (function() {
+        (function () {
             const t = Date.now();
             const scripts = [
                 `/static/performance.js?t=${t}`,
@@ -838,13 +843,13 @@
             const moduleScripts = [
                 `/static/js/app.js?t=${t}`
             ];
-            
+
             scripts.forEach(src => {
                 const script = document.createElement('script');
                 script.src = src;
                 document.head.appendChild(script);
             });
-            
+
             moduleScripts.forEach(src => {
                 const script = document.createElement('script');
                 script.type = 'module';

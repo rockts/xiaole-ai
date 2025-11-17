@@ -50,6 +50,7 @@ class Conversation(Base):
     session_id = Column(String(100), unique=True, index=True)
     user_id = Column(String(50), default="default_user")
     title = Column(String(200))
+    pinned = Column(Boolean, default=False)  # v0.8.1 置顶标记
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
