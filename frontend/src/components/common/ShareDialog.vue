@@ -414,7 +414,9 @@ onMounted(async () => {
   flex-shrink: 0;
   background: rgba(255, 255, 255, 0.12);
 }
-.pmsg.user .avatar { background: rgba(255, 255, 255, 0.18); }
+.pmsg.user .avatar {
+  background: rgba(255, 255, 255, 0.18);
+}
 .pmsg.assistant .avatar {
   background: rgba(16, 163, 127, 0.28);
 }

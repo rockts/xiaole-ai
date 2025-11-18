@@ -66,6 +66,11 @@ test_model_names.py
 .cleanupplan.txt
 repo_structure.txt
 
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
 # Keep example files
 !.env.example
 !.env.baidu.example

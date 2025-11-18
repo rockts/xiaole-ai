@@ -14,17 +14,15 @@
           class="message"
           :class="message.role"
         >
-          <div class="message-avatar">
-            {{ message.role === "user" ? "👤" : "🤖" }}
-          </div>
           <div class="message-content">
             <img
               v-if="message.image_path"
               :src="formatImagePath(message.image_path)"
               alt="图片"
               class="message-image"
+              @click="openImage(formatImagePath(message.image_path))"
             />
-            <div v-html="renderMarkdown(message.content)"></div>
+            <div class="md-content" v-html="renderMarkdown(message.content)"></div>
           </div>
         </div>
 
@@ -39,6 +37,11 @@
           </div>
         </div>
       </div>
+    </div>
+
+    <!-- 图片预览遮罩 -->
+    <div v-if="imagePreviewUrl" class="image-preview-overlay" @click="closeImagePreview">
+      <img :src="imagePreviewUrl" alt="预览图" class="image-preview" />
     </div>
 
     <div class="input-container">
@@ -138,7 +141,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick, onMounted } from "vue";
+import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useChatStore } from "@/stores/chat";
 import { storeToRefs } from "pinia";
@@ -157,6 +160,7 @@ const chatContainer = ref(null);
 const fileInput = ref(null);
 const isRecording = ref(false);
 const isVoiceMode = ref(false);
+const imagePreviewUrl = ref(null);
 
 const greetings = [
   "你好！很高兴见到你",
@@ -205,7 +209,10 @@ watch(
 watch(
   messages,
   () => {
-    nextTick(() => scrollToBottom());
+    nextTick(() => {
+      scrollToBottom();
+      enhanceRenderedContent();
+    });
   },
   { deep: true }
 );
@@ -230,6 +237,66 @@ const scrollToBottom = () => {
       inner.scrollTop = inner.scrollHeight;
     }
   }
+};
+
+const openImage = (src) => {
+  if (!src) return;
+  imagePreviewUrl.value = src;
+  try {
+    document.body.style.overflow = "hidden";
+  } catch (_) {}
+};
+
+const closeImagePreview = () => {
+  imagePreviewUrl.value = null;
+  try {
+    document.body.style.overflow = "";
+  } catch (_) {}
+};
+
+// 委托点击 Markdown 图片放大预览
+const onChatClick = (e) => {
+  const target = e.target;
+  if (!target) return;
+  if (
+    target.tagName === "IMG" &&
+    target.closest &&
+    target.closest(".md-content")
+  ) {
+    const src = target.currentSrc || target.src;
+    openImage(src);
+  }
+};
+
+// 为代码块添加复制按钮等增强，避免重复添加
+const enhanceRenderedContent = () => {
+  if (!chatContainer.value) return;
+  const blocks = chatContainer.value.querySelectorAll(
+    ".md-content pre:not([data-has-copy])"
+  );
+  blocks.forEach((pre) => {
+    pre.setAttribute("data-has-copy", "1");
+    const btn = document.createElement("button");
+    btn.className = "copy-btn";
+    btn.type = "button";
+    btn.textContent = "复制";
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      try {
+        const code = pre.querySelector("code");
+        const text = code ? code.innerText : pre.innerText;
+        await navigator.clipboard.writeText(text);
+        const original = btn.textContent;
+        btn.textContent = "已复制";
+        btn.classList.add("copied");
+        setTimeout(() => {
+          btn.textContent = original;
+          btn.classList.remove("copied");
+        }, 1200);
+      } catch (_) {}
+    });
+    pre.appendChild(btn);
+  });
 };
 
 const handleInput = () => {
@@ -294,6 +361,16 @@ const canSend = computed(() => {
 onMounted(() => {
   scrollToBottom();
   selectRandomGreeting();
+  nextTick(enhanceRenderedContent);
+  if (chatContainer.value) {
+    chatContainer.value.addEventListener("click", onChatClick);
+  }
+});
+
+onBeforeUnmount(() => {
+  if (chatContainer.value) {
+    chatContainer.value.removeEventListener("click", onChatClick);
+  }
 });
 </script>
 
@@ -397,22 +474,11 @@ onMounted(() => {
   justify-content: flex-end;
 }
 
-.message.user .message-content {
-  background: var(--message-user-bg);
-  border-radius: 18px 18px 4px 18px;
-}
+/* 左右对齐布局，无头像时内容居左/居右 */
+.message.assistant { justify-content: flex-start; }
 
-.message.assistant .message-content {
-  background: var(--message-ai-bg);
-  border-radius: 18px 18px 18px 4px;
-}
-
-.message-content {
-  padding: 12px 16px;
-  max-width: 74%;
-  line-height: 1.7;
-  font-size: 16px;
-}
+/* 内容区宽度与阅读体验 */
+.message-content { padding: 0; max-width: 820px; }
 
 .message-content :deep(p) {
   margin: 0 0 0.75em 0;
@@ -441,11 +507,12 @@ onMounted(() => {
 }
 
 .message-content :deep(pre) {
-  background: rgba(0, 0, 0, 0.06);
-  padding: 14px;
-  border-radius: 8px;
+  background: var(--code-bg, rgba(0, 0, 0, 0.06));
+  padding: 14px 16px;
+  border-radius: 10px;
   overflow-x: auto;
   margin: 0.9em 0;
+  position: relative;
 }
 
 .message-content :deep(pre code) {
@@ -457,6 +524,70 @@ onMounted(() => {
   max-width: 300px;
   margin-top: 8px;
   border-radius: 8px;
+}
+
+/* 统一 Markdown 内容区域样式 */
+.md-content :deep(h1),
+.md-content :deep(h2),
+.md-content :deep(h3) {
+  margin: 0.7em 0 0.4em;
+  line-height: 1.2;
+}
+.md-content :deep(h4),
+.md-content :deep(h5),
+.md-content :deep(h6) {
+  margin: 0.6em 0 0.3em;
+}
+.md-content :deep(a) {
+  color: var(--brand-primary);
+  text-decoration: none;
+}
+.md-content :deep(a:hover) {
+  text-decoration: underline;
+}
+.md-content :deep(blockquote) {
+  margin: 0.9em 0;
+  padding: 8px 12px;
+  border-left: 3px solid var(--border-medium);
+  background: var(--bg-secondary);
+  border-radius: 6px;
+}
+.md-content :deep(table) {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0;
+}
+.md-content :deep(th),
+.md-content :deep(td) {
+  border: 1px solid var(--border-light);
+  padding: 8px 10px;
+}
+.md-content :deep(img) {
+  max-width: 100%;
+  border-radius: 10px;
+  border: 1px solid var(--border-light);
+}
+
+/* 代码复制按钮 */
+.copy-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  border: 1px solid var(--border-light);
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.copy-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+.copy-btn.copied {
+  color: var(--brand-primary);
+  border-color: var(--brand-primary);
 }
 
 .input-container {
@@ -620,10 +751,12 @@ onMounted(() => {
 .message {
   display: flex !important;
   flex-direction: row !important;
-  gap: 16px !important;
+  gap: 12px !important;
   align-items: flex-start !important;
-  padding: 20px 0 !important;
-  border-bottom: 1px solid var(--border-light) !important;
+  padding: 18px 0 !important;
+  border-bottom: none !important;
+  position: relative;
+  z-index: 0;
 }
 
 .message:last-child {
@@ -642,18 +775,54 @@ onMounted(() => {
   background: var(--bg-tertiary);
 }
 
-.message-content {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+.message.assistant .message-avatar {
+  background: #10a37f1a;
+  color: #10a37f;
+}
+.message.user .message-avatar {
+  background: #1f29371a;
 }
 
-.message-image {
-  max-width: 100%;
-  max-height: 400px;
-  border-radius: 8px;
+.message-content { flex: 0 1 auto; min-width: 0; display: block; line-height: 1.7; font-size: 16px; }
+.message.assistant .message-content { margin-right: auto; max-width: 740px; }
+.message.user .message-content { margin-left: auto; max-width: 740px; }
+
+.message-image { max-width: 100%; max-height: 400px; border-radius: 8px; border: 1px solid var(--border-light); cursor: zoom-in; }
+
+/* 助手透明背景，用户右侧有气泡背景 */
+.message.assistant {
+  background: transparent;
+  padding: 0 !important;
+  margin: 0;
+}
+.chat-inner { padding: 0 16px; }
+
+/* 用户气泡更轻、更接近 ChatGPT 用户侧 */
+.message.user .message-content {
+  background: var(--bg-primary);
   border: 1px solid var(--border-light);
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
+/* Markdown 图片也可点击预览 */
+.md-content :deep(img) { cursor: zoom-in; }
+
+/* 图片预览遮罩样式 */
+.image-preview-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  cursor: zoom-out;
+}
+.image-preview {
+  max-width: 92vw;
+  max-height: 92vh;
+  border-radius: 12px;
+  box-shadow: 0 15px 60px rgba(0, 0, 0, 0.35);
 }
 </style>
