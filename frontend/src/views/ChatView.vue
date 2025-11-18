@@ -377,14 +377,15 @@ onMounted(() => {
 .chat-container {
   flex: 1;
   overflow-y: auto;
-  padding: 24px 20px;
+  padding: 28px 24px;
   display: flex;
   justify-content: center;
+  background: var(--bg-primary);
 }
 
 .chat-inner {
   width: 100%;
-  max-width: 768px;
+  max-width: 820px;
 }
 
 .message {
@@ -407,10 +408,10 @@ onMounted(() => {
 }
 
 .message-content {
-  padding: 10px 14px;
-  max-width: 70%;
-  line-height: 1.6;
-  font-size: 15px;
+  padding: 12px 16px;
+  max-width: 74%;
+  line-height: 1.7;
+  font-size: 16px;
 }
 
 .message-content :deep(p) {
@@ -440,11 +441,11 @@ onMounted(() => {
 }
 
 .message-content :deep(pre) {
-  background: rgba(0, 0, 0, 0.05);
-  padding: 12px;
-  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.06);
+  padding: 14px;
+  border-radius: 8px;
   overflow-x: auto;
-  margin: 0.75em 0;
+  margin: 0.9em 0;
 }
 
 .message-content :deep(pre code) {
@@ -466,7 +467,7 @@ onMounted(() => {
 }
 
 .input-wrapper {
-  max-width: 768px;
+  max-width: 820px;
   margin: 0 auto;
   display: flex;
   gap: 8px;
@@ -621,7 +622,7 @@ onMounted(() => {
   flex-direction: row !important;
   gap: 16px !important;
   align-items: flex-start !important;
-  padding: 24px 0 !important;
+  padding: 20px 0 !important;
   border-bottom: 1px solid var(--border-light) !important;
 }
 

@@ -23,22 +23,18 @@
         <div class="divider"></div>
 
         <div class="preview-wrap">
-          <div class="preview-card">
+          <!-- 若已生成缩略图则直接展示 -->
+          <img v-if="previewUrl" class="preview-image" :src="previewUrl" alt="分享预览图" />
+
+          <!-- 备用 HTML 预览：用于截图源或回退显示 -->
+          <div v-show="!previewUrl" class="preview-card" ref="previewCardRef">
             <div class="preview-watermark">XiaoLe</div>
-            <div class="preview-logo" aria-hidden="true">
-              <svg
-                width="96"
-                height="96"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.6"
-              >
-                <circle cx="12" cy="12" r="9" opacity="0.15" />
-                <path d="M15 10a3 3 0 0 0-6 0v3a3 3 0 0 0 6 0z" />
-                <circle cx="9.5" cy="13.5" r="0.6" fill="currentColor" />
-                <circle cx="14.5" cy="13.5" r="0.6" fill="currentColor" />
-              </svg>
+            <div class="preview-title">{{ title }}</div>
+            <div class="preview-list">
+              <div v-for="(m, i) in previewMessages" :key="i" class="pmsg" :class="m.role">
+                <div class="avatar">{{ m.role === 'user' ? '你' : '小乐' }}</div>
+                <div class="text">{{ m.content }}</div>
+              </div>
             </div>
           </div>
         </div>
@@ -106,12 +102,16 @@
 </template>
 
 <script setup>
-import { defineEmits, defineProps } from "vue";
-const emit = defineEmits(["close"]);
+import { ref, onMounted } from 'vue'
+const emit = defineEmits(['close'])
 const props = defineProps({
   title: { type: String, default: "分享" },
   shareUrl: { type: String, required: true },
-});
+})
+
+const previewUrl = ref('')
+const previewCardRef = ref(null)
+const previewMessages = ref([])
 
 const copyLink = async () => {
   try {
@@ -150,6 +150,59 @@ const shareToReddit = () => {
   const t = encodeURIComponent(props.title);
   open(`https://www.reddit.com/submit?url=${u}&title=${t}`);
 };
+
+// 优先尝试服务端生成的预览图（如果后端有该能力）
+const tryServerPreview = async (id) => {
+  const url = `/api/share/preview/${id}.png`
+  try {
+    await new Promise((resolve, reject) => {
+      const img = new Image()
+      img.onload = () => resolve(true)
+      img.onerror = reject
+      img.src = url
+    })
+    previewUrl.value = url
+  } catch (_) {
+    // ignore
+  }
+}
+
+// 无服务端时，使用前端截图
+const htmlToImagePreview = async () => {
+  try {
+    const mod = await import('html-to-image')
+    const toPng = mod.toPng || mod.default?.toPng
+    if (!toPng) return
+    const node = previewCardRef.value
+    if (!node) return
+    const dataUrl = await toPng(node, { cacheBust: true, pixelRatio: 2 })
+    previewUrl.value = dataUrl
+  } catch (e) {
+    console.warn('生成缩略图失败，保留HTML预览', e)
+  }
+}
+
+onMounted(async () => {
+  try {
+    const id = props.shareUrl.split('/').filter(Boolean).pop()
+    // 拉取会话最近消息以构建预览
+    const resp = await fetch(`/session/${id}`)
+    if (resp.ok) {
+      const data = await resp.json()
+      const list = (data.messages || data.history || []).slice(-5)
+      previewMessages.value = list.map((m) => ({
+        role: m.role || (m.author || 'assistant'),
+        content: (m.content || '').toString().slice(0, 80)
+      }))
+      await tryServerPreview(id)
+      if (!previewUrl.value) await htmlToImagePreview()
+    } else {
+      await htmlToImagePreview()
+    }
+  } catch (_) {
+    await htmlToImagePreview()
+  }
+})
 </script>
 
 <style scoped>
@@ -213,6 +266,7 @@ const shareToReddit = () => {
   display: flex;
   justify-content: center;
 }
+.preview-image{width:100%;max-width:720px;border-radius:14px;border:1px solid var(--border-light);box-shadow:0 10px 30px rgba(0,0,0,.18)}
 .preview-card {
   position: relative;
   width: 100%;
@@ -220,14 +274,11 @@ const shareToReddit = () => {
   aspect-ratio: 16/9;
   border-radius: 14px;
   border: 1px solid var(--border-light);
-  background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.06),
-    rgba(0, 0, 0, 0.1)
-  );
+  background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(0,0,0,.1));
   display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 18px;
   overflow: hidden;
 }
 [data-theme="light"] .preview-card {
@@ -241,10 +292,11 @@ const shareToReddit = () => {
   opacity: 0.6;
   font-weight: 700;
 }
-.preview-logo {
-  color: var(--text-primary);
-  opacity: 0.9;
-}
+.preview-title{font-size:16px;font-weight:700;color:var(--text-primary)}
+.preview-list{display:flex;flex-direction:column;gap:8px;overflow:hidden}
+.pmsg{display:flex;gap:10px}
+.pmsg .avatar{font-size:12px;color:var(--text-secondary);width:34px;flex-shrink:0}
+.pmsg .text{flex:1;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 .share-actions {
   display: flex;
