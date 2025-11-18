@@ -37,8 +37,8 @@
         <div class="title">小乐 AI 管家</div>
         <button class="collapse-btn" @click="toggleSidebar" title="收起侧边栏">
           <svg
-            width="16"
-            height="16"
+            width="18"
+            height="18"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -93,28 +93,32 @@
           <span>历史对话</span>
         </div>
 
-        <div class="sessions-list" @scroll="handleScroll">
-          <div v-if="loading && sessions.length === 0" class="loading-skeleton">
-            <div class="skeleton-item" v-for="i in 3" :key="i"></div>
-          </div>
+        <div class="sessions-list" @scroll="handleScroll" ref="sessionsListRef">
+          <template v-if="loading && sessions.length === 0">
+            <div class="loading-skeleton">
+              <div class="skeleton-item" v-for="i in 3" :key="i"></div>
+            </div>
+          </template>
 
-          <div v-else-if="sessions.length === 0" class="empty-state-sm">
-            <svg
-              width="32"
-              height="32"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.5"
-            >
-              <path
-                d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
-              ></path>
-            </svg>
-            <p>暂无对话</p>
-          </div>
+          <template v-else-if="sessions.length === 0">
+            <div class="empty-state-sm">
+              <svg
+                width="32"
+                height="32"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+              >
+                <path
+                  d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
+                ></path>
+              </svg>
+              <p>暂无对话</p>
+            </div>
+          </template>
 
-          <div v-else>
+          <template v-else>
             <div
               v-for="session in displayedSessions"
               :key="session.id || session.session_id"
@@ -127,21 +131,10 @@
               @mouseenter="hoveredSessionId = session.id || session.session_id"
               @mouseleave="hoveredSessionId = null"
             >
-              <svg
-                v-if="session.pinned"
-                class="pin-icon"
-                width="12"
-                height="12"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
+              <div
+                class="session-content"
+                @click="loadSession(session.id || session.session_id)"
               >
-                <path
-                  d="M12 17v5M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"
-                ></path>
-              </svg>
-              <div class="session-content">
                 <input
                   v-if="editingSessionId === (session.id || session.session_id)"
                   v-model="editingTitle"
@@ -152,14 +145,38 @@
                   @click.stop
                 />
                 <div v-else class="session-title">
+                  <svg
+                    v-if="session.pinned"
+                    class="pin-icon"
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <path
+                      d="M12 17v5M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"
+                    />
+                  </svg>
                   {{ session.title || "未命名对话" }}
                 </div>
               </div>
               <button
-                v-if="hoveredSessionId === (session.id || session.session_id)"
+                v-if="
+                  hoveredSessionId === (session.id || session.session_id) ||
+                  activeMenuSessionId === (session.id || session.session_id)
+                "
                 class="session-menu-btn"
-                @click.stop="
-                  toggleSessionMenu(session.id || session.session_id)
+                aria-label="会话操作菜单"
+                aria-haspopup="menu"
+                :id="`menu-btn-${session.id || session.session_id}`"
+                :ref="
+                  (el) => setMenuBtnRef(el, session.id || session.session_id)
+                "
+                @mousedown.stop.prevent
+                @click.stop.prevent="
+                  toggleSessionMenu(session.id || session.session_id, $event)
                 "
               >
                 <svg
@@ -176,111 +193,112 @@
                 </svg>
               </button>
 
-              <!-- 菜单弹出层 -->
-              <div
-                v-if="
-                  activeMenuSessionId === (session.id || session.session_id)
-                "
-                class="session-menu"
-                @click.stop
-              >
-                <button
-                  class="menu-item"
-                  @click="renameSession(session.id || session.session_id)"
+              <!-- 菜单弹出层（Teleport到body，避免overflow裁剪） -->
+              <teleport to="body">
+                <div
+                  v-if="
+                    activeMenuSessionId === (session.id || session.session_id)
+                  "
+                  class="session-menu"
+                  :style="{
+                    position: 'fixed',
+                    top: menuPosition.top + 'px',
+                    left: menuPosition.left + 'px',
+                    right: 'auto',
+                    'transform-origin':
+                      menuPosition.placement === 'top'
+                        ? 'bottom right'
+                        : 'top right',
+                  }"
+                  @click.stop
                 >
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
+                  <div :class="['menu-arrow', menuPosition.placement]"></div>
+                  <button
+                    class="menu-item"
+                    @click="renameSession(session.id || session.session_id)"
                   >
-                    <path
-                      d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"
-                    ></path>
-                    <path
-                      d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"
-                    ></path>
-                  </svg>
-                  重命名
-                </button>
-                <button
-                  class="menu-item"
-                  @click="shareSession(session.id || session.session_id)"
-                >
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <path
+                        d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"
+                      ></path>
+                      <path
+                        d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"
+                      ></path>
+                    </svg>
+                    重命名
+                  </button>
+                  <button
+                    class="menu-item"
+                    @click="shareSession(session.id || session.session_id)"
                   >
-                    <circle cx="18" cy="5" r="3"></circle>
-                    <circle cx="6" cy="12" r="3"></circle>
-                    <circle cx="18" cy="19" r="3"></circle>
-                    <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
-                    <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
-                  </svg>
-                  分享
-                </button>
-                <button
-                  class="menu-item"
-                  @click="pinSession(session.id || session.session_id)"
-                >
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <circle cx="18" cy="5" r="3"></circle>
+                      <circle cx="6" cy="12" r="3"></circle>
+                      <circle cx="18" cy="19" r="3"></circle>
+                      <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                      <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+                    </svg>
+                    分享
+                  </button>
+                  <button
+                    class="menu-item"
+                    @click="pinSession(session.id || session.session_id)"
                   >
-                    <path
-                      d="M12 17v5M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"
-                    ></path>
-                  </svg>
-                  {{ session.pinned ? "取消置顶" : "置顶" }}
-                </button>
-                <button
-                  class="menu-item danger"
-                  @click="confirmDelete(session.id || session.session_id)"
-                >
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <path
+                        d="M12 17v5M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"
+                      ></path>
+                    </svg>
+                    {{ session.pinned ? "取消置顶" : "置顶" }}
+                  </button>
+                  <button
+                    class="menu-item danger"
+                    @click="confirmDelete(session.id || session.session_id)"
                   >
-                    <polyline points="3 6 5 6 21 6"></polyline>
-                    <path
-                      d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
-                    ></path>
-                  </svg>
-                  删除
-                </button>
-              </div>
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <polyline points="3 6 5 6 21 6"></polyline>
+                      <path
+                        d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+                      ></path>
+                    </svg>
+                    删除
+                  </button>
+                </div>
+              </teleport>
             </div>
 
             <div v-if="loading && sessions.length > 0" class="loading-more">
               加载中...
             </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 删除确认对话框 -->
-    <div v-if="showDeleteConfirm" class="modal-overlay" @click="cancelDelete">
-      <div class="confirm-dialog" @click.stop>
-        <h3 class="confirm-title">永久删除对话</h3>
-        <p class="confirm-message">删除后，该对话将不可恢复。确认删除吗？</p>
-        <div class="confirm-actions">
-          <button class="btn-cancel" @click="cancelDelete">取消</button>
-          <button class="btn-delete" @click="deleteSession">删除</button>
+          </template>
         </div>
       </div>
     </div>
@@ -304,15 +322,36 @@
         <span>设置</span>
       </button>
     </div>
+
+    <!-- 删除确认对话框 -->
+    <div v-if="showDeleteConfirm" class="modal-overlay" @click="cancelDelete">
+      <div class="confirm-dialog" @click.stop>
+        <h3 class="confirm-title">永久删除对话</h3>
+        <p class="confirm-message">删除后，该对话将不可恢复。确认删除吗？</p>
+        <div class="confirm-actions">
+          <button class="btn-cancel" @click="cancelDelete">取消</button>
+          <button class="btn-delete" @click="deleteSession">删除</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 分享弹窗 -->
+    <ShareDialog
+      v-if="showShareDialog"
+      :title="shareDialogTitle"
+      :share-url="shareDialogUrl"
+      @close="showShareDialog = false"
+    />
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, computed, nextTick } from "vue";
+import { ref, onMounted, onUnmounted, computed, nextTick, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { useChatStore } from "@/stores/chat";
 import { storeToRefs } from "pinia";
 import logoImage from "@/assets/logo-xiaole.png";
+import ShareDialog from "@/components/common/ShareDialog.vue";
 
 const router = useRouter();
 const route = useRoute();
@@ -375,6 +414,15 @@ const editingTitle = ref("");
 const showDeleteConfirm = ref(false);
 const deletingSessionId = ref(null);
 
+// 会话列表元素，用于检测滚动条是否出现
+const sessionsListRef = ref(null);
+const menuBtnRefs = ref({});
+const setMenuBtnRef = (el, id) => {
+  if (el) menuBtnRefs.value[id] = el;
+  else delete menuBtnRefs.value[id];
+};
+const menuPosition = ref({ top: 0, left: 0, placement: "bottom" });
+
 // 分页加载
 const pageSize = 20;
 const currentPage = ref(1);
@@ -397,14 +445,72 @@ const handleScroll = (e) => {
       currentPage.value++;
     }
   }
+  // 滚动时关闭菜单，避免位置错位
+  if (activeMenuSessionId.value) {
+    activeMenuSessionId.value = null;
+  }
 };
 
-const toggleSessionMenu = (id) => {
+// 确保初次渲染时有滚动条：如果列表未能产生滚动，自动多加载几页
+const ensureScrollable = async () => {
+  await nextTick();
+  const el = sessionsListRef.value;
+  if (!el) return;
+  let guard = 20; // 最多尝试 20 次，避免死循环
+  while (
+    el.scrollHeight <= el.clientHeight &&
+    displayedSessions.value.length < sessions.value.length &&
+    guard-- > 0
+  ) {
+    currentPage.value++;
+    await nextTick();
+  }
+};
+
+const updateMenuPosition = (id, evt) => {
+  const btn =
+    menuBtnRefs.value[id] || document.getElementById(`menu-btn-${id}`);
+  if (!btn) return;
+  const rect = btn.getBoundingClientRect();
+  const minWidth = 180; // 与样式一致
+  const estHeight = 168; // 约4项菜单高度 + 内边距
+  const clickX = evt?.clientX;
+  const clickY = evt?.clientY;
+  // 右对齐为主：靠按钮右侧对齐
+  let left = Math.max(
+    8,
+    Math.min(
+      (clickX ?? rect.right) - minWidth,
+      window.innerWidth - minWidth - 8
+    )
+  );
+  // 默认向下展开
+  let top = (clickY ?? rect.bottom) + 8;
+  let placement = "bottom";
+
+  // 底部空间不足则向上翻转
+  const bottomSpace = window.innerHeight - (clickY ?? rect.bottom);
+  if (bottomSpace < estHeight + 12) {
+    top = Math.max(8, (clickY ?? rect.top) - estHeight - 8);
+    placement = "top";
+  }
+  if (left + minWidth > window.innerWidth - 8) {
+    left = window.innerWidth - 8 - minWidth;
+  }
+  // 避免超出顶部
+  if (top < 8) top = 8;
+  menuPosition.value = { top, left, placement };
+};
+
+const toggleSessionMenu = async (id, evt) => {
+  console.log("Menu toggle:", id, "current:", activeMenuSessionId.value);
   if (activeMenuSessionId.value === id) {
     activeMenuSessionId.value = null;
-  } else {
-    activeMenuSessionId.value = id;
+    return;
   }
+  activeMenuSessionId.value = id;
+  await nextTick();
+  updateMenuPosition(id, evt);
 };
 
 const startRenaming = (session) => {
@@ -475,32 +581,16 @@ const renameSession = async (id) => {
   startRenaming(session);
 };
 
+const showShareDialog = ref(false);
+const shareDialogUrl = ref("");
+const shareDialogTitle = ref("分享对话");
 const shareSession = async (id) => {
   activeMenuSessionId.value = null;
-  try {
-    // 生成分享链接
-    const shareUrl = `${window.location.origin}/share/${id}`;
-
-    // 尝试使用现代剪贴板API
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      await navigator.clipboard.writeText(shareUrl);
-      alert("分享链接已复制到剪贴板!");
-    } else {
-      // 降级方案
-      const textarea = document.createElement("textarea");
-      textarea.value = shareUrl;
-      textarea.style.position = "fixed";
-      textarea.style.opacity = "0";
-      document.body.appendChild(textarea);
-      textarea.select();
-      document.execCommand("copy");
-      document.body.removeChild(textarea);
-      alert("分享链接已复制到剪贴板!");
-    }
-  } catch (error) {
-    console.error("分享失败:", error);
-    alert("分享失败,请重试");
-  }
+  const session = sessions.value.find((s) => (s.id || s.session_id) === id);
+  const title = session?.title || "未命名对话";
+  shareDialogTitle.value = title;
+  shareDialogUrl.value = `${window.location.origin}/share/${id}`;
+  showShareDialog.value = true;
 };
 
 const pinSession = async (id) => {
@@ -582,9 +672,52 @@ const toggle = () => {
   isCollapsed.value = !isCollapsed.value;
 };
 defineExpose({ toggle });
+
+let clickOutsideHandler = null;
+
 onMounted(() => {
   chatStore.loadSessions();
+
+  // 点击外部关闭菜单
+  clickOutsideHandler = (e) => {
+    // 检查点击是否在菜单按钮或菜单内部
+    const isMenuBtn = e.target.closest(".session-menu-btn");
+    const isMenu = e.target.closest(".session-menu");
+
+    if (!isMenuBtn && !isMenu && activeMenuSessionId.value) {
+      console.log("Closing menu due to outside click");
+      activeMenuSessionId.value = null;
+    }
+  };
+  document.addEventListener("click", clickOutsideHandler);
+  // 初次挂载后，尝试保证出现滚动条
+  ensureScrollable();
+  // 窗口变化时关闭菜单或重算
+  const onResize = () => {
+    if (activeMenuSessionId.value)
+      updateMenuPosition(activeMenuSessionId.value);
+  };
+  window.addEventListener("resize", onResize);
+  window.__sidebar_onResize = onResize;
 });
+
+onUnmounted(() => {
+  if (clickOutsideHandler) {
+    document.removeEventListener("click", clickOutsideHandler);
+  }
+  if (window.__sidebar_onResize) {
+    window.removeEventListener("resize", window.__sidebar_onResize);
+    delete window.__sidebar_onResize;
+  }
+});
+
+// 监听会话数据变化，数据到达后再次检查是否需要自动扩展分页
+watch(
+  () => sessions.value.length,
+  () => {
+    ensureScrollable();
+  }
+);
 </script>
 
 <style scoped>
@@ -606,16 +739,20 @@ onMounted(() => {
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding: var(--space-sm);
-  gap: var(--space-sm);
+  padding: 0;
+  gap: 0;
   min-height: 0;
+  height: 100%;
+  overflow: hidden;
 }
 
 .sidebar-logo-title {
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   gap: var(--space-sm);
-  padding: var(--space-sm) var(--space-md);
+  padding: 8px 12px 4px;
+  min-height: 40px;
 }
 
 .logo-wrapper {
@@ -648,33 +785,49 @@ onMounted(() => {
   margin-left: auto;
   width: 28px;
   height: 28px;
-  display: flex;
+  display: flex !important;
   align-items: center;
   justify-content: center;
   border: none;
   background: transparent;
-  color: var(--text-tertiary);
   cursor: pointer;
   border-radius: 6px;
   transition: all var(--duration-fast) var(--ease-out);
+  padding: 0;
+}
+
+.collapse-btn svg {
+  display: block;
+  width: 18px;
+  height: 18px;
 }
 
 .collapse-btn:hover {
   background: var(--bg-hover);
-  color: var(--text-primary);
+}
+
+[data-theme="dark"] .collapse-btn svg {
+  stroke: #e0e0e0;
+}
+
+[data-theme="light"] .collapse-btn svg {
+  stroke: #444444;
 }
 
 .sidebar.collapsed .title,
-.sidebar.collapsed .collapse-btn,
 .sidebar.collapsed .nav-label,
 .sidebar.collapsed .sessions-section,
-.sidebar.collapsed .sidebar-footer span {
-  display: none;
+.sidebar.collapsed .sidebar-footer span,
+.sidebar.collapsed .collapse-btn {
+  display: none !important;
 }
 
 .sidebar.collapsed .sidebar-logo-title {
+  flex-direction: column;
   justify-content: center;
-  padding: var(--space-sm);
+  align-items: center;
+  gap: 6px;
+  padding: var(--space-xs);
 }
 
 .sidebar.collapsed .nav-item {
@@ -720,22 +873,25 @@ onMounted(() => {
 }
 
 .title {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 600;
   color: var(--text-primary);
 }
 
 .sidebar-nav {
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 0;
+  overflow: visible;
+  padding: 0 8px;
 }
 
 .nav-item {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
-  padding: 10px var(--space-md);
+  padding: 6px 12px;
   border-radius: var(--radius-md);
   color: var(--text-secondary);
   text-decoration: none;
@@ -767,7 +923,7 @@ onMounted(() => {
   color: var(--text-primary);
 }
 .nav-label {
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .sessions-section {
@@ -775,20 +931,25 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  gap: var(--space-xs);
-  margin-top: var(--space-md);
+  max-height: calc(100vh - 200px);
+  gap: 0;
+  margin: 0;
+  padding: 0 8px 0;
+  overflow: hidden;
 }
 
 .section-header {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--space-xs) var(--space-md);
-  font-size: 11px;
+  padding: 2px 4px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--text-tertiary);
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  margin-bottom: 4px;
 }
 
 .icon-btn-sm {
@@ -807,12 +968,23 @@ onMounted(() => {
   color: var(--text-primary);
 }
 
-.sessions-list {
-  flex: 1;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+/* 滚动条视觉（保留在组件内，避免全局污染） */
+.sessions-list::-webkit-scrollbar {
+  width: 8px;
+}
+.sessions-list::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: 4px;
+}
+[data-theme="dark"] .sessions-list::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.06);
+}
+.sessions-list::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+}
+[data-theme="dark"] .sessions-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
 }
 
 .session-item {
@@ -820,42 +992,49 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: var(--space-xs);
-  padding: 10px var(--space-md);
+  padding: 6px 12px;
+  margin-bottom: 2px;
   border-radius: var(--radius-md);
   cursor: pointer;
   transition: background var(--duration-fast) var(--ease-out);
+  z-index: 1;
 }
 .session-item:hover {
   background: var(--bg-hover);
+  z-index: 10;
 }
 .session-item.active {
   background: var(--bg-active);
+  z-index: 10;
 }
 .session-item.pinned {
   background: var(--bg-secondary);
 }
 
-.pin-icon {
-  flex-shrink: 0;
-  color: var(--brand-primary);
-  opacity: 0.7;
-}
-
 .session-content {
   flex: 1;
   min-width: 0;
+  pointer-events: auto;
 }
 .session-title {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
+.pin-icon {
+  display: inline-block;
+  vertical-align: -2px;
+  margin-right: 6px;
+  stroke: currentColor;
+  color: var(--brand-primary);
+}
+
 .session-title-input {
   width: 100%;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text-primary);
   background: var(--bg-primary);
   border: 1px solid var(--brand-primary);
@@ -878,6 +1057,8 @@ onMounted(() => {
   color: var(--text-tertiary);
   cursor: pointer;
   transition: all var(--duration-fast) var(--ease-out);
+  pointer-events: auto;
+  z-index: 100;
 }
 .session-menu-btn:hover {
   background: var(--bg-secondary);
@@ -889,14 +1070,34 @@ onMounted(() => {
   top: 100%;
   right: 8px;
   margin-top: 4px;
-  min-width: 140px;
+  min-width: 180px;
   background: var(--bg-primary);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-md);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18), 0 1px 0 rgba(0, 0, 0, 0.06);
   padding: 4px;
-  z-index: 1000;
+  z-index: 9999;
   animation: slideDown 0.15s ease-out;
+}
+
+.menu-arrow {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: var(--bg-primary);
+  transform: rotate(45deg);
+  z-index: -1; /* 让箭头在边框外层阴影之下 */
+  box-shadow: -1px -1px 0 0 var(--border-light);
+}
+.menu-arrow.bottom {
+  top: -5px;
+  right: 18px;
+  box-shadow: -1px -1px 0 0 var(--border-light);
+}
+.menu-arrow.top {
+  bottom: -5px;
+  right: 18px;
+  box-shadow: 1px 1px 0 0 var(--border-light);
 }
 
 @keyframes slideDown {
@@ -920,7 +1121,7 @@ onMounted(() => {
   border: none;
   border-radius: 6px;
   color: var(--text-primary);
-  font-size: 13px;
+  font-size: 14px;
   text-align: left;
   cursor: pointer;
   transition: background var(--duration-fast) var(--ease-out);
@@ -965,7 +1166,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: var(--space-xl) var(--space-md);
+  padding: var(--space-md);
   text-align: center;
 }
 .empty-state-sm svg {
@@ -980,15 +1181,17 @@ onMounted(() => {
 
 .sidebar-footer {
   flex-shrink: 0;
-  padding: var(--space-sm);
+  flex-grow: 0;
+  padding: 2px 8px;
   border-top: 1px solid var(--border-light);
+  background: var(--bg-primary);
 }
 .settings-btn {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
   width: 100%;
-  padding: 10px var(--space-md);
+  padding: 8px 12px;
   background: transparent;
   color: var(--text-secondary);
   border: none;
@@ -997,12 +1200,6 @@ onMounted(() => {
   font-weight: 500;
   cursor: pointer;
   transition: all var(--duration-fast) var(--ease-out);
-}
-.settings-btn svg {
-  width: 16px;
-  height: 16px;
-  stroke: currentColor;
-  fill: none;
 }
 .settings-btn:hover {
   background: var(--bg-hover);

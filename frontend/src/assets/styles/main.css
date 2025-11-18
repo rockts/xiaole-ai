@@ -1,5 +1,7 @@
 /* ChatGPT 风格现代化设计系统 */
 @import './design-system.css';
+@import './chatgpt-chat.css';
+@import './app.css';
 
 /* Vue 应用布局 */
 #app {
@@ -8,6 +10,9 @@
     flex-direction: column;
     overflow: hidden;
 }
+
+/* 侧边栏历史对话滚动条（迁出，避免与组件/全局冲突） */
+/* 统一逻辑改由组件内联+app.css控制 */
 
 /* 路由过渡动画 - 优化版 */
 .fade-enter-active {

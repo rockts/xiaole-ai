@@ -14,18 +14,22 @@
           class="message"
           :class="message.role"
         >
+          <div class="message-avatar">
+            {{ message.role === "user" ? "👤" : "🤖" }}
+          </div>
           <div class="message-content">
-            <div v-html="renderMarkdown(message.content)"></div>
             <img
               v-if="message.image_path"
               :src="formatImagePath(message.image_path)"
               alt="图片"
               class="message-image"
             />
+            <div v-html="renderMarkdown(message.content)"></div>
           </div>
         </div>
 
         <div v-if="isTyping" class="message assistant">
+          <div class="message-avatar">🤖</div>
           <div class="message-content">
             <div class="typing-indicator">
               <span class="typing-dot"></span>
@@ -214,11 +218,8 @@ const formatImagePath = (path) => {
   if (!path) return "";
   // 如果路径不是以 / 或 http 开头，添加 / 前缀
   if (!path.startsWith("/") && !path.startsWith("http")) {
-    const formatted = "/" + path;
-    console.log('formatImagePath:', path, '->', formatted);
-    return formatted;
+    return "/" + path;
   }
-  console.log('formatImagePath (no change):', path);
   return path;
 };
 
@@ -612,5 +613,46 @@ onMounted(() => {
 
 [data-theme="dark"] .voice-mode-btn svg line {
   stroke: #ffffff;
+}
+
+/* ChatGPT 标准布局 */
+.message {
+  display: flex !important;
+  flex-direction: row !important;
+  gap: 16px !important;
+  align-items: flex-start !important;
+  padding: 24px 0 !important;
+  border-bottom: 1px solid var(--border-light) !important;
+}
+
+.message:last-child {
+  border-bottom: none !important;
+}
+
+.message-avatar {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  background: var(--bg-tertiary);
+}
+
+.message-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.message-image {
+  max-width: 100%;
+  max-height: 400px;
+  border-radius: 8px;
+  border: 1px solid var(--border-light);
 }
 </style>

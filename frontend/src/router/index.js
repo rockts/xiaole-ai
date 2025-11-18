@@ -14,6 +14,12 @@ const router = createRouter({
             meta: { title: '对话' }
         },
         {
+            path: '/share/:id',
+            name: 'Share',
+            component: () => import('@/views/ShareView.vue'),
+            meta: { title: '分享' }
+        },
+        {
             path: '/memory',
             name: 'Memory',
             component: () => import('@/views/MemoryView.vue'),
