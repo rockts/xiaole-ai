@@ -18,6 +18,16 @@
   - 浏览器标题自动显示会话名称
   - 记忆页面时间显示简化
   - 网络异常自动恢复
+  - 侧边栏历史滚动条修复（全局样式 + 首屏自动分页）
+  - 会话三点菜单传送到 body，点击坐标定位且不被裁剪
+  - 置顶会话图钉标识，整体字号更接近 ChatGPT
+
+### 🖼️ 分享预览（新）
+- 优先使用服务端预览 `GET /api/share/preview/{id}.png`，失败回退前端生成
+- 前端截图基于 `html-to-image`，自动等待样式与图片加载
+- 分享卡片展示最近 5 条消息，支持图片消息与文本混排
+- 自动规范图片路径（修复 `uploads/uploads/...` 重复）
+- ChatGPT 风格卡片：头像、气泡、左侧色条、圆角与阴影、行数截断
 
 ## ✨ v0.8.0 已发布功能
 
@@ -157,7 +167,7 @@
 - **后端**: FastAPI + SQLAlchemy
 - **数据库**: PostgreSQL (Synology NAS)
 - **AI**: DeepSeek API / Claude API
-- **前端**: HTML + JavaScript + Marked.js
+- **前端**: Vue 3 + Vite + Pinia + Vue Router + Marked.js
 
 ## 快速开始
 
@@ -191,9 +201,25 @@ python tests/test_nas_connection.py
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-### 4. 访问界面
+### 4. 前端开发与访问
 
-打开浏览器访问：http://localhost:8000/static/index.html
+开发阶段推荐使用 Vite：
+
+```bash
+# 使用 Node 20（建议）
+source ~/.nvm/nvm.sh && nvm use 20
+
+# 安装依赖
+cd frontend && npm install
+
+# 启动 Vite 开发服务器
+npm run dev
+```
+
+打开浏览器访问：
+
+- Vite 本地地址：`http://localhost:3000`
+- 后端静态页（如需）：`http://localhost:8000/static/index.html`
 
 ## 项目结构
 
@@ -403,6 +429,7 @@ chore: 🔧 构建/工具
 - 语义搜索对短查询效果有限（可通过同义词词典改进）
 - 天气查询需配置和风天气API密钥
 - 部分工具功能需要相应的API权限
+- 前端开发建议 Node.js 20+；分享卡片回退截图依赖 `html-to-image`
 
 ## 🗺️ 发展路线图
 

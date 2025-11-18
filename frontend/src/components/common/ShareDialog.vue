@@ -24,16 +24,44 @@
 
         <div class="preview-wrap">
           <!-- 若已生成缩略图则直接展示 -->
-          <img v-if="previewUrl" class="preview-image" :src="previewUrl" alt="分享预览图" />
+          <img
+            v-if="previewUrl"
+            class="preview-image"
+            :src="previewUrl"
+            alt="分享预览图"
+          />
 
           <!-- 备用 HTML 预览：用于截图源或回退显示 -->
           <div v-show="!previewUrl" class="preview-card" ref="previewCardRef">
-            <div class="preview-watermark">XiaoLe</div>
-            <div class="preview-title">{{ title }}</div>
+            <div class="preview-watermark">XiaoLe AI</div>
+            <div class="preview-header">
+              <div class="preview-icon">💬</div>
+              <div class="preview-title">{{ title }}</div>
+            </div>
             <div class="preview-list">
-              <div v-for="(m, i) in previewMessages" :key="i" class="pmsg" :class="m.role">
-                <div class="avatar">{{ m.role === 'user' ? '你' : '小乐' }}</div>
-                <div class="text">{{ m.content }}</div>
+              <div
+                v-for="(m, i) in previewMessages"
+                :key="i"
+                class="pmsg"
+                :class="m.role"
+              >
+                <div class="avatar">
+                  <span v-if="m.role === 'user'">👤</span>
+                  <span v-else>🤖</span>
+                </div>
+                <div class="msg-content">
+                  <div class="msg-author">
+                    {{ m.role === "user" ? "You" : "XiaoLe" }}
+                  </div>
+                  <div v-if="m.image" class="msg-image">
+                    <img
+                      :src="m.image"
+                      alt="消息图片"
+                      crossorigin="anonymous"
+                    />
+                  </div>
+                  <div v-if="m.content" class="msg-text">{{ m.content }}</div>
+                </div>
               </div>
             </div>
           </div>
@@ -102,16 +130,16 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-const emit = defineEmits(['close'])
+import { ref, onMounted } from "vue";
+const emit = defineEmits(["close"]);
 const props = defineProps({
   title: { type: String, default: "分享" },
   shareUrl: { type: String, required: true },
-})
+});
 
-const previewUrl = ref('')
-const previewCardRef = ref(null)
-const previewMessages = ref([])
+const previewUrl = ref("");
+const previewCardRef = ref(null);
+const previewMessages = ref([]);
 
 const copyLink = async () => {
   try {
@@ -153,56 +181,102 @@ const shareToReddit = () => {
 
 // 优先尝试服务端生成的预览图（如果后端有该能力）
 const tryServerPreview = async (id) => {
-  const url = `/api/share/preview/${id}.png`
+  const url = `/api/share/preview/${id}.png`;
   try {
     await new Promise((resolve, reject) => {
-      const img = new Image()
-      img.onload = () => resolve(true)
-      img.onerror = reject
-      img.src = url
-    })
-    previewUrl.value = url
+      const img = new Image();
+      img.onload = () => resolve(true);
+      img.onerror = reject;
+      img.src = url;
+    });
+    previewUrl.value = url;
   } catch (_) {
     // ignore
   }
-}
+};
 
 // 无服务端时，使用前端截图
 const htmlToImagePreview = async () => {
   try {
-    const mod = await import('html-to-image')
-    const toPng = mod.toPng || mod.default?.toPng
-    if (!toPng) return
-    const node = previewCardRef.value
-    if (!node) return
-    const dataUrl = await toPng(node, { cacheBust: true, pixelRatio: 2 })
-    previewUrl.value = dataUrl
+    const node = previewCardRef.value;
+    if (!node) {
+      console.warn("previewCardRef 未找到");
+      return;
+    }
+
+    // 等待 DOM 和样式完全加载
+    await new Promise((resolve) => setTimeout(resolve, 300));
+
+    const mod = await import("html-to-image");
+    const toPng = mod.toPng || mod.default?.toPng;
+    if (!toPng) {
+      console.warn("html-to-image toPng 方法未找到");
+      return;
+    }
+
+    console.log("开始生成预览图...");
+    const dataUrl = await toPng(node, {
+      cacheBust: true,
+      pixelRatio: 2,
+      backgroundColor: "#1a1a1a",
+    });
+    previewUrl.value = dataUrl;
+    console.log("预览图生成成功");
   } catch (e) {
-    console.warn('生成缩略图失败，保留HTML预览', e)
+    console.error("生成缩略图失败", e);
   }
-}
+};
 
 onMounted(async () => {
+  console.log("ShareDialog mounted, shareUrl:", props.shareUrl);
   try {
-    const id = props.shareUrl.split('/').filter(Boolean).pop()
+    const id = props.shareUrl.split("/").filter(Boolean).pop();
+    console.log("提取的会话ID:", id);
+
     // 拉取会话最近消息以构建预览
-    const resp = await fetch(`/session/${id}`)
+    const resp = await fetch(`/session/${id}`);
+    console.log("会话数据响应状态:", resp.status);
+
     if (resp.ok) {
-      const data = await resp.json()
-      const list = (data.messages || data.history || []).slice(-5)
-      previewMessages.value = list.map((m) => ({
-        role: m.role || (m.author || 'assistant'),
-        content: (m.content || '').toString().slice(0, 80)
-      }))
-      await tryServerPreview(id)
-      if (!previewUrl.value) await htmlToImagePreview()
+      const data = await resp.json();
+      const list = (data.messages || data.history || []).slice(-5);
+      console.log("获取到的消息数量:", list.length);
+      console.log("原始消息数据:", list);
+      previewMessages.value = list.map((m) => {
+        let imagePath = null;
+        if (m.image_path) {
+          // 处理可能的路径重复问题
+          imagePath = m.image_path.startsWith("uploads/")
+            ? `/${m.image_path}`
+            : `/uploads/${m.image_path}`;
+        }
+        const msg = {
+          role: m.role || m.author || "assistant",
+          content: (m.content || "").toString().slice(0, 120),
+          image: imagePath,
+        };
+        console.log("处理后的消息:", msg);
+        return msg;
+      });
+
+      console.log("尝试服务端预览图...");
+      await tryServerPreview(id);
+
+      if (!previewUrl.value) {
+        console.log("服务端预览图不可用，使用前端截图");
+        await htmlToImagePreview();
+      } else {
+        console.log("使用服务端预览图");
+      }
     } else {
-      await htmlToImagePreview()
+      console.log("会话数据获取失败，直接使用前端截图");
+      await htmlToImagePreview();
     }
-  } catch (_) {
-    await htmlToImagePreview()
+  } catch (err) {
+    console.error("onMounted 错误:", err);
+    await htmlToImagePreview();
   }
-})
+});
 </script>
 
 <style scoped>
@@ -266,37 +340,135 @@ onMounted(async () => {
   display: flex;
   justify-content: center;
 }
-.preview-image{width:100%;max-width:720px;border-radius:14px;border:1px solid var(--border-light);box-shadow:0 10px 30px rgba(0,0,0,.18)}
+.preview-image {
+  width: 100%;
+  max-width: 720px;
+  border-radius: 14px;
+  border: 1px solid var(--border-light);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+}
 .preview-card {
   position: relative;
   width: 100%;
   max-width: 720px;
-  aspect-ratio: 16/9;
-  border-radius: 14px;
-  border: 1px solid var(--border-light);
-  background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(0,0,0,.1));
+  min-height: 480px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: #0f172a;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 16px 18px;
+  gap: 16px;
+  padding: 32px 28px;
   overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
 }
 [data-theme="light"] .preview-card {
-  background: linear-gradient(180deg, rgba(0, 0, 0, 0.03), rgba(0, 0, 0, 0.06));
+  background: #ffffff;
+  border-color: rgba(0, 0, 0, 0.06);
 }
 .preview-watermark {
   position: absolute;
-  bottom: 14px;
-  right: 16px;
-  color: var(--text-primary);
-  opacity: 0.6;
-  font-weight: 700;
+  bottom: 20px;
+  right: 24px;
+  color: rgba(255, 255, 255, 0.4);
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.5px;
 }
-.preview-title{font-size:16px;font-weight:700;color:var(--text-primary)}
-.preview-list{display:flex;flex-direction:column;gap:8px;overflow:hidden}
-.pmsg{display:flex;gap:10px}
-.pmsg .avatar{font-size:12px;color:var(--text-secondary);width:34px;flex-shrink:0}
-.pmsg .text{flex:1;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.preview-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.preview-icon {
+  font-size: 28px;
+  line-height: 1;
+}
+.preview-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #e5e7eb;
+  flex: 1;
+}
+.preview-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  overflow: hidden;
+}
+.pmsg {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+.pmsg .avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.12);
+}
+.pmsg.user .avatar { background: rgba(255, 255, 255, 0.18); }
+.pmsg.assistant .avatar {
+  background: rgba(16, 163, 127, 0.28);
+}
+.pmsg .msg-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: #0b1220;
+  border-radius: 14px;
+  padding: 14px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.pmsg.user .msg-content {
+  background: #111827;
+  border-color: rgba(255, 255, 255, 0.08);
+  border-left: 3px solid #64748b; /* slate-500 */
+}
+.pmsg.assistant .msg-content {
+  background: #0b1411;
+  border-color: rgba(16, 163, 127, 0.28);
+  border-left: 3px solid #10a37f;
+}
+.pmsg .msg-author {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(229, 231, 235, 0.92);
+  margin-bottom: 2px;
+}
+.pmsg .msg-image {
+  width: 100%;
+  max-width: 260px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.pmsg .msg-image img {
+  width: 100%;
+  height: auto;
+  display: block;
+  object-fit: cover;
+  max-height: 160px;
+}
+.pmsg .msg-text {
+  color: #e5e7eb;
+  line-height: 1.65;
+  font-size: 14px;
+  word-wrap: break-word;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+  -webkit-box-orient: vertical;
+}
 
 .share-actions {
   display: flex;
