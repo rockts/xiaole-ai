@@ -22,7 +22,10 @@
               class="message-image"
               @click="openImage(formatImagePath(message.image_path))"
             />
-            <div class="md-content" v-html="renderMarkdown(message.content)"></div>
+            <div
+              class="md-content"
+              v-html="renderMarkdown(message.content)"
+            ></div>
           </div>
         </div>
 
@@ -40,7 +43,11 @@
     </div>
 
     <!-- 图片预览遮罩 -->
-    <div v-if="imagePreviewUrl" class="image-preview-overlay" @click="closeImagePreview">
+    <div
+      v-if="imagePreviewUrl"
+      class="image-preview-overlay"
+      @click="closeImagePreview"
+    >
       <img :src="imagePreviewUrl" alt="预览图" class="image-preview" />
     </div>
 
@@ -141,7 +148,14 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from "vue";
+import {
+  ref,
+  computed,
+  watch,
+  nextTick,
+  onMounted,
+  onBeforeUnmount,
+} from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useChatStore } from "@/stores/chat";
 import { storeToRefs } from "pinia";
@@ -454,7 +468,7 @@ onBeforeUnmount(() => {
 .chat-container {
   flex: 1;
   overflow-y: auto;
-  padding: 28px 24px;
+  padding: 22px 20px;
   display: flex;
   justify-content: center;
   background: var(--bg-primary);
@@ -462,11 +476,11 @@ onBeforeUnmount(() => {
 
 .chat-inner {
   width: 100%;
-  max-width: 820px;
+  max-width: 740px;
 }
 
 .message {
-  margin-bottom: 24px;
+  margin-bottom: 8px;
   display: flex;
 }
 
@@ -475,10 +489,15 @@ onBeforeUnmount(() => {
 }
 
 /* 左右对齐布局，无头像时内容居左/居右 */
-.message.assistant { justify-content: flex-start; }
+.message.assistant {
+  justify-content: flex-start;
+}
 
 /* 内容区宽度与阅读体验 */
-.message-content { padding: 0; max-width: 820px; }
+.message-content {
+  padding: 0;
+  max-width: 740px;
+}
 
 .message-content :deep(p) {
   margin: 0 0 0.75em 0;
@@ -591,22 +610,22 @@ onBeforeUnmount(() => {
 }
 
 .input-container {
-  padding: 16px 20px 24px;
+  padding: 12px 16px 16px;
   border-top: none;
   background: transparent;
   flex-shrink: 0;
 }
 
 .input-wrapper {
-  max-width: 820px;
+  max-width: 740px;
   margin: 0 auto;
   display: flex;
-  gap: 8px;
+  gap: 6px;
   align-items: center;
   background: var(--bg-secondary);
-  border: 1px solid var(--border-medium);
-  border-radius: 26px;
-  padding: 12px 16px;
+  border: 1px solid var(--border-light);
+  border-radius: 14px;
+  padding: 8px 10px;
   transition: all var(--duration-fast) var(--ease-out);
   box-shadow: 0 0 0 0 transparent;
 }
@@ -614,7 +633,8 @@ onBeforeUnmount(() => {
 .input-wrapper:focus-within {
   background: var(--bg-primary);
   border-color: var(--text-tertiary);
-  box-shadow: none;
+  box-shadow: 0 0 0 3px
+    color-mix(in srgb, var(--brand-primary) 15%, transparent);
 }
 
 .input-controls {
@@ -626,13 +646,14 @@ onBeforeUnmount(() => {
 
 .message-editor {
   flex: 1;
-  max-height: 200px;
+  max-height: 160px;
   overflow-y: auto;
   outline: none;
-  padding: 4px 8px;
+  padding: 2px 6px;
   color: var(--text-primary);
-  font-size: 15px;
-  line-height: 1.5;
+  font-size: 14.5px;
+  line-height: 1.45;
+  min-height: 24px;
 }
 
 .message-editor:empty:before {
@@ -641,15 +662,15 @@ onBeforeUnmount(() => {
 }
 
 .icon-btn {
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   border: none;
   background: transparent;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 8px;
+  border-radius: 6px;
   transition: all var(--duration-fast) var(--ease-out);
   color: var(--text-secondary);
   flex-shrink: 0;
@@ -657,8 +678,8 @@ onBeforeUnmount(() => {
 
 .icon-btn svg {
   stroke: currentColor;
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
 }
 
 [data-theme="dark"] .icon-btn svg {
@@ -730,13 +751,13 @@ onBeforeUnmount(() => {
 }
 
 .voice-mode-btn {
-  width: 40px;
-  height: 40px;
+  width: 34px;
+  height: 34px;
 }
 
 .voice-mode-btn svg {
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
 }
 
 .voice-mode-btn svg line {
@@ -751,9 +772,9 @@ onBeforeUnmount(() => {
 .message {
   display: flex !important;
   flex-direction: row !important;
-  gap: 12px !important;
+  gap: 10px !important;
   align-items: flex-start !important;
-  padding: 18px 0 !important;
+  padding: 14px 0 !important;
   border-bottom: none !important;
   position: relative;
   z-index: 0;
@@ -783,11 +804,29 @@ onBeforeUnmount(() => {
   background: #1f29371a;
 }
 
-.message-content { flex: 0 1 auto; min-width: 0; display: block; line-height: 1.7; font-size: 16px; }
-.message.assistant .message-content { margin-right: auto; max-width: 740px; }
-.message.user .message-content { margin-left: auto; max-width: 740px; }
+.message-content {
+  flex: 0 1 auto;
+  min-width: 0;
+  display: block;
+  line-height: 1.7;
+  font-size: 14.5px;
+}
+.message.assistant .message-content {
+  margin-right: auto;
+  max-width: 100%;
+}
+.message.user .message-content {
+  margin-left: auto;
+  max-width: 58%;
+}
 
-.message-image { max-width: 100%; max-height: 400px; border-radius: 8px; border: 1px solid var(--border-light); cursor: zoom-in; }
+.message-image {
+  max-width: 100%;
+  max-height: 400px;
+  border-radius: 8px;
+  border: 1px solid var(--border-light);
+  cursor: zoom-in;
+}
 
 /* 助手透明背景，用户右侧有气泡背景 */
 .message.assistant {
@@ -795,18 +834,25 @@ onBeforeUnmount(() => {
   padding: 0 !important;
   margin: 0;
 }
-.chat-inner { padding: 0 16px; }
+.chat-inner {
+  padding: 0 16px;
+}
 
 /* 用户气泡更轻、更接近 ChatGPT 用户侧 */
 .message.user .message-content {
-  background: var(--bg-primary);
-  border: 1px solid var(--border-light);
-  border-radius: 12px;
-  padding: 10px 12px;
+  display: inline-block;
+  background: var(--bg-secondary);
+  border: none;
+  border-radius: 9999px;
+  padding: 8px 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 /* Markdown 图片也可点击预览 */
-.md-content :deep(img) { cursor: zoom-in; }
+.md-content :deep(img) {
+  cursor: zoom-in;
+}
 
 /* 图片预览遮罩样式 */
 .image-preview-overlay {
