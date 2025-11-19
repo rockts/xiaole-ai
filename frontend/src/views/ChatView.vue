@@ -15,67 +15,205 @@
           :class="[
             message.role,
             {
-              'new-group': idx === 0 || messages[idx - 1]?.role !== message.role,
+              'new-group':
+                idx === 0 || messages[idx - 1]?.role !== message.role,
             },
           ]"
         >
-          <div class="message-content">
-            <div class="message-toolbar">
-              <button class="toolbar-icon" @click.stop="copyMessage(message)" title="复制">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                </svg>
-              </button>
-              <button v-if="message.role === 'assistant'" class="toolbar-icon" :class="{ active: feedbackState.get(message.id) === 'up' }" @click.stop="feedbackMessage(message, 'up')" title="有帮助">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M14 9V5a3 3 0 0 0-6 0v4"></path>
-                  <path d="M5 15h12a2 2 0 0 0 2-2v-1a5 5 0 0 0-5-5H9l-4 8Z"></path>
-                </svg>
-              </button>
-              <button v-if="message.role === 'assistant'" class="toolbar-icon" :class="{ active: feedbackState.get(message.id) === 'down' }" @click.stop="feedbackMessage(message, 'down')" title="不太好">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M10 15v4a3 3 0 0 0 6 0v-4"></path>
-                  <path d="M19 9H7a2 2 0 0 0-2 2v1a5 5 0 0 0 5 5h4l4-8Z"></path>
-                </svg>
-              </button>
-              <button v-if="message.role === 'assistant'" class="toolbar-icon" @click.stop="regenerateMessage(message)" title="重新生成">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                  <polyline points="23 4 23 10 17 10"></polyline>
-                  <polyline points="1 20 1 14 7 14"></polyline>
-                  <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"></path>
-                  <path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14"></path>
-                </svg>
-              </button>
-              <button class="toolbar-icon" @click.stop="moreActions(message)" title="更多">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <circle cx="5" cy="12" r="1"></circle>
-                  <circle cx="12" cy="12" r="1"></circle>
-                  <circle cx="19" cy="12" r="1"></circle>
-                </svg>
-              </button>
-            </div>
-            <img v-if="message.image_path" :src="formatImagePath(message.image_path)" alt="图片" class="message-image" @click="openImage(formatImagePath(message.image_path))" />
-            <template v-if="message.role === 'assistant'">
-              <div class="assistant-bubble">
-                <div class="md-content" v-html="renderMarkdown(message.content)"></div>
+          <img
+            v-if="message.image_path"
+            :src="formatImagePath(message.image_path)"
+            alt="图片"
+            class="message-image"
+            @click="openImage(formatImagePath(message.image_path))"
+          />
+          <template v-if="message.role === 'assistant'">
+            <template v-if="message.status === 'thinking'">
+              <div class="thinking-wrapper">
+                <div class="thinking-dot"></div>
               </div>
             </template>
             <template v-else>
-              <div class="user-bubble">
-                <div class="md-content" v-html="renderMarkdown(message.content)"></div>
-              </div>
+              <div
+                class="md-content"
+                :class="{ typing: message.status === 'typing' }"
+                v-html="renderMarkdown(message.content)"
+              ></div>
             </template>
+          </template>
+          <template v-else>
+            <div class="user-bubble">
+              <div
+                class="md-content"
+                v-html="renderMarkdown(message.content)"
+              ></div>
+            </div>
+          </template>
+
+          <div class="message-toolbar">
+            <button
+              v-if="message.role === 'user'"
+              class="toolbar-icon"
+              @click.stop="editMessage(message)"
+              title="编辑"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path
+                  d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"
+                ></path>
+                <path
+                  d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"
+                ></path>
+              </svg>
+            </button>
+            <button
+              class="toolbar-icon"
+              @click.stop="copyMessage(message)"
+              title="复制"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path
+                  d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
+                ></path>
+              </svg>
+            </button>
+            <button
+              v-if="message.role === 'assistant'"
+              class="toolbar-icon"
+              :class="{ active: feedbackState.get(message.id) === 'up' }"
+              @click.stop="feedbackMessage(message, 'up')"
+              title="有帮助"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M7 10v12"></path>
+                <path
+                  d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z"
+                ></path>
+              </svg>
+            </button>
+            <button
+              v-if="message.role === 'assistant'"
+              class="toolbar-icon"
+              :class="{ active: feedbackState.get(message.id) === 'down' }"
+              @click.stop="feedbackMessage(message, 'down')"
+              title="不太好"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M17 14V2"></path>
+                <path
+                  d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22h0a3.13 3.13 0 0 1-3-3.88Z"
+                ></path>
+              </svg>
+            </button>
+            <button
+              v-if="message.role === 'assistant'"
+              class="toolbar-icon"
+              :class="{ active: isSpeaking(message.id) }"
+              @click.stop="toggleSpeak(message)"
+              title="朗读"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+              </svg>
+            </button>
+            <button
+              v-if="message.role === 'assistant'"
+              class="toolbar-icon"
+              @click.stop="regenerateMessage(message)"
+              title="重新生成"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <polyline points="23 4 23 10 17 10"></polyline>
+                <polyline points="1 20 1 14 7 14"></polyline>
+                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"></path>
+                <path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14"></path>
+              </svg>
+            </button>
+            <button
+              class="toolbar-icon"
+              @click.stop="moreActions(message)"
+              title="更多"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <circle cx="5" cy="12" r="1"></circle>
+                <circle cx="12" cy="12" r="1"></circle>
+                <circle cx="19" cy="12" r="1"></circle>
+              </svg>
+            </button>
           </div>
         </div>
 
         <div v-if="isTyping" class="message assistant">
-          <div class="message-content">
-            <div class="typing-indicator">
-              <span class="typing-dot"></span>
-              <span class="typing-dot"></span>
-              <span class="typing-dot"></span>
-            </div>
+          <div class="typing-indicator">
+            <span class="typing-dot"></span>
+            <span class="typing-dot"></span>
+            <span class="typing-dot"></span>
           </div>
         </div>
       </div>
@@ -89,16 +227,17 @@
       aria-label="回到底部"
     >
       <svg
-        width="18"
-        height="18"
+        width="24"
+        height="24"
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
-        stroke-width="2"
+        stroke-width="2.5"
         stroke-linecap="round"
         stroke-linejoin="round"
       >
-        <polyline points="6 9 12 15 18 9"></polyline>
+        <line x1="12" y1="5" x2="12" y2="19"></line>
+        <polyline points="6 13 12 19 18 13"></polyline>
       </svg>
     </button>
 
@@ -166,11 +305,50 @@
 
           <button
             class="icon-btn voice-mode-btn"
-            :class="{ active: isVoiceMode }"
-            @click="toggleVoiceMode"
-            title="语音模式"
+            :class="{
+              active: isVoiceMode && buttonMode === 'voice-mode',
+              'send-mode': buttonMode === 'send',
+              'stop-mode': buttonMode === 'stop',
+            }"
+            @click="handleMainButton"
+            :title="
+              buttonMode === 'send'
+                ? '发送消息'
+                : buttonMode === 'stop'
+                ? '停止生成'
+                : '语音模式'
+            "
           >
+            <!-- 发送图标 (向上箭头) -->
             <svg
+              v-if="buttonMode === 'send'"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#000"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <polyline points="6,11 12,5 18,11" />
+            </svg>
+
+            <!-- 停止图标 -->
+            <svg
+              v-else-if="buttonMode === 'stop'"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+            >
+              <rect x="6" y="6" width="12" height="12" rx="2"></rect>
+            </svg>
+
+            <!-- 语音模式图标 -->
+            <svg
+              v-else
               width="32"
               height="32"
               viewBox="0 0 24 24"
@@ -220,6 +398,8 @@ import { useRoute, useRouter } from "vue-router";
 import { useChatStore } from "@/stores/chat";
 import { storeToRefs } from "pinia";
 import { marked } from "marked";
+import { markedHighlight } from "marked-highlight";
+import hljs from "highlight.js";
 
 const route = useRoute();
 const router = useRouter();
@@ -237,6 +417,21 @@ const isVoiceMode = ref(false);
 const imagePreviewUrl = ref(null);
 const showScrollToBottom = ref(false);
 const feedbackState = ref(new Map());
+const speakingMessageId = ref(null);
+const inputContent = ref("");
+let currentSpeech = null;
+
+// 判断是否有输入内容
+const hasInputContent = computed(() => {
+  return inputContent.value.trim().length > 0;
+});
+
+// 按钮状态：voice-mode(语音模式) / send(发送) / stop(停止)
+const buttonMode = computed(() => {
+  if (isTyping.value) return "stop";
+  if (hasInputContent.value) return "send";
+  return "voice-mode";
+});
 
 const greetings = [
   "你好！很高兴见到你",
@@ -267,6 +462,24 @@ const selectRandomGreeting = () => {
 };
 
 const currentGreeting = ref(selectRandomGreeting());
+
+// 配置 marked 使用代码高亮
+marked.use(
+  markedHighlight({
+    langPrefix: "hljs language-",
+    highlight(code, lang) {
+      const language = hljs.getLanguage(lang) ? lang : "plaintext";
+      return hljs.highlight(code, { language }).value;
+    },
+  })
+);
+
+marked.setOptions({
+  breaks: true,
+  gfm: true,
+  sanitize: false, // 关键：不对 HTML 进行转义
+  headerIds: false,
+});
 
 const sessionId = computed(() => route.params.sessionId);
 
@@ -303,6 +516,80 @@ const copyMessage = async (message) => {
     if (!text) return;
     await navigator.clipboard.writeText(text);
   } catch (_) {}
+};
+
+const editMessage = (message) => {
+  // 编辑用户消息：将消息内容填充到输入框
+  if (message?.role !== "user") return;
+  // 设置 contenteditable div 的内容
+  nextTick(() => {
+    const editor = messageInput.value;
+    if (editor) {
+      editor.textContent = message.content || "";
+      editor.focus();
+      // 将光标移到末尾
+      const range = document.createRange();
+      const sel = window.getSelection();
+      range.selectNodeContents(editor);
+      range.collapse(false);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
+  });
+};
+
+const isSpeaking = (messageId) => {
+  return speakingMessageId.value === messageId;
+};
+
+const toggleSpeak = (message) => {
+  if (!message?.content) return;
+
+  // 如果正在朗读当前消息，则停止
+  if (isSpeaking(message.id)) {
+    stopSpeech();
+    return;
+  }
+
+  // 停止之前的朗读
+  stopSpeech();
+
+  // 开始新的朗读
+  try {
+    const utterance = new SpeechSynthesisUtterance(message.content);
+    utterance.lang = "zh-CN";
+    utterance.rate = 1.0;
+    utterance.pitch = 1.0;
+    utterance.volume = 1.0;
+
+    utterance.onstart = () => {
+      speakingMessageId.value = message.id;
+    };
+
+    utterance.onend = () => {
+      speakingMessageId.value = null;
+      currentSpeech = null;
+    };
+
+    utterance.onerror = () => {
+      speakingMessageId.value = null;
+      currentSpeech = null;
+    };
+
+    currentSpeech = utterance;
+    window.speechSynthesis.speak(utterance);
+  } catch (error) {
+    console.error("朗读失败:", error);
+    speakingMessageId.value = null;
+  }
+};
+
+const stopSpeech = () => {
+  if (currentSpeech) {
+    window.speechSynthesis.cancel();
+    speakingMessageId.value = null;
+    currentSpeech = null;
+  }
 };
 
 const regenerateMessage = async (message) => {
@@ -386,47 +673,69 @@ const enhanceRenderedContent = () => {
   const blocks = chatContainer.value.querySelectorAll(
     ".md-content pre:not([data-has-copy])"
   );
+
   blocks.forEach((pre) => {
     pre.setAttribute("data-has-copy", "1");
-    // 代码语言标签
-    try {
-      const codeEl = pre.querySelector("code");
-      const cls = codeEl?.className || "";
-      const m = cls.match(/language-([a-z0-9+#-]+)/i);
-      if (m && !pre.querySelector(".code-lang")) {
-        const label = document.createElement("span");
-        label.className = "code-lang";
-        label.textContent = m[1].toLowerCase();
-        pre.appendChild(label);
-      }
-    } catch (_) {}
+
+    // 提取语言标签
+    const codeEl = pre.querySelector("code");
+    const cls = codeEl?.className || "";
+    const m = cls.match(/language-([a-z0-9+#-]+)/i);
+    const lang = m ? m[1].toLowerCase() : "plaintext";
+
+    // 创建头部容器
+    const header = document.createElement("div");
+    header.className = "code-header";
+
+    // 语言标签
+    const label = document.createElement("span");
+    label.className = "code-lang";
+    label.textContent = lang;
+    header.appendChild(label);
 
     // 复制按钮
     const btn = document.createElement("button");
     btn.className = "copy-btn";
     btn.type = "button";
-    btn.textContent = "复制";
+    btn.innerHTML = `
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+      </svg>
+      <span class="copy-text">复制代码</span>
+    `;
     btn.addEventListener("click", async (e) => {
       e.stopPropagation();
       try {
         const code = pre.querySelector("code");
         const text = code ? code.innerText : pre.innerText;
         await navigator.clipboard.writeText(text);
-        const original = btn.textContent;
-        btn.textContent = "已复制";
-        btn.classList.add("copied");
-        setTimeout(() => {
-          btn.textContent = original;
-          btn.classList.remove("copied");
-        }, 1200);
+        const textSpan = btn.querySelector(".copy-text");
+        if (textSpan) {
+          textSpan.textContent = "已复制";
+          btn.classList.add("copied");
+          setTimeout(() => {
+            textSpan.textContent = "复制代码";
+            btn.classList.remove("copied");
+          }, 1500);
+        }
       } catch (_) {}
     });
-    pre.appendChild(btn);
+    header.appendChild(btn);
+
+    // 将header插入pre顶部
+    pre.insertBefore(header, pre.firstChild);
   });
 };
 
 const handleInput = () => {
-  // 处理输入
+  // 更新输入内容状态
+  inputContent.value = messageInput.value?.innerText || "";
+
+  // 处理输入，清理空内容以显示占位符
+  if (messageInput.value && messageInput.value.innerText.trim() === "") {
+    messageInput.value.innerHTML = "";
+  }
 };
 
 const handleEnter = (e) => {
@@ -438,10 +747,42 @@ const handleEnter = (e) => {
 
 const sendMessage = async () => {
   const content = messageInput.value?.innerText?.trim();
-  if (!content) return;
+  if (!content || isTyping.value) return;
 
-  await chatStore.sendMessage(content, null, router);
+  // 立即清空输入框
   messageInput.value.innerText = "";
+  messageInput.value.innerHTML = "";
+  inputContent.value = "";
+
+  // 立即添加用户消息到界面并滚动
+  messages.value.push({
+    id: `temp-${Date.now()}`,
+    role: "user",
+    content: content,
+    timestamp: new Date().toISOString(),
+  });
+
+  nextTick(() => {
+    scrollToBottom();
+  });
+
+  // 发送到后端
+  await chatStore.sendMessage(content, null, router);
+};
+
+const stopGeneration = () => {
+  console.log("停止 AI 生成");
+  chatStore.stopGeneration();
+};
+
+const handleMainButton = () => {
+  if (buttonMode.value === "send") {
+    sendMessage();
+  } else if (buttonMode.value === "stop") {
+    stopGeneration();
+  } else {
+    toggleVoiceMode();
+  }
 };
 
 const handleUpload = () => {
@@ -495,6 +836,9 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+  // 停止朗读
+  stopSpeech();
+
   if (chatContainer.value) {
     chatContainer.value.removeEventListener("click", onChatClick);
     chatContainer.value.removeEventListener("scroll", onScroll);
@@ -526,74 +870,702 @@ const feedbackMessage = async (message, type) => {
   background: var(--bg-primary);
 }
 /* 欢迎消息 */
-.welcome-message { position: absolute; top: 35%; left: 50%; transform: translate(-50%, -50%); text-align: center; z-index: 10; animation: fadeInUp 0.5s ease-out; }
-@keyframes fadeInUp { from { opacity: 0; transform: translate(-50%, -45%);} to { opacity: 1; transform: translate(-50%, -50%);} }
-.welcome-icon { font-size: 48px; margin-bottom: 16px; }
-.welcome-title { font-size: 24px; font-weight: 500; color: var(--text-primary); letter-spacing: -0.5px; }
-.welcome-subtitle { font-size: 16px; color: var(--text-secondary); }
-.chat-view.empty { justify-content: center; align-items: center; }
-.chat-view.empty .chat-container { display: none; }
-.chat-view.empty .input-container { position: static; background: transparent; border-top: none; padding: 0; display: flex; justify-content: center; align-items: center; width: 100%; }
-.chat-view.empty .input-wrapper { max-width: 720px; width: 90%; box-shadow: none; background: var(--bg-secondary); border: 1px solid var(--border-medium); }
-.chat-container { flex: 1; overflow-y: auto; padding: 0; display: flex; justify-content: center; background: var(--bg-primary); margin-bottom: 100px; }
-.chat-inner { width: 100%; max-width: 740px; padding: 22px 20px; }
-.message { margin-bottom: 8px; display: flex; }
-.message.user { justify-content: flex-end; }
-.message.assistant { justify-content: flex-start; }
-.message-content { background: #f7f7f7; border-radius: 8px; margin: 8px 0; padding: 16px 20px 8px 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); position: relative; }
-.message-content :deep(p) { margin: 0 0 0.75em 0; line-height: 1.6; }
-.message-content :deep(p:last-child) { margin-bottom: 0; }
-.message-content :deep(ul), .message-content :deep(ol) { margin: 0.5em 0; padding-left: 1.5em; }
-.message-content :deep(li) { margin: 0.25em 0; }
-.message-content :deep(code) { background: rgba(0,0,0,0.05); padding: 0.2em 0.4em; border-radius: 3px; font-size: 0.9em; }
-.message-content :deep(pre) { background: var(--code-bg, rgba(0,0,0,0.06)); padding: 34px 16px 14px; border-radius: 10px; overflow-x: auto; margin: 0.9em 0; position: relative; }
-.message-content :deep(pre code) { background: none; padding: 0; }
-.message-image { max-width: 320px; max-height: 180px; margin: 12px 0 0 0; border-radius: 6px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); cursor: pointer; }
-.md-content :deep(h1), .md-content :deep(h2), .md-content :deep(h3) { margin: 0.7em 0 0.4em; line-height: 1.2; }
-.md-content :deep(h4), .md-content :deep(h5), .md-content :deep(h6) { margin: 0.6em 0 0.3em; }
-.md-content :deep(a) { color: var(--brand-primary); text-decoration: none; }
-.md-content :deep(a:hover) { text-decoration: underline; }
-.md-content :deep(blockquote) { margin: 0.9em 0; padding: 8px 12px; border-left: 3px solid var(--border-medium); background: var(--bg-secondary); border-radius: 6px; }
-.md-content :deep(table) { width: 100%; border-collapse: collapse; margin: 12px 0; }
-.md-content :deep(th), .md-content :deep(td) { border: 1px solid var(--border-light); padding: 8px 10px; }
-.md-content :deep(img) { max-width: 100%; border-radius: 10px; border: 1px solid var(--border-light); }
-.copy-btn { position: absolute; top: 6px; right: 8px; border: 1px solid var(--border-light); background: var(--bg-primary); color: var(--text-secondary); font-size: 12px; padding: 4px 8px; border-radius: 6px; cursor: pointer; }
-.copy-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
-.copy-btn.copied { color: var(--brand-primary); border-color: var(--brand-primary); }
-.code-lang { position: absolute; top: 8px; left: 10px; font-size: 12px; color: var(--text-tertiary); background: var(--bg-primary); border: 1px solid var(--border-light); border-radius: 6px; padding: 2px 6px; }
-.message-toolbar { position: absolute; top: 8px; right: 12px; display: flex; gap: 8px; opacity: 0.7; transition: opacity 0.2s; }
-.message-content:hover .message-toolbar { opacity: 1; }
-.toolbar-icon { background: none; border: none; padding: 2px; cursor: pointer; color: #888; border-radius: 4px; transition: background 0.2s, color 0.2s; }
-.toolbar-icon:hover, .toolbar-icon.active { background: #eaeaea; color: #222; }
-.input-container { padding: 12px 16px 16px; border-top: none; background: transparent; flex-shrink: 0; }
-.input-wrapper { max-width: 760px; margin: 0 auto; display: flex; gap: 8px; align-items: center; background: var(--bg-primary); border: 1px solid var(--border-light); border-radius: 16px; padding: 6px 12px; transition: all 0.2s ease; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
-.input-wrapper:focus-within { border-color: var(--border-light); box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
-.input-controls { display: flex; align-items: center; gap: 10px; width: 100%; }
-.message-editor { flex: 1; max-height: 200px; overflow-y: auto; outline: none; padding: 10px 14px; color: var(--text-primary); font-size: 15px; line-height: 1.6; min-height: 24px; border: 1px solid var(--border-light); border-radius: 14px; background: var(--bg-secondary); transition: all 0.2s ease; }
-.message-editor:focus { border-color: var(--brand-primary); background: var(--bg-primary); }
-.message-editor:empty:before { content: attr(data-placeholder); color: var(--text-tertiary); }
-.icon-btn { width: 28px; height: 28px; border: none; background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 6px; transition: all var(--duration-fast) var(--ease-out); color: var(--text-secondary); flex-shrink: 0; }
-.icon-btn svg { stroke: currentColor; width: 18px; height: 18px; }
-[data-theme="dark"] .icon-btn svg { stroke: var(--text-secondary); }
-[data-theme="dark"] .icon-btn:hover svg { stroke: var(--text-primary); }
-.icon-btn:hover:not(:disabled) { background: var(--bg-hover); color: var(--text-primary); }
-.icon-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-.icon-btn.active { background: var(--brand-primary); color: var(--text-inverse); }
-.icon-btn.active svg { stroke: var(--text-inverse); }
-.icon-btn.recording { background: var(--error); color: var(--text-inverse); animation: pulse 1.5s ease-in-out infinite; }
-.icon-btn.recording svg { stroke: var(--text-inverse); }
-@keyframes pulse { 0%,100% { opacity: 1; transform: scale(1);} 50% { opacity: 0.8; transform: scale(1.05);} }
-.icon-btn.primary { background: transparent; color: var(--text-secondary); }
-.icon-btn.primary:hover:not(:disabled) { background: var(--bg-hover); color: var(--text-primary); }
-.icon-btn.primary:not(:disabled):active { background: var(--bg-active); }
-.icon-btn.primary:disabled { background: transparent; opacity: 0.3; }
-.voice-mode-btn { width: 34px; height: 34px; }
-.voice-mode-btn svg { width: 28px; height: 28px; }
-.voice-mode-btn svg line { stroke: var(--text-primary); }
-[data-theme="dark"] .voice-mode-btn svg line { stroke: #ffffff; }
-.scroll-to-bottom { position: fixed; right: 28px; bottom: 90px; width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--border-light); background: var(--bg-primary); color: var(--text-secondary); box-shadow: 0 6px 24px rgba(0,0,0,0.12); display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 1000; }
-.scroll-to-bottom:hover { background: var(--bg-hover); color: var(--text-primary); }
-.image-preview-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.65); display: flex; align-items: center; justify-content: center; z-index: 2000; cursor: zoom-out; }
-.image-preview { max-width: 92vw; max-height: 92vh; border-radius: 12px; box-shadow: 0 15px 60px rgba(0,0,0,0.35); }
-@media (max-width: 900px) { .input-wrapper { max-width: 98vw; } }
+.welcome-message {
+  position: absolute;
+  top: 35%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  z-index: 10;
+  animation: fadeInUp 0.5s ease-out;
+}
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -45%);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
+}
+.welcome-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+.welcome-title {
+  font-size: 24px;
+  font-weight: 500;
+  color: var(--text-primary);
+  letter-spacing: -0.5px;
+}
+.welcome-subtitle {
+  font-size: 16px;
+  color: var(--text-secondary);
+}
+.chat-view.empty {
+  justify-content: center;
+  align-items: center;
+}
+.chat-view.empty .chat-container {
+  display: none;
+}
+.chat-view.empty .input-container {
+  position: static;
+  background: transparent;
+  border-top: none;
+  padding: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+}
+.chat-view.empty .input-wrapper {
+  max-width: 680px;
+  width: 90%;
+  box-shadow: none;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-medium);
+}
+.chat-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0;
+  display: flex;
+  justify-content: center;
+  background: var(--bg-primary);
+  margin-bottom: 100px;
+}
+.chat-inner {
+  width: 100%;
+  max-width: 680px;
+  padding: 16px 20px;
+  position: relative;
+}
+.message {
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  opacity: 0;
+  animation: messageSlideIn 0.3s ease-out forwards;
+}
+@keyframes messageSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.message.new-group {
+  margin-top: 24px;
+}
+.message.user {
+  align-items: flex-end;
+}
+.message.assistant {
+  align-items: flex-start;
+}
+.user-bubble {
+  background: #2f2f2f;
+  color: #ececec;
+  border-radius: 16px;
+  padding: 11px 15px;
+  display: inline-block;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+  font-size: 16px;
+  max-width: 68%;
+  word-wrap: break-word;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  hyphens: auto;
+}
+.user-bubble :deep(p) {
+  margin: 0 0 0.5em 0;
+  line-height: 1.6;
+  color: #ececec;
+}
+.user-bubble :deep(p:last-child) {
+  margin-bottom: 0;
+}
+.message.assistant .md-content {
+  font-size: 16px;
+  max-width: 100%;
+  word-wrap: break-word;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+.message.assistant .md-content :deep(p) {
+  margin: 0 0 0.6em 0;
+  line-height: 1.6;
+  color: var(--text-primary);
+}
+.message.assistant .md-content :deep(p:last-child) {
+  margin-bottom: 0;
+}
+.message-content :deep(p:last-child) {
+  margin-bottom: 0;
+}
+.message-content :deep(ul),
+.message-content :deep(ol),
+.md-content :deep(ul),
+.md-content :deep(ol) {
+  margin: 0.8em 0;
+  padding-left: 2em;
+  list-style-position: outside;
+}
+.message-content :deep(li),
+.md-content :deep(li) {
+  margin: 0.3em 0;
+  line-height: 1.6;
+  padding-left: 0.3em;
+}
+.md-content :deep(ul) {
+  list-style-type: disc;
+}
+.md-content :deep(ol) {
+  list-style-type: decimal;
+}
+.md-content :deep(ul ul) {
+  list-style-type: circle;
+}
+.md-content :deep(ul ul ul) {
+  list-style-type: square;
+}
+.message-content :deep(code),
+.md-content :deep(code) {
+  background: rgba(175, 184, 193, 0.2);
+  padding: 0.2em 0.5em;
+  border-radius: 4px;
+  font-size: 0.9em;
+  font-family: ui-monospace, "SF Mono", Monaco, "Cascadia Code", monospace;
+  color: var(--text-primary);
+  border: 1px solid rgba(175, 184, 193, 0.25);
+  font-weight: 500;
+}
+.message-content :deep(pre code),
+.md-content :deep(pre code) {
+  border: none;
+  font-weight: 400;
+}
+.message-content :deep(pre),
+.md-content :deep(pre) {
+  background: #0d1117;
+  padding: 0;
+  border-radius: 10px;
+  overflow: hidden;
+  margin: 1em 0;
+  position: relative;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  max-width: 100%;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+.message-content :deep(pre code),
+.md-content :deep(pre code) {
+  background: none;
+  padding: 16px 20px;
+  color: #e6edf3;
+  font-family: ui-monospace, "SF Mono", Monaco, "Cascadia Code", "Roboto Mono",
+    Menlo, Consolas, monospace;
+  font-size: 14px;
+  line-height: 1.75;
+  display: block;
+  white-space: pre;
+  overflow-x: auto;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  tab-size: 2;
+}
+[data-theme="light"] .message-content :deep(pre) {
+  background: #f6f8fa;
+  border: 1px solid #e1e4e8;
+}
+[data-theme="light"] .message-content :deep(pre code) {
+  color: #24292e;
+}
+.message-image {
+  max-width: 320px;
+  max-height: 180px;
+  margin: 12px 0 0 0;
+  border-radius: 6px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  cursor: pointer;
+}
+.md-content :deep(h1),
+.md-content :deep(h2),
+.md-content :deep(h3) {
+  margin: 0.7em 0 0.4em;
+  line-height: 1.2;
+}
+.md-content :deep(h4),
+.md-content :deep(h5),
+.md-content :deep(h6) {
+  margin: 0.6em 0 0.3em;
+}
+.md-content :deep(a) {
+  color: var(--brand-primary);
+  text-decoration: none;
+}
+.md-content :deep(a:hover) {
+  text-decoration: underline;
+}
+.md-content :deep(blockquote) {
+  margin: 0.9em 0;
+  padding: 8px 12px;
+  border-left: 3px solid var(--border-medium);
+  background: var(--bg-secondary);
+  border-radius: 6px;
+}
+.md-content :deep(table) {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0;
+}
+.md-content :deep(th),
+.md-content :deep(td) {
+  border: 1px solid var(--border-light);
+  padding: 8px 10px;
+}
+.md-content :deep(img) {
+  max-width: 100%;
+  border-radius: 10px;
+  border: 1px solid var(--border-light);
+}
+
+/* 代码块头部 */
+.md-content :deep(.code-header),
+.message-content :deep(.code-header) {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0.4) 0%,
+    rgba(0, 0, 0, 0.3) 100%
+  );
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 10px 20px;
+  backdrop-filter: blur(10px);
+  position: relative;
+  z-index: 1;
+}
+
+.md-content :deep(.code-lang),
+.message-content :deep(.code-lang) {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.85);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  padding: 3px 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+.md-content :deep(.copy-btn),
+.message-content :deep(.copy-btn) {
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 12px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  font-weight: 500;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  user-select: none;
+}
+
+.md-content :deep(.copy-btn svg),
+.message-content :deep(.copy-btn svg) {
+  width: 14px;
+  height: 14px;
+  opacity: 0.85;
+  transition: transform 0.2s ease;
+}
+
+.md-content :deep(.copy-btn:hover),
+.message-content :deep(.copy-btn:hover) {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.25);
+  color: rgba(255, 255, 255, 0.95);
+  transform: translateY(-1px);
+}
+
+.md-content :deep(.copy-btn:hover svg),
+.message-content :deep(.copy-btn:hover svg) {
+  transform: scale(1.1);
+}
+
+.md-content :deep(.copy-btn.copied),
+.message-content :deep(.copy-btn.copied) {
+  background: rgba(46, 160, 67, 0.25);
+  border-color: rgba(46, 160, 67, 0.4);
+  color: #3fb950;
+}
+
+.md-content :deep(.copy-btn.copied svg),
+.message-content :deep(.copy-btn.copied svg) {
+  opacity: 1;
+  transform: scale(1.15);
+}
+
+/* 代码滚动条优化 */
+.md-content :deep(pre code)::-webkit-scrollbar {
+  height: 8px;
+}
+
+.md-content :deep(pre code)::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+}
+
+.md-content :deep(pre code)::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+.md-content :deep(pre code)::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+.message-toolbar {
+  display: flex;
+  gap: 2px;
+  margin-top: 4px;
+  transition: opacity 0.2s;
+}
+.message.assistant .message-toolbar {
+  opacity: 1;
+}
+.message.user .message-toolbar {
+  opacity: 0;
+  justify-content: flex-end;
+}
+.message.user:hover .message-toolbar {
+  opacity: 1;
+}
+.toolbar-icon {
+  background: none;
+  border: none;
+  padding: 5px;
+  cursor: pointer;
+  color: var(--text-tertiary);
+  border-radius: 5px;
+  transition: all 0.15s;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.toolbar-icon svg {
+  width: 15px;
+  height: 15px;
+}
+.toolbar-icon:hover {
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+}
+.toolbar-icon.active {
+  background: var(--bg-active);
+  color: var(--text-primary);
+}
+.message.user .toolbar-icon {
+  color: rgba(255, 255, 255, 0.5);
+}
+.message.user .toolbar-icon:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.9);
+}
+.message.user .toolbar-icon.active {
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+}
+.typing-indicator {
+  display: flex;
+  gap: 5px;
+  padding: 10px 14px;
+  background: var(--bg-secondary);
+  border-radius: 16px;
+  border: 1px solid var(--border-light);
+}
+.typing-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-tertiary);
+  animation: typingBounce 1.4s infinite ease-in-out;
+}
+.typing-dot:nth-child(1) {
+  animation-delay: 0s;
+}
+.typing-dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.typing-dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+@keyframes typingBounce {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+  30% {
+    transform: translateY(-10px);
+    opacity: 1;
+  }
+}
+.input-container {
+  padding: 12px 16px 16px;
+  border-top: none;
+  background: transparent;
+  flex-shrink: 0;
+}
+.input-wrapper {
+  max-width: 680px;
+  margin: 0 auto;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-light);
+  border-radius: 22px;
+  padding: 5px 10px;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  min-height: 50px;
+}
+.input-wrapper:focus-within {
+  border-color: var(--text-tertiary);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+.input-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+.message-editor {
+  flex: 1;
+  max-height: 200px;
+  overflow-y: auto;
+  outline: none;
+  padding: 9px 10px;
+  color: var(--text-primary);
+  font-size: 15px;
+  line-height: 1.5;
+  min-height: 22px;
+  border: none;
+  background: transparent;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+.message-editor:empty:before {
+  content: attr(data-placeholder);
+  color: var(--text-tertiary);
+  font-size: 15px;
+}
+.icon-btn {
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+.icon-btn svg {
+  width: 18px;
+  height: 18px;
+}
+.icon-btn:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+.icon-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.icon-btn.active {
+  background: var(--brand-primary);
+  color: var(--text-inverse);
+}
+.icon-btn.recording {
+  background: var(--error);
+  color: var(--text-inverse);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+.voice-mode-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+}
+
+.voice-mode-btn svg {
+  width: 28px;
+  height: 28px;
+}
+
+.voice-mode-btn.send-mode {
+  background: #ffffff;
+  color: var(--text-primary);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--border-medium);
+}
+.voice-mode-btn.send-mode:hover {
+  background: #ffffff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.28);
+}
+
+/* 停止模式样式 */
+.voice-mode-btn.stop-mode {
+  background: var(--error);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(255, 0, 0, 0.35);
+}
+.voice-mode-btn.stop-mode:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 14px rgba(255, 0, 0, 0.45);
+}
+
+/* 思考与打字效果 */
+.thinking-wrapper {
+  display: flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 2px 4px;
+}
+.thinking-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.6);
+  animation: thinkingPulse 1s ease-in-out infinite;
+}
+@keyframes thinkingPulse {
+  0% {
+    transform: scale(0.7);
+    opacity: 0.5;
+  }
+  50% {
+    transform: scale(1.6);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.7);
+    opacity: 0.5;
+  }
+}
+.md-content.typing:after {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 16px;
+  background: var(--text-primary);
+  margin-left: 2px;
+  animation: caretBlink 0.9s steps(2, start) infinite;
+  vertical-align: bottom;
+}
+@keyframes caretBlink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.05);
+  }
+}
+.scroll-to-bottom {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 120px;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 1px solid var(--border-medium);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 100;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: fadeIn 0.3s ease;
+}
+.scroll-to-bottom svg {
+  opacity: 1;
+}
+.scroll-to-bottom:hover {
+  background: var(--brand-primary);
+  color: white;
+  transform: translateX(-50%) translateY(-2px);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.25);
+  border-color: var(--brand-primary);
+}
+.scroll-to-bottom:active {
+  transform: translateX(-50%) translateY(0);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+.image-preview-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  cursor: zoom-out;
+}
+.image-preview {
+  max-width: 92vw;
+  max-height: 92vh;
+  border-radius: 12px;
+  box-shadow: 0 15px 60px rgba(0, 0, 0, 0.35);
+}
+@media (max-width: 900px) {
+  .input-wrapper {
+    max-width: 98vw;
+  }
+}
 </style>

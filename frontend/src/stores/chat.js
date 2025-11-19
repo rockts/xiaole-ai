@@ -44,17 +44,23 @@ export const useChatStore = defineStore('chat', () => {
         }
     }
 
+    const typingTimer = ref(null)
+    const activeTypingMessageId = ref(null)
+
     const sendMessage = async (content, imagePath = null, router = null) => {
         try {
-            // 添加用户消息
-            messages.value.push({
-                id: Date.now(),
-                role: 'user',
-                content,
-                image_path: imagePath
-            })
-
+            // ChatView.vue 已立即插入用户消息，这里不再重复插入
             isTyping.value = true
+
+            // 插入思考占位消息
+            const placeholderId = Date.now() + 1
+            activeTypingMessageId.value = placeholderId
+            messages.value.push({
+                id: placeholderId,
+                role: 'assistant',
+                content: '',
+                status: 'thinking'
+            })
 
             const response = await api.sendMessage({
                 user_id: 'default_user',
@@ -63,38 +69,74 @@ export const useChatStore = defineStore('chat', () => {
                 image_path: imagePath
             })
 
-            // 更新 session_id（无论是新会话还是已存在的会话）
+            // 更新 session 信息
             if (response.session_id) {
                 const isNewSession = !currentSessionId.value
                 currentSessionId.value = response.session_id
-
                 if (isNewSession) {
-                    // 新会话：设置标题并更新路由
                     sessionInfo.value = {
                         id: response.session_id,
                         title: content.substring(0, 30) + (content.length > 30 ? '...' : '')
                     }
-                    // 使用 router 更新路由
-                    if (router) {
-                        router.push(`/chat/${response.session_id}`)
-                    }
+                    if (router) router.push(`/chat/${response.session_id}`)
                 }
             }
 
-            // 添加 AI 回复（后端返回字段是 reply 不是 response）
-            messages.value.push({
-                id: Date.now() + 1,
-                role: 'assistant',
-                content: response.reply || response.response || ''
-            })
+            // 获取最终文本
+            const full = response.reply || response.response || ''
+            const msgIndex = messages.value.findIndex(m => m.id === placeholderId)
+            if (msgIndex !== -1) {
+                messages.value[msgIndex].status = 'typing'
+                messages.value[msgIndex].fullContent = full
+                messages.value[msgIndex].content = ''
 
-            // 刷新会话列表
+                let i = 0
+                const step = Math.max(1, Math.round(full.length / 60)) // 约1秒60步
+                typingTimer.value = setInterval(() => {
+                    if (i >= full.length) {
+                        clearInterval(typingTimer.value)
+                        typingTimer.value = null
+                        messages.value[msgIndex].content = full
+                        messages.value[msgIndex].status = 'done'
+                        isTyping.value = false
+                        return
+                    }
+                    messages.value[msgIndex].content = full.slice(0, i)
+                    i += step
+                }, 16) // ~60fps
+            }
+
             await loadSessions()
         } catch (error) {
             console.error('Failed to send message:', error)
+            // 错误时撤销占位或显示错误
+            if (activeTypingMessageId.value) {
+                const msgIndex = messages.value.findIndex(m => m.id === activeTypingMessageId.value)
+                if (msgIndex !== -1) {
+                    messages.value[msgIndex].status = 'done'
+                    messages.value[msgIndex].content = '⚠️ 出错了，请稍后重试。'
+                }
+            }
         } finally {
-            isTyping.value = false
+            // 如果仍在打字由定时器结束时处理 isTyping
+            if (!typingTimer.value) {
+                isTyping.value = false
+            }
         }
+    }
+
+    const stopGeneration = () => {
+        if (typingTimer.value && activeTypingMessageId.value) {
+            clearInterval(typingTimer.value)
+            typingTimer.value = null
+            const msgIndex = messages.value.findIndex(m => m.id === activeTypingMessageId.value)
+            if (msgIndex !== -1) {
+                const full = messages.value[msgIndex].fullContent || ''
+                messages.value[msgIndex].content = full
+                messages.value[msgIndex].status = 'done'
+            }
+        }
+        isTyping.value = false
     }
 
     const uploadImage = async (file) => {
@@ -126,6 +168,7 @@ export const useChatStore = defineStore('chat', () => {
         loadSessions,
         loadSession,
         sendMessage,
+        stopGeneration,
         uploadImage,
         clearCurrentSession
     }
