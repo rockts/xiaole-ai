@@ -28,15 +28,19 @@ export const useChatStore = defineStore('chat', () => {
 
     const loadSession = async (sessionId) => {
         try {
+            console.log('🔄 Loading session:', sessionId)
             const data = await api.getSession(sessionId)
+            console.log('📦 Session data received:', data)
+            console.log('💬 Messages:', data.messages || data.history || [])
             sessionInfo.value = {
                 id: sessionId,
                 title: data.title
             }
             messages.value = data.messages || data.history || []
             currentSessionId.value = sessionId
+            console.log('✅ Session loaded, messages count:', messages.value.length)
         } catch (error) {
-            console.error('Failed to load session:', error)
+            console.error('❌ Failed to load session:', error)
         }
     }
 
