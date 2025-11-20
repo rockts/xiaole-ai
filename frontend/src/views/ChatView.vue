@@ -6,7 +6,11 @@
       <h2 class="welcome-title">{{ currentGreeting }}</h2>
     </div>
 
-    <div class="chat-container" ref="chatContainer">
+    <div
+      class="chat-container"
+      ref="chatContainer"
+      :style="{ visibility: isLoadingSession ? 'hidden' : 'visible' }"
+    >
       <div class="chat-inner">
         <div
           v-for="(message, idx) in messages"
@@ -214,12 +218,12 @@
       </div>
     </div>
 
-    <!-- 回到顶部按钮 -->
+    <!-- 回到底部按钮 -->
     <button
       v-show="showScrollToBottom"
       class="scroll-to-bottom"
       @click="scrollToBottomSmooth"
-      aria-label="回到顶部"
+      aria-label="回到底部"
     >
       <svg
         width="24"
@@ -231,8 +235,8 @@
         stroke-linecap="round"
         stroke-linejoin="round"
       >
-        <line x1="12" y1="19" x2="12" y2="5"></line>
-        <polyline points="18 11 12 5 6 11"></polyline>
+        <line x1="12" y1="5" x2="12" y2="19"></line>
+        <polyline points="6 13 12 19 18 13"></polyline>
       </svg>
     </button>
 
@@ -415,6 +419,7 @@ const feedbackState = ref(new Map());
 const speakingMessageId = ref(null);
 const inputContent = ref("");
 const shouldScrollToBottom = ref(false); // 标志位：是否需要滚动到底部
+const isLoadingSession = ref(true); // 初始就设置为 true，默认隐藏
 let currentSpeech = null;
 
 // 判断是否有输入内容
@@ -429,32 +434,46 @@ const buttonMode = computed(() => {
   return "voice-mode";
 });
 
-const greetings = [
-  "你好！很高兴见到你",
-  "嗨！有什么可以帮你的吗？",
-  "欢迎回来！",
-  "你好呀～准备好开始了吗？",
-  "Hi！让我们开始吧",
-];
-
 // 随机选择问候语
 const selectRandomGreeting = () => {
   const hour = new Date().getHours();
-  let timeGreeting = "";
+  let list = [];
 
-  if (hour >= 5 && hour < 12) {
-    timeGreeting = "早上好！";
-  } else if (hour >= 12 && hour < 18) {
-    timeGreeting = "下午好！";
-  } else if (hour >= 18 && hour < 22) {
-    timeGreeting = "晚上好！";
+  if (hour >= 5 && hour < 11) {
+    list = [
+      "早上好！新的一天开始了，准备好出发了吗？",
+      "早安！今天有什么计划？",
+      "一日之计在于晨，加油！",
+      "早上好，愿你今天充满活力！",
+    ];
+  } else if (hour >= 11 && hour < 14) {
+    list = [
+      "中午好！记得按时吃饭哦。",
+      "午休时间，要不要聊聊？",
+      "中午好，补充点能量继续前行吧。",
+    ];
+  } else if (hour >= 14 && hour < 18) {
+    list = [
+      "下午好！喝杯茶休息一下吧。",
+      "下午好，工作学习辛苦了。",
+      "午后时光，有什么我可以帮你的？",
+    ];
+  } else if (hour >= 18 && hour < 23) {
+    list = [
+      "晚上好！今天过得怎么样？",
+      "晚上好，卸下一天的疲惫，聊聊吧。",
+      "晚上好，我在听。",
+    ];
   } else {
-    timeGreeting = "夜深了，";
+    list = [
+      "夜深了，还在忙吗？注意休息哦。",
+      "这么晚了，有什么心事吗？",
+      "夜深人静，正好思考。我在。",
+      "还不睡吗？小乐陪你聊聊。",
+    ];
   }
 
-  const randomGreeting =
-    greetings[Math.floor(Math.random() * greetings.length)];
-  return timeGreeting + " " + randomGreeting;
+  return list[Math.floor(Math.random() * list.length)];
 };
 
 const currentGreeting = ref(selectRandomGreeting());
@@ -481,11 +500,26 @@ const sessionId = computed(() => route.params.sessionId);
 
 watch(
   sessionId,
-  (newId) => {
+  async (newId) => {
     if (newId) {
-      chatStore.loadSession(newId);
+      isLoadingSession.value = true;
+      await chatStore.loadSession(newId);
+      // 立即设置滚动位置（在渲染前）
+      await nextTick();
+      await nextTick();
+      // 使用 requestAnimationFrame 确保在浏览器绘制前完成
+      requestAnimationFrame(() => {
+        if (chatContainer.value) {
+          chatContainer.value.scrollTop = chatContainer.value.scrollHeight;
+        }
+        // 立即显示，因为滚动已经在绘制前完成
+        requestAnimationFrame(() => {
+          isLoadingSession.value = false;
+        });
+      });
     } else {
       chatStore.clearCurrentSession();
+      isLoadingSession.value = false;
     }
   },
   { immediate: true }
@@ -494,21 +528,21 @@ watch(
 watch(
   messages,
   () => {
+    // 如果正在加载会话，不触发自动滚动（由 loadSession 负责初始定位）
+    if (isLoadingSession.value) return;
+
     nextTick(() => {
-      // 只在用户发送消息后才滚动
-      if (shouldScrollToBottom.value) {
-        console.log('🎯 检测到需要滚动，消息数:', messages.value.length);
+      // 只在用户发送消息后或 AI 正在打字时才滚动
+      if (shouldScrollToBottom.value || isTyping.value) {
         setTimeout(() => {
-          const container = chatContainer.value;
-          if (container) {
-            const before = container.scrollTop;
-            scrollToBottom();
-            setTimeout(() => {
-              console.log('📊 滚动前:', before, '滚动后:', container.scrollTop);
-            }, 100);
+          scrollToBottom();
+          // AI 打字过程中持续滚动到底部
+          if (isTyping.value) {
+            shouldScrollToBottom.value = true;
+          } else {
+            shouldScrollToBottom.value = false;
           }
-          shouldScrollToBottom.value = false; // 重置标志位
-        }, 400);
+        }, 50); // 减少延迟，更快响应
       }
       enhanceRenderedContent();
     });
@@ -640,7 +674,6 @@ const scrollToTop = () => {
 const scrollToBottom = () => {
   if (!chatContainer.value) return;
   const container = chatContainer.value;
-  console.log('📏 容器信息 - scrollHeight:', container.scrollHeight, 'clientHeight:', container.clientHeight, '最大scrollTop:', container.scrollHeight - container.clientHeight);
   container.scrollTo({
     top: container.scrollHeight,
     behavior: "smooth",
@@ -650,13 +683,13 @@ const scrollToBottom = () => {
 const onScroll = () => {
   const el = chatContainer.value;
   if (!el) return;
-  // 检查是否接近顶部
-  const nearTop = el.scrollTop < 140;
-  showScrollToBottom.value = !nearTop;
+  // 检查是否接近底部
+  const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 140;
+  showScrollToBottom.value = !nearBottom;
 };
 
 const scrollToBottomSmooth = () => {
-  scrollToTop();
+  scrollToBottom();
 };
 
 const openImage = (src) => {
@@ -846,7 +879,7 @@ const canSend = computed(() => {
 });
 
 onMounted(() => {
-  scrollToTop();
+  // 移除自动滚动，让浏览器保持用户的滚动位置
   currentGreeting.value = selectRandomGreeting();
   nextTick(enhanceRenderedContent);
   if (chatContainer.value) {
@@ -955,6 +988,7 @@ const feedbackMessage = async (message, type) => {
   justify-content: center;
   background: var(--bg-primary);
   margin-bottom: 100px;
+  scroll-behavior: auto; /* 确保初始滚动是瞬间的 */
 }
 .chat-inner {
   width: 100%;
