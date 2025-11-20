@@ -2,6 +2,98 @@
 
 > **重要**: VS Code 重启后参考此文件恢复上下文
 
+## 🧾 本次会话快照（2025-11-21）
+
+- **目标**：修复记忆"失忆"问题、前端会话显示不全问题，并解答用户关于记忆机制的疑问。
+- **已完成**：
+  - **前端修复**：
+    - `frontend/src/stores/chat.js` & `frontend/src/services/api.js`：加载会话时请求 500 条消息（原默认 50），解决长对话截断问题。
+    - `main.py`：后端接口 `get_session` 增加 `limit` 参数支持，默认提升至 200。
+  - **记忆修复**：
+    - 诊断出"幽灵记忆"问题：手动 SQL 插入的课程表记忆有 `schedule` 标签，但未建立向量索引，导致语义搜索失效。
+    - `agent.py`：修改 `_think_with_context` 方法，**强制检索 `schedule` 标签**的记忆，并赋予高优先级（仅次于图片记忆）。
+  - **机制澄清**：
+    - 向用户解释了手动修复的原因（绕过失效索引）。
+    - 解释了自动清理机制（只清理过期摘要，不清理 Facts/Schedule）。
+    - 确认了图片记忆的"特权通道"逻辑。
+  - **文档更新**：更新了 `PROGRESS.md` 和 `README.md`。
+
+- **关键文件**：
+  - `agent.py`（记忆检索逻辑）
+  - `main.py`（API 接口）
+  - `frontend/src/stores/chat.js`（前端状态）
+
+- **快速恢复（重启后直接运行）**：
+  ```bash
+  # 后端
+  cd /Users/rockts/Dev/xiaole-ai
+  ./restart.sh
+
+  # 前端
+  source ~/.nvm/nvm.sh && nvm use 20
+  cd /Users/rockts/Dev/xiaole-ai/frontend
+  npm run dev
+  ```
+
+## 📌 标准启动流程（已验证）
+
+### 后端启动
+```bash
+cd /Users/rockts/Dev/xiaole-ai
+./restart.sh
+```
+- 端口: 8000
+- 虚拟环境: `.venv` (Python 3.13.5)
+- 依赖: requirements.txt
+
+### 前端启动
+```bash
+source ~/.nvm/nvm.sh && nvm use 20
+cd /Users/rockts/Dev/xiaole-ai/frontend
+npm run dev
+```
+- 端口: 3000
+- Node 版本: v20.17.0
+- 包管理器: npm v11.3.0
+
+---
+
+## 🔧 当前项目结构
+
+### 后端关键文件
+- `main.py` - FastAPI 主入口
+- `conversation.py` - 对话管理
+- `memory.py` - 记忆系统
+- `agent.py` - AI 代理（核心逻辑）
+- `tool_manager.py` - 工具管理
+- `db_setup.py` - 数据库初始化
+
+### 前端关键目录
+- `frontend/src/views/ChatView.vue` - 聊天主视图
+- `frontend/src/components/` - 组件库
+- `frontend/src/stores/chat.js` - Pinia 状态管理
+- `frontend/src/services/api.js` - API 封装
+
+---
+
+## 📝 最近改动记录
+
+### 2025-11-21 记忆与会话修复
+**主要文件**: `agent.py`, `main.py`, `frontend/src/stores/chat.js`
+
+#### ✅ 记忆检索增强
+- 在 `agent.py` 中增加对 `schedule` 标签的显式检索。
+- 解决了手动 SQL 插入数据无法被语义搜索召回的问题。
+
+#### ✅ 会话历史完整性
+- 前端加载历史消息数量从 50 提升至 500。
+- 后端接口支持自定义 limit 参数。
+
+---
+
+**最后更新**: 2025-11-21
+**会话状态**: 小乐正常运行，记忆功能已修复，前端显示正常。
+
 ## 🧾 本次会话快照（2025-11-20）
 
 - 目标：保存当前对话与实现进度，便于重启恢复。

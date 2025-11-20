@@ -29,14 +29,19 @@ export const useChatStore = defineStore('chat', () => {
     const loadSession = async (sessionId) => {
         try {
             console.log('🔄 Loading session:', sessionId)
-            const data = await api.getSession(sessionId)
+            // 请求更多历史记录，防止长对话被截断
+            const data = await api.getSession(sessionId, 500)
             console.log('📦 Session data received:', data)
             console.log('💬 Messages:', data.messages || data.history || [])
             sessionInfo.value = {
                 id: sessionId,
                 title: data.title
             }
-            messages.value = data.messages || data.history || []
+            const loadedMessages = data.messages || data.history || []
+            messages.value = loadedMessages.map(msg => ({
+                ...msg,
+                status: 'done'
+            }))
             currentSessionId.value = sessionId
             console.log('✅ Session loaded, messages count:', messages.value.length)
         } catch (error) {

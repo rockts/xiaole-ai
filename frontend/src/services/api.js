@@ -37,7 +37,7 @@ api.interceptors.response.use(
         }
 
         // 只对网络错误或 5xx 错误重试
-        const shouldRetry = 
+        const shouldRetry =
             !error.response || // 网络错误（后端未响应）
             (error.response.status >= 500 && error.response.status < 600) // 服务器错误
 
@@ -64,8 +64,8 @@ export default {
         return api.get('/sessions', { params: { all_sessions: allSessions } })
     },
 
-    getSession(sessionId) {
-        return api.get(`/session/${sessionId}`)
+    getSession(sessionId, limit = 200) {
+        return api.get(`/session/${sessionId}`, { params: { limit } })
     },
 
     sendMessage(data) {

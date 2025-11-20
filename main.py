@@ -522,10 +522,10 @@ def get_sessions(
 
 
 @app.get("/session/{session_id}")
-def get_session(session_id: str):
+def get_session(session_id: str, limit: int = 200):
     """获取会话详情"""
     stats = xiaole.conversation.get_session_stats(session_id)
-    history = xiaole.conversation.get_history(session_id, limit=50)
+    history = xiaole.conversation.get_history(session_id, limit=limit)
 
     if not stats:
         return {"error": "Session not found"}, 404

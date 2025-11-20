@@ -1104,6 +1104,18 @@ class XiaoLeAgent:
             except Exception as e:
                 logger.warning(f"获取图片记忆失败: {e}")
 
+            # 3.1 获取课程表记忆 (schedule) - 修复：增加对 schedule 标签的检索
+            schedule_memories = []
+            try:
+                from db_setup import Memory
+                # 获取最新的课程表
+                schedules = self.memory.session.query(Memory).filter(
+                    Memory.tag == 'schedule'
+                ).order_by(Memory.created_at.desc()).limit(1).all()
+                schedule_memories = [mem.content for mem in schedules]
+            except Exception as e:
+                logger.warning(f"获取课程表失败: {e}")
+
             # 4. 获取最近的对话摘要（了解之前聊了什么）
             conversation_memories = []
             try:
@@ -1128,6 +1140,12 @@ class XiaoLeAgent:
 
             # 🔝 最高优先级：图片记忆（课程表等重要信息）- 提到最前面！
             for mem in image_memories:
+                if mem not in seen:
+                    all_memories.append(mem)
+                    seen.add(mem)
+
+            # 新增：课程表 (schedule) - 高优先级
+            for mem in schedule_memories:
                 if mem not in seen:
                     all_memories.append(mem)
                     seen.add(mem)
