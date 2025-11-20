@@ -51,10 +51,6 @@
     background: var(--bg-primary);
 }
 
-.message.assistant {
-    background: var(--bg-secondary);
-}
-
 .message-avatar {
     flex-shrink: 0;
     width: 32px;
@@ -181,9 +177,8 @@
 
 .input-controls {
     display: flex;
-    align-items: flex-end;
+    align-items: center;
     gap: var(--space-xs);
-    padding: var(--space-sm);
 }
 
 .icon-btn {

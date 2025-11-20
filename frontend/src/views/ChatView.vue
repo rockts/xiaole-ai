@@ -50,7 +50,10 @@
             </div>
           </template>
 
-          <div class="message-toolbar">
+          <div
+            class="message-toolbar"
+            v-if="message.role === 'user' || message.status === 'done'"
+          >
             <button
               v-if="message.role === 'user'"
               class="toolbar-icon"
@@ -208,23 +211,15 @@
             </button>
           </div>
         </div>
-
-        <div v-if="isTyping" class="message assistant">
-          <div class="typing-indicator">
-            <span class="typing-dot"></span>
-            <span class="typing-dot"></span>
-            <span class="typing-dot"></span>
-          </div>
-        </div>
       </div>
     </div>
 
-    <!-- 回到底部按钮 -->
+    <!-- 回到顶部按钮 -->
     <button
       v-show="showScrollToBottom"
       class="scroll-to-bottom"
       @click="scrollToBottomSmooth"
-      aria-label="回到底部"
+      aria-label="回到顶部"
     >
       <svg
         width="24"
@@ -236,8 +231,8 @@
         stroke-linecap="round"
         stroke-linejoin="round"
       >
-        <line x1="12" y1="5" x2="12" y2="19"></line>
-        <polyline points="6 13 12 19 18 13"></polyline>
+        <line x1="12" y1="19" x2="12" y2="5"></line>
+        <polyline points="18 11 12 5 6 11"></polyline>
       </svg>
     </button>
 
@@ -419,6 +414,7 @@ const showScrollToBottom = ref(false);
 const feedbackState = ref(new Map());
 const speakingMessageId = ref(null);
 const inputContent = ref("");
+const shouldScrollToBottom = ref(false); // 标志位：是否需要滚动到底部
 let currentSpeech = null;
 
 // 判断是否有输入内容
@@ -499,7 +495,21 @@ watch(
   messages,
   () => {
     nextTick(() => {
-      scrollToBottom();
+      // 只在用户发送消息后才滚动
+      if (shouldScrollToBottom.value) {
+        console.log('🎯 检测到需要滚动，消息数:', messages.value.length);
+        setTimeout(() => {
+          const container = chatContainer.value;
+          if (container) {
+            const before = container.scrollTop;
+            scrollToBottom();
+            setTimeout(() => {
+              console.log('📊 滚动前:', before, '滚动后:', container.scrollTop);
+            }, 100);
+          }
+          shouldScrollToBottom.value = false; // 重置标志位
+        }, 400);
+      }
       enhanceRenderedContent();
     });
   },
@@ -619,23 +629,34 @@ const formatImagePath = (path) => {
   return path;
 };
 
+const scrollToTop = () => {
+  if (!chatContainer.value) return;
+  chatContainer.value.scrollTo({
+    top: 0,
+    behavior: "smooth",
+  });
+};
+
 const scrollToBottom = () => {
-  if (chatContainer.value) {
-    chatContainer.value.scrollTop = chatContainer.value.scrollHeight;
-  }
+  if (!chatContainer.value) return;
+  const container = chatContainer.value;
+  console.log('📏 容器信息 - scrollHeight:', container.scrollHeight, 'clientHeight:', container.clientHeight, '最大scrollTop:', container.scrollHeight - container.clientHeight);
+  container.scrollTo({
+    top: container.scrollHeight,
+    behavior: "smooth",
+  });
 };
 
 const onScroll = () => {
   const el = chatContainer.value;
   if (!el) return;
-  const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 140;
-  showScrollToBottom.value = !nearBottom;
+  // 检查是否接近顶部
+  const nearTop = el.scrollTop < 140;
+  showScrollToBottom.value = !nearTop;
 };
 
 const scrollToBottomSmooth = () => {
-  const el = chatContainer.value;
-  if (!el) return;
-  el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+  scrollToTop();
 };
 
 const openImage = (src) => {
@@ -754,7 +775,7 @@ const sendMessage = async () => {
   messageInput.value.innerHTML = "";
   inputContent.value = "";
 
-  // 立即添加用户消息到界面并滚动
+  // 立即添加用户消息到界面末尾（保持对话顺序）
   messages.value.push({
     id: `temp-${Date.now()}`,
     role: "user",
@@ -762,9 +783,8 @@ const sendMessage = async () => {
     timestamp: new Date().toISOString(),
   });
 
-  nextTick(() => {
-    scrollToBottom();
-  });
+  // 设置标志位：需要滚动到底部
+  shouldScrollToBottom.value = true;
 
   // 发送到后端
   await chatStore.sendMessage(content, null, router);
@@ -826,7 +846,7 @@ const canSend = computed(() => {
 });
 
 onMounted(() => {
-  scrollToBottom();
+  scrollToTop();
   currentGreeting.value = selectRandomGreeting();
   nextTick(enhanceRenderedContent);
   if (chatContainer.value) {
@@ -1287,42 +1307,6 @@ const feedbackMessage = async (message, type) => {
 .message.user .toolbar-icon.active {
   background: rgba(255, 255, 255, 0.2);
   color: #fff;
-}
-.typing-indicator {
-  display: flex;
-  gap: 5px;
-  padding: 10px 14px;
-  background: var(--bg-secondary);
-  border-radius: 16px;
-  border: 1px solid var(--border-light);
-}
-.typing-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--text-tertiary);
-  animation: typingBounce 1.4s infinite ease-in-out;
-}
-.typing-dot:nth-child(1) {
-  animation-delay: 0s;
-}
-.typing-dot:nth-child(2) {
-  animation-delay: 0.2s;
-}
-.typing-dot:nth-child(3) {
-  animation-delay: 0.4s;
-}
-@keyframes typingBounce {
-  0%,
-  60%,
-  100% {
-    transform: translateY(0);
-    opacity: 0.4;
-  }
-  30% {
-    transform: translateY(-10px);
-    opacity: 1;
-  }
 }
 .input-container {
   padding: 12px 16px 16px;

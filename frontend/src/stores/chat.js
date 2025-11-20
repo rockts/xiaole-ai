@@ -52,7 +52,7 @@ export const useChatStore = defineStore('chat', () => {
             // ChatView.vue 已立即插入用户消息，这里不再重复插入
             isTyping.value = true
 
-            // 插入思考占位消息
+            // 插入思考占位消息（保持对话顺序，添加到末尾）
             const placeholderId = Date.now() + 1
             activeTypingMessageId.value = placeholderId
             messages.value.push({

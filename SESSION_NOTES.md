@@ -2,6 +2,38 @@
 
 > **重要**: VS Code 重启后参考此文件恢复上下文
 
+## 🧾 本次会话快照（2025-11-20）
+
+- 目标：保存当前对话与实现进度，便于重启恢复。
+- 已完成：
+  - 发送图标改为白底黑色向上箭头，提升对比度
+  - 三态主按钮：语音/发送/停止，智能切换
+  - 思考阶段白色扩张圆点动画（status=thinking）
+  - 逐字打字显示与闪烁光标（status=typing→done）
+  - 停止生成：立即结束动画并填充完整内容
+  - 文档更新：`README.md` 与本文件追加交互说明
+  - 代码已推送到 `develop`（commit: `1def7de`）
+- 关键文件：
+  - `frontend/src/views/ChatView.vue`（模板渲染与样式、主按钮、动画）
+  - `frontend/src/stores/chat.js`（思考占位、逐字打字、停止生成逻辑）
+  - `README.md`、`SESSION_NOTES.md`
+- 快速恢复（重启后直接运行）：
+  ```bash
+  # 后端
+  cd /Users/rockts/Dev/xiaole-ai
+  /Users/rockts/Dev/xiaole-ai/.venv/bin/python main.py
+
+  # 前端
+  source ~/.nvm/nvm.sh && nvm use 20
+  cd /Users/rockts/Dev/xiaole-ai/frontend
+  npm run dev
+  ```
+- 快速验证：
+  1) 输入框输入文字 → 按钮变“发送(↑)”并显眼
+  2) 点击发送 → 立即插入用户消息并滚动到底部
+  3) AI 回复时 → 按钮变“停止”，消息先显示白点思考后进入逐字打字
+  4) 点击“停止” → 立刻显示完整内容，动画结束
+
 ## 📌 标准启动流程（已验证）
 
 ### 后端启动

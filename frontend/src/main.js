@@ -3,6 +3,7 @@ import { createPinia } from 'pinia'
 import router from './router'
 import App from './App.vue'
 import './assets/styles/main.css'
+import 'highlight.js/styles/github-dark.css'
 import { healthCheck } from './utils/healthCheck'
 
 const app = createApp(App)
