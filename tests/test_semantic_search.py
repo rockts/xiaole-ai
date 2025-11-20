@@ -5,7 +5,9 @@
 
 from memory import MemoryManager
 import sys
-sys.path.insert(0, '/Users/rockts/Dev/xiaole-ai')
+import os
+# 添加 backend 目录到路径
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'backend'))
 
 
 print("🧪 测试语义搜索功能\n")

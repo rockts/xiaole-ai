@@ -20,8 +20,10 @@ sleep 1
 # 启动后端
 echo "🔧 启动后端服务 (端口 8000)..."
 source .venv/bin/activate
-nohup python main.py > logs/backend.log 2>&1 &
+cd backend
+nohup python main.py > ../logs/backend.log 2>&1 &
 BACKEND_PID=$!
+cd ..
 echo "✅ 后端已启动 (PID: $BACKEND_PID)"
 
 # 等待后端启动

@@ -198,6 +198,8 @@ source .venv/bin/activate
 pip install -r requirements.txt
 
 # 启动 FastAPI 服务
+# 注意：核心代码已移动到 backend 目录
+cd backend
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
@@ -216,52 +218,35 @@ npm run dev
 打开浏览器访问：
 
 - Vite 本地地址：`http://localhost:3000`
-- 旧版静态页（如需）：`http://localhost:8000/static/index.html`（已不再作为主界面）
+- 后端 API 地址：`http://localhost:8000`
 
 ## 项目结构
 
 ```
 xiaole-ai/
-├── agent.py                # AI 代理核心逻辑
-├── memory.py               # 记忆管理器
-├── conversation.py         # 对话管理器
-├── behavior_analytics.py   # 用户行为分析器 (v0.3.0)
-├── conflict_detector.py    # 记忆冲突检测器 (v0.3.0)
-├── proactive_qa.py         # 主动问答分析器 (v0.3.0)
-├── pattern_learning.py     # 模式学习器 (v0.3.0)
-├── tool_manager.py         # 工具调用管理器 (v0.4.0)
-├── reminder_manager.py     # 提醒管理器 (v0.5.0) 🆕
-├── scheduler.py            # 定时任务调度器 (v0.5.0) 🆕
-├── proactive_chat.py       # 主动对话管理器 (v0.5.0) 🆕
-├── semantic_search.py      # 语义搜索引擎
-├── error_handler.py        # 错误处理装饰器
-├── db_setup.py             # 数据库模型定义
-├── main.py                 # FastAPI 应用入口
-├── requirements.txt        # Python 依赖
-├── tools/                  # 工具模块 (v0.4.0+)
-│   ├── __init__.py
-│   ├── weather_tool.py     # 天气查询工具
-│   ├── system_tool.py      # 系统操作工具
-│   ├── search_tool.py      # 网络搜索工具 🆕
-│   ├── file_tool.py        # 文件操作工具 🆕
-│   └── reminder_tool.py    # 提醒工具 🆕
-├── frontend/               # 新前端（Vue 3 + Vite + Pinia + Router）
+├── backend/                # 后端应用 (Python)
+│   ├── main.py             # FastAPI 应用入口
+│   ├── agent.py            # AI 代理核心逻辑
+│   ├── memory.py           # 记忆管理器
+│   ├── conversation.py     # 对话管理器
+│   ├── db_setup.py         # 数据库模型定义
+│   ├── db_migrations/      # 数据库迁移脚本
+│   ├── static/             # 静态资源
+│   └── ...
+├── frontend/               # 前端应用 (Vue 3 + Vite)
 │   ├── src/
-│   │   ├── views/          # 视图（ChatView/MemoryView/SettingsView 等）
-│   │   ├── components/     # 组件
-│   │   └── stores/         # Pinia 状态
-│   └── vite.config.ts      # Vite 配置
-├── static/                 # 旧静态页面（保留/兼容，非主界面）
-│   └── index.html
+│   ├── package.json
+│   └── vite.config.ts
 ├── docs/                   # 文档
-│   ├── v0.5.0_PLAN.md      # v0.5.0开发计划 🆕
-│   ├── v0.5.0_COMPLETED.md # v0.5.0完成报告 🆕
-│   ├── v0.6.0_PLAN.md      # v0.6.0开发计划 🆕
-│   └── FOLLOWUP_TEST_GUIDE.md  # 追问测试指南 🆕
+├── scripts/                # 脚本工具
 ├── tests/                  # 测试文件
-├── scripts/                # 脚本
-└── logs/                   # 日志文件
+├── logs/                   # 日志文件
+├── start.sh                # 统一启动脚本
+├── stop.sh                 # 停止脚本
+└── requirements.txt        # Python 依赖
 ```
+
+## API 接口
 
 ## API 接口
 

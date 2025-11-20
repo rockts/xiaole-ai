@@ -22,7 +22,20 @@ def init_reminder_tables():
     try:
         with conn.cursor() as cur:
             # 读取SQL文件
-            sql_file = 'db_migrations/001_create_reminders_tables.sql'
+            # 注意：db_migrations 已移动到 backend 目录
+            sql_file = 'backend/db_migrations/001_create_reminders_tables.sql'
+            if not os.path.exists(sql_file):
+                # 尝试从根目录查找
+                if os.path.exists('db_migrations/001_create_reminders_tables.sql'):
+                    sql_file = 'db_migrations/001_create_reminders_tables.sql'
+                else:
+                    # 尝试绝对路径或相对于脚本位置
+                    script_dir = os.path.dirname(os.path.abspath(__file__))
+                    sql_file = os.path.join(
+                        script_dir,
+                        '../backend/db_migrations/001_create_reminders_tables.sql'
+                    )
+
             with open(sql_file, 'r', encoding='utf-8') as f:
                 sql = f.read()
 
