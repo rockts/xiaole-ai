@@ -53,9 +53,14 @@ Thumbs.db
 # Project specific
 uploads/*
 !uploads/.gitkeep
+backend/uploads/*
+!backend/uploads/.gitkeep
 files/*
 !files/.gitkeep
+backend/files/*
+!backend/files/.gitkeep
 archive/
+backend/archive/
 test_*.txt
 *_result.txt
 check_result.py
