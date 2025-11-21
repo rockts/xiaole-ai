@@ -68,6 +68,10 @@ export default {
         return api.get(`/session/${sessionId}`, { params: { limit } })
     },
 
+    deleteSession(sessionId) {
+        return api.delete(`/api/chat/sessions/${sessionId}`)
+    },
+
     sendMessage(data) {
         // 后端使用查询参数而不是 POST body
         const params = new URLSearchParams()
@@ -81,7 +85,7 @@ export default {
     },
 
     uploadImage(formData) {
-        return api.post('/upload_image', formData, {
+        return api.post('/api/vision/upload', formData, {
             headers: { 'Content-Type': 'multipart/form-data' }
         })
     },
@@ -180,5 +184,14 @@ export default {
 
     getToolHistory(userId = 'default_user', limit = 20) {
         return api.get('/tools/history', { params: { user_id: userId, limit } })
-    }
+    },
+
+    // 反馈相关
+    submitFeedback(data) {
+        return api.post('/api/feedback', data)
+    },
+
+    getFeedbackStats() {
+        return api.get('/api/feedback/stats')
+    },
 }

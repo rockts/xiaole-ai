@@ -41,10 +41,6 @@ export default defineConfig({
                     // POST 请求继续代理到后端
                 }
             },
-            '/upload_image': {
-                target: 'http://localhost:8000',
-                changeOrigin: true
-            },
             '/uploads': {
                 target: 'http://localhost:8000',
                 changeOrigin: true

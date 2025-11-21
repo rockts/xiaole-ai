@@ -573,6 +573,19 @@ def delete_session_api(session_id: str):
     return {"message": "Session deleted"}
 
 
+@app.delete("/api/messages/{message_id}")
+def delete_message_api(message_id: int):
+    """删除消息及其后续消息（用于编辑重发）"""
+    success = xiaole.conversation.delete_message_and_following(message_id)
+    if success:
+        return {"success": True, "message": "Messages deleted"}
+    else:
+        return {
+            "success": False,
+            "error": "Message not found or delete failed"
+        }
+
+
 # v0.3.0 用户行为分析 API
 @app.get("/analytics/behavior")
 def get_behavior_analytics(

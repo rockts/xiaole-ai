@@ -806,12 +806,8 @@ watch(
   background: var(--bg-hover);
 }
 
-[data-theme="dark"] .collapse-btn svg {
-  stroke: #e0e0e0;
-}
-
-[data-theme="light"] .collapse-btn svg {
-  stroke: #444444;
+.collapse-btn svg {
+  stroke: var(--icon-color);
 }
 
 .sidebar.collapsed .title,
@@ -909,7 +905,7 @@ watch(
 }
 .nav-icon {
   display: inline-flex;
-  color: var(--text-tertiary);
+  color: var(--icon-color);
 }
 :deep(.nav-icon svg) {
   width: 16px;
@@ -1054,7 +1050,7 @@ watch(
   background: transparent;
   border: none;
   border-radius: var(--radius-sm);
-  color: var(--text-tertiary);
+  color: var(--icon-color);
   cursor: pointer;
   transition: all var(--duration-fast) var(--ease-out);
   pointer-events: auto;
@@ -1193,7 +1189,7 @@ watch(
   width: 100%;
   padding: 8px 12px;
   background: transparent;
-  color: var(--text-secondary);
+  color: var(--icon-color);
   border: none;
   border-radius: var(--radius-md);
   font-size: 13px;

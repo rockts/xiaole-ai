@@ -324,7 +324,8 @@ class XiaoLeAgent:
 用户说："{user_message}"
 
 如果包含以下类型的关键信息，请提取出来（只提取用户明确告知的事实）：
-- 姓名、年龄、生日
+- 姓名、年龄、生日、性别
+- **身体特征**（例如身高、体重、体型、视力等）
 - 明确的爱好、兴趣（例如"我喜欢..."）
 - 职业、工作
 - 家庭成员（**特别注意**：如果是家人的信息，必须明确标注"儿子"、"女儿"、"妻子"等，不要写"用户"）
@@ -596,10 +597,12 @@ class XiaoLeAgent:
         # 保存用户消息和助手回复到会话表
         # 如果有original_user_prompt，保存原始输入；否则保存完整prompt
         user_message = original_user_prompt if original_user_prompt else prompt
-        self.conversation.add_message(
+        user_msg_id = self.conversation.add_message(
             session_id, "user", user_message, image_path=image_path
         )
-        self.conversation.add_message(session_id, "assistant", reply)
+        assistant_msg_id = self.conversation.add_message(
+            session_id, "assistant", reply
+        )
 
         # 智能提取：让AI判断是否有关键事实需要记住
         self._extract_and_remember(prompt)
@@ -688,7 +691,9 @@ class XiaoLeAgent:
 
         result = {
             "session_id": session_id,
-            "reply": reply
+            "reply": reply,
+            "user_message_id": user_msg_id,
+            "assistant_message_id": assistant_msg_id
         }
         if followup_info:
             result["followup"] = followup_info
@@ -1080,7 +1085,22 @@ class XiaoLeAgent:
 
             # 添加长期记忆到系统提示词
             # 1. 优先获取 facts 标签的关键事实（用户主动告知的真实信息）
-            facts_memories = self.memory.recall(tag="facts", limit=20)
+            facts_memories = self.memory.recall(tag="facts", limit=50)
+
+            # 1.5 特别召回：家庭成员信息 (确保家人信息不被遗忘)
+            family_memories = []
+            try:
+                family_keywords = [
+                    '儿子', '女儿', '孩子', '老婆', '妻子',
+                    '老公', '丈夫', '爸', '妈'
+                ]
+                # recall_by_keywords 返回字典列表
+                family_results = self.memory.recall_by_keywords(
+                    family_keywords, tag="facts", limit=20
+                )
+                family_memories = [m['content'] for m in family_results]
+            except Exception as e:
+                logger.warning(f"获取家庭成员记忆失败: {e}")
 
             # 2. 使用语义搜索查找相关记忆（不限标签，搜索所有记忆）
             semantic_memories = []
@@ -1150,10 +1170,16 @@ class XiaoLeAgent:
                     all_memories.append(mem)
                     seen.add(mem)
 
+            # 新增：家庭成员信息 - 高优先级
+            for mem in family_memories:
+                if mem not in seen:
+                    all_memories.append(mem)
+                    seen.add(mem)
+
             # 第二优先级：facts 标签（关键事实，但限制数量）
             facts_count = 0
             for mem in facts_memories:
-                if mem not in seen and facts_count < 10:  # 最多10条facts
+                if mem not in seen and facts_count < 30:  # 最多30条facts
                     all_memories.append(mem)
                     seen.add(mem)
                     facts_count += 1

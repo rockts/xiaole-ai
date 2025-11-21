@@ -4,14 +4,18 @@
       <div class="share-dialog" @click.stop>
         <div class="share-header">
           <h3 class="share-title">{{ title }}</h3>
-          <button class="close-btn" aria-label="关闭" @click="emit('close')">
+          <button
+            class="share-close-btn"
+            aria-label="关闭"
+            @click="emit('close')"
+          >
             <svg
-              width="16"
-              height="16"
+              width="36"
+              height="36"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
-              stroke-width="2"
+              stroke-width="3"
               stroke-linecap="round"
               stroke-linejoin="round"
             >
@@ -34,49 +38,59 @@
           <!-- 备用 HTML 预览：用于截图源或回退显示 -->
           <div v-show="!previewUrl" class="preview-card" ref="previewCardRef">
             <div class="preview-watermark">XiaoLe AI</div>
-            <div class="preview-header">
-              <div class="preview-icon">💬</div>
-              <div class="preview-title">{{ title }}</div>
-            </div>
-            <div class="preview-list">
-              <div
-                v-for="(m, i) in previewMessages"
-                :key="i"
-                class="pmsg"
-                :class="m.role"
-              >
-                <div class="avatar">
-                  <span v-if="m.role === 'user'">👤</span>
-                  <span v-else>🤖</span>
+
+            <!-- 摘要式布局 -->
+            <div class="summary-content">
+              <div class="summary-intro">
+                <div
+                  class="summary-text"
+                  v-html="renderMarkdown(summaryText)"
+                ></div>
+              </div>
+
+              <div class="summary-divider"></div>
+
+              <div class="summary-answer">
+                <div class="answer-icon">
+                  <svg
+                    width="24"
+                    height="24"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                  </svg>
                 </div>
-                <div class="msg-content">
-                  <div class="msg-author">
-                    {{ m.role === "user" ? "You" : "XiaoLe" }}
-                  </div>
-                  <div v-if="m.image" class="msg-image">
-                    <img
-                      :src="m.image"
-                      alt="消息图片"
-                      crossorigin="anonymous"
-                    />
-                  </div>
-                  <div v-if="m.content" class="msg-text">{{ m.content }}</div>
+                <div class="answer-text">
+                  <h3>XiaoLe 回答:</h3>
+                  <div
+                    class="answer-body"
+                    v-html="renderMarkdown(answerText)"
+                  ></div>
                 </div>
               </div>
             </div>
+
+            <!-- 底部渐变遮罩 -->
+            <div class="fade-overlay"></div>
           </div>
         </div>
 
         <div class="share-actions">
           <button class="action-btn" @click="copyLink">
-            <span class="icon">
+            <div class="icon-circle">
               <svg
-                width="16"
-                height="16"
+                width="20"
+                height="20"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
                 stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
               >
                 <path
                   d="M10 13a5 5 0 0 0 7.07 0l1.41-1.41a5 5 0 1 0-7.07-7.07L10 5"
@@ -85,19 +99,31 @@
                   d="M14 11a5 5 0 0 0-7.07 0L5.5 12.41a5 5 0 1 0 7.07 7.07L14 19"
                 />
               </svg>
-            </span>
-            复制链接
+            </div>
+            <span class="action-label">复制链接</span>
           </button>
 
           <button class="action-btn" title="Post on X" @click="shareToX">
-            <span class="icon">✕</span>
-            X
-          </button>
-          <button class="action-btn" title="LinkedIn" @click="shareToLinkedIn">
-            <span class="icon">
+            <div class="icon-circle">
               <svg
-                width="16"
-                height="16"
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
+                <path
+                  d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"
+                />
+              </svg>
+            </div>
+            <span class="action-label">X</span>
+          </button>
+
+          <button class="action-btn" title="LinkedIn" @click="shareToLinkedIn">
+            <div class="icon-circle">
+              <svg
+                width="20"
+                height="20"
                 viewBox="0 0 24 24"
                 fill="currentColor"
               >
@@ -105,14 +131,15 @@
                   d="M4.98 3.5C4.98 4.88 3.86 6 2.5 6S0 4.88 0 3.5 1.12 1 2.5 1s2.48 1.12 2.48 2.5zM0 8h5v16H0V8zm7.5 0H12v2.2h.06c.62-1.17 2.14-2.4 4.4-2.4 4.7 0 5.56 3.09 5.56 7.11V24h-5V16.5c0-1.79-.03-4.09-2.49-4.09-2.49 0-2.87 1.94-2.87 3.96V24h-5V8z"
                 />
               </svg>
-            </span>
-            LinkedIn
+            </div>
+            <span class="action-label">LinkedIn</span>
           </button>
+
           <button class="action-btn" title="Reddit" @click="shareToReddit">
-            <span class="icon">
+            <div class="icon-circle">
               <svg
-                width="16"
-                height="16"
+                width="22"
+                height="22"
                 viewBox="0 0 24 24"
                 fill="currentColor"
               >
@@ -120,8 +147,8 @@
                   d="M22 12c0 4.42-4.48 8-10 8S2 16.42 2 12s4.48-8 10-8 10 3.58 10 8zm-15 1.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zm10 0a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM7.5 14.5c.9 1.17 2.7 2 4.5 2s3.6-.83 4.5-2"
                 />
               </svg>
-            </span>
-            Reddit
+            </div>
+            <span class="action-label">Reddit</span>
           </button>
         </div>
       </div>
@@ -131,6 +158,8 @@
 
 <script setup>
 import { ref, onMounted } from "vue";
+import { marked } from "marked";
+
 const emit = defineEmits(["close"]);
 const props = defineProps({
   title: { type: String, default: "分享" },
@@ -140,6 +169,13 @@ const props = defineProps({
 const previewUrl = ref("");
 const previewCardRef = ref(null);
 const previewMessages = ref([]);
+const summaryText = ref("");
+const answerText = ref("");
+
+const renderMarkdown = (text) => {
+  if (!text) return "";
+  return marked.parse(text);
+};
 
 const copyLink = async () => {
   try {
@@ -241,6 +277,23 @@ onMounted(async () => {
       const data = await resp.json();
       const list = (data.messages || data.history || []).slice(-5);
       console.log("获取到的消息数量:", list.length);
+
+      // 提取摘要内容 (取第一条用户消息和第一条AI回复)
+      const userMsg = list.find(
+        (m) => m.role === "user" || m.author === "user"
+      );
+      const aiMsg = list.find(
+        (m) =>
+          m.role === "assistant" || m.author === "assistant" || m.role === "ai"
+      );
+
+      summaryText.value = userMsg
+        ? (userMsg.content || "").toString().slice(0, 150)
+        : "对话内容...";
+      answerText.value = aiMsg
+        ? (aiMsg.content || "").toString().slice(0, 300)
+        : "暂无回答...";
+
       console.log("原始消息数据:", list);
       previewMessages.value = list.map((m) => {
         let imagePath = null;
@@ -291,214 +344,261 @@ onMounted(async () => {
   animation: fadeIn 0.15s ease-out;
 }
 .share-dialog {
+  position: relative;
   background: var(--bg-primary);
   border-radius: 16px;
   box-shadow: 0 16px 60px rgba(0, 0, 0, 0.35);
   width: min(860px, 92vw);
-  max-height: 90vh;
+  max-height: 85vh;
   display: flex;
   flex-direction: column;
-  padding: 16px 16px 20px;
+  padding: 0;
+  overflow: hidden;
 }
 .share-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 4px 4px 8px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-light);
+  background: var(--bg-primary);
+  flex-shrink: 0;
+  z-index: 10;
 }
 .share-title {
-  font-size: 20px;
-  font-weight: 700;
+  font-size: 18px;
+  font-weight: 600;
   color: var(--text-primary);
   margin: 0;
 }
-.close-btn {
-  width: 28px;
-  height: 28px;
+.share-close-btn {
+  /* Reset positioning to flow naturally in flex header */
+  position: static;
+  width: 56px;
+  height: 56px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: none;
-  background: transparent;
-  border-radius: 8px;
-  color: var(--text-secondary);
   cursor: pointer;
-}
-.close-btn:hover {
-  background: var(--bg-hover);
+  transition: all 0.2s;
+
+  background: transparent;
+  border: none;
+  /* Use text-primary for high contrast against bg-primary */
   color: var(--text-primary);
+  opacity: 1;
 }
+
+.share-close-btn:hover {
+  transform: scale(1.1);
+  background: rgba(128, 128, 128, 0.1);
+  border-radius: 12px;
+}
+
+.share-close-btn svg {
+  width: 36px;
+  height: 36px;
+  stroke: currentColor;
+  stroke-width: 3;
+}
+
 .divider {
-  height: 1px;
-  background: var(--border-light);
-  opacity: 0.7;
-  margin: 4px 0 12px;
+  display: none;
 }
 
 .preview-wrap {
-  padding: 8px 0;
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
   display: flex;
   justify-content: center;
+  background: var(--bg-secondary);
+  min-height: 0;
 }
+/* 美化滚动条 */
+.preview-wrap::-webkit-scrollbar {
+  width: 6px;
+}
+.preview-wrap::-webkit-scrollbar-track {
+  background: transparent;
+}
+.preview-wrap::-webkit-scrollbar-thumb {
+  background: var(--border-heavy);
+  border-radius: 3px;
+}
+
 .preview-image {
   width: 100%;
   max-width: 720px;
   border-radius: 14px;
   border: 1px solid var(--border-light);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+  height: auto;
+  object-fit: contain;
 }
 .preview-card {
   position: relative;
   width: 100%;
   max-width: 720px;
-  min-height: 480px;
   border-radius: 16px;
   border: 1px solid rgba(255, 255, 255, 0.06);
-  background: #0f172a;
+  background: #1e1e1e;
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 32px 28px;
-  overflow: hidden;
+  padding: 40px 32px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
 }
-[data-theme="light"] .preview-card {
-  background: #ffffff;
-  border-color: rgba(0, 0, 0, 0.06);
-}
+
 .preview-watermark {
   position: absolute;
   bottom: 20px;
   right: 24px;
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(255, 255, 255, 0.2);
   font-weight: 600;
   font-size: 13px;
   letter-spacing: 0.5px;
+  pointer-events: none;
+  z-index: 10;
 }
-.preview-header {
+
+.summary-content {
+  position: relative;
+  z-index: 1;
+}
+
+.summary-intro {
+  margin-bottom: 24px;
+}
+
+.summary-text {
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.5;
+  color: #ffffff;
+  margin: 0;
+}
+
+.summary-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.1);
+  margin: 0 0 24px 0;
+}
+
+.summary-answer {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  gap: 16px;
 }
-.preview-icon {
-  font-size: 28px;
-  line-height: 1;
-}
-.preview-title {
-  font-size: 20px;
-  font-weight: 700;
-  color: #e5e7eb;
-  flex: 1;
-}
-.preview-list {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  overflow: hidden;
-}
-.pmsg {
-  display: flex;
-  gap: 14px;
-  align-items: flex-start;
-}
-.pmsg .avatar {
-  width: 36px;
-  height: 36px;
+
+.answer-icon {
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
+  background: #10a37f;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 18px;
+  color: white;
   flex-shrink: 0;
-  background: rgba(255, 255, 255, 0.12);
 }
-.pmsg.user .avatar {
-  background: rgba(255, 255, 255, 0.18);
-}
-.pmsg.assistant .avatar {
-  background: rgba(16, 163, 127, 0.28);
-}
-.pmsg .msg-content {
+
+.answer-text {
   flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  background: #0b1220;
-  border-radius: 14px;
-  padding: 14px 16px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
 }
-.pmsg.user .msg-content {
-  background: #111827;
-  border-color: rgba(255, 255, 255, 0.08);
-  border-left: 3px solid #64748b; /* slate-500 */
-}
-.pmsg.assistant .msg-content {
-  background: #0b1411;
-  border-color: rgba(16, 163, 127, 0.28);
-  border-left: 3px solid #10a37f;
-}
-.pmsg .msg-author {
+
+.answer-text h3 {
   font-size: 13px;
   font-weight: 600;
-  color: rgba(229, 231, 235, 0.92);
-  margin-bottom: 2px;
+  color: rgba(255, 255, 255, 0.5);
+  margin: 0 0 8px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
-.pmsg .msg-image {
-  width: 100%;
-  max-width: 260px;
-  border-radius: 12px;
-  overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+
+.answer-body {
+  font-size: 16px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.9);
 }
-.pmsg .msg-image img {
-  width: 100%;
-  height: auto;
-  display: block;
-  object-fit: cover;
-  max-height: 160px;
+
+.answer-body :deep(p),
+.summary-text :deep(p) {
+  margin: 0 0 0.5em 0;
 }
-.pmsg .msg-text {
-  color: #e5e7eb;
-  line-height: 1.65;
-  font-size: 14px;
-  word-wrap: break-word;
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-line-clamp: 4;
-  line-clamp: 4;
-  -webkit-box-orient: vertical;
+.answer-body :deep(p:last-child),
+.summary-text :deep(p:last-child) {
+  margin: 0;
+}
+.answer-body :deep(strong),
+.summary-text :deep(strong) {
+  font-weight: 700;
+  color: #fff;
+}
+
+.fade-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 120px;
+  background: linear-gradient(
+    to bottom,
+    rgba(30, 30, 30, 0),
+    rgba(30, 30, 30, 1)
+  );
+  pointer-events: none;
+  z-index: 5;
 }
 
 .share-actions {
   display: flex;
-  gap: 10px;
+  gap: 24px;
   flex-wrap: wrap;
   justify-content: center;
-  margin-top: 18px;
+  padding: 20px;
+  background: var(--bg-primary);
+  border-top: 1px solid var(--border-light);
+  margin-top: 0;
+  flex-shrink: 0;
 }
 .action-btn {
-  display: inline-flex;
+  display: flex;
+  flex-direction: column;
   align-items: center;
   gap: 8px;
-  padding: 10px 14px;
+  padding: 0;
   border: none;
-  border-radius: 999px;
-  background: var(--bg-secondary);
-  color: var(--text-primary);
+  background: transparent;
+  color: var(--text-secondary);
   cursor: pointer;
-  font-size: 14px;
+  font-size: 12px;
+  transition: all 0.2s ease;
 }
 .action-btn:hover {
-  background: var(--bg-hover);
+  color: var(--text-primary);
+  transform: translateY(-2px);
 }
-.icon {
-  display: inline-flex;
+.icon-circle {
+  display: flex;
   align-items: center;
   justify-content: center;
-  width: 18px;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-light);
+  color: var(--text-primary);
+  transition: all 0.2s ease;
+}
+.action-btn:hover .icon-circle {
+  background: var(--bg-hover);
+  border-color: var(--text-secondary);
+}
+.action-label {
+  font-weight: 500;
+}
+.icon {
+  display: none; /* Deprecated */
 }
 
 @keyframes fadeIn {

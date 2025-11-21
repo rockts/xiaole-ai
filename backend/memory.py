@@ -28,7 +28,6 @@ Session = sessionmaker(bind=engine)
 
 class MemoryManager:
     def __init__(self, enable_vector_search=True):  # 默认启用语义搜索
-        self.session = Session()
         self.enable_vector_search = enable_vector_search
 
         # 初始化语义搜索管理器
@@ -52,115 +51,135 @@ class MemoryManager:
             tag: tag/category
             initial_importance: importance score (0-1) - 暂时未使用，等待数据库迁移
         """
-        # 去重检查：如果是 facts 标签，检查是否已存在相同内容
-        if tag == "facts":
-            existing = self.session.query(Memory).filter(
-                Memory.tag == "facts",
-                Memory.content == content
-            ).first()
+        session = Session()
+        try:
+            # 去重检查：如果是 facts 标签，检查是否已存在相同内容
+            if tag == "facts":
+                existing = session.query(Memory).filter(
+                    Memory.tag == "facts",
+                    Memory.content == content
+                ).first()
 
-            if existing:
-                print(f"⚠️ 跳过重复 facts: {content[:50]}")
-                return existing.id
+                if existing:
+                    print(f"⚠️ 跳过重复 facts: {content[:50]}")
+                    return existing.id
 
-        memory = Memory(
-            content=content,
-            tag=tag
-            # importance_score 字段需要数据库迁移后才能使用
-        )
-        self.session.add(memory)
-        self.session.commit()
+            memory = Memory(
+                content=content,
+                tag=tag
+                # importance_score 字段需要数据库迁移后才能使用
+            )
+            session.add(memory)
+            session.commit()
 
-        # 添加到语义搜索索引
-        if self.enable_vector_search and self.semantic_search:
-            try:
-                self.semantic_search.add_memory(memory.id, content, tag)
-            except Exception as e:
-                print(f"添加语义索引失败: {e}")
+            # 添加到语义搜索索引
+            if self.enable_vector_search and self.semantic_search:
+                try:
+                    self.semantic_search.add_memory(memory.id, content, tag)
+                except Exception as e:
+                    print(f"添加语义索引失败: {e}")
 
-        return memory.id
+            return memory.id
+        finally:
+            session.close()
 
     def recall(self, tag="general", keyword=None, limit=None):
         """Recall memories by tag and keyword"""
-        query = self.session.query(Memory).filter(Memory.tag == tag)
+        session = Session()
+        try:
+            query = session.query(Memory).filter(Memory.tag == tag)
 
-        # 如果有关键词，进行模糊搜索
-        if keyword:
-            query = query.filter(Memory.content.contains(keyword))
+            # 如果有关键词，进行模糊搜索
+            if keyword:
+                query = query.filter(Memory.content.contains(keyword))
 
-        # 按时间倒序
-        query = query.order_by(Memory.created_at.desc())
+            # 按时间倒序
+            query = query.order_by(Memory.created_at.desc())
 
-        # 限制数量
-        if limit:
-            query = query.limit(limit)
+            # 限制数量
+            if limit:
+                query = query.limit(limit)
 
-        memories = query.all()
-        return [m.content for m in memories]
+            memories = query.all()
+            return [m.content for m in memories]
+        finally:
+            session.close()
 
     def recall_recent(self, hours=24, tag=None, limit=10):
         """Recall recent memories within specified hours"""
-        time_threshold = datetime.now() - timedelta(hours=hours)
+        session = Session()
+        try:
+            time_threshold = datetime.now() - timedelta(hours=hours)
 
-        query = self.session.query(Memory).filter(
-            Memory.created_at >= time_threshold
-        )
+            query = session.query(Memory).filter(
+                Memory.created_at >= time_threshold
+            )
 
-        if tag:
-            query = query.filter(Memory.tag == tag)
+            if tag:
+                query = query.filter(Memory.tag == tag)
 
-        query = query.order_by(Memory.created_at.desc()).limit(limit)
-        memories = query.all()
+            query = query.order_by(Memory.created_at.desc()).limit(limit)
+            memories = query.all()
 
-        # 返回完整对象信息，供前端显示
-        return [{
-            'id': m.id,
-            'content': m.content,
-            'tag': m.tag,
-            'timestamp': m.created_at.strftime('%Y-%m-%d %H:%M:%S')
-        } for m in memories]
+            # 返回完整对象信息，供前端显示
+            return [{
+                'id': m.id,
+                'content': m.content,
+                'tag': m.tag,
+                'timestamp': m.created_at.strftime('%Y-%m-%d %H:%M:%S')
+            } for m in memories]
+        finally:
+            session.close()
 
     def recall_by_keywords(self, keywords, tag=None, limit=10):
         """Search memories by multiple keywords with OR logic"""
         if not keywords:
             return []
 
-        # 构建关键词过滤条件
-        keyword_filters = [
-            Memory.content.contains(kw) for kw in keywords
-        ]
+        session = Session()
+        try:
+            # 构建关键词过滤条件
+            keyword_filters = [
+                Memory.content.contains(kw) for kw in keywords
+            ]
 
-        query = self.session.query(Memory).filter(or_(*keyword_filters))
+            query = session.query(Memory).filter(or_(*keyword_filters))
 
-        if tag:
-            query = query.filter(Memory.tag == tag)
+            if tag:
+                query = query.filter(Memory.tag == tag)
 
-        query = query.order_by(Memory.created_at.desc()).limit(limit)
-        memories = query.all()
+            query = query.order_by(Memory.created_at.desc()).limit(limit)
+            memories = query.all()
 
-        # 返回完整的记忆信息
-        return [{
-            'id': m.id,
-            'content': m.content,
-            'tag': m.tag,
-            'timestamp': m.created_at.strftime('%Y-%m-%d %H:%M:%S')
-        } for m in memories]
+            # 返回完整的记忆信息
+            return [{
+                'id': m.id,
+                'content': m.content,
+                'tag': m.tag,
+                'timestamp': m.created_at.strftime('%Y-%m-%d %H:%M:%S')
+            } for m in memories]
+        finally:
+            session.close()
 
     def get_stats(self):
         """Get memory statistics"""
-        # 总记忆数
-        total = self.session.query(func.count(Memory.id)).scalar()
+        session = Session()
+        try:
+            # 总记忆数
+            total = session.query(func.count(Memory.id)).scalar()
 
-        # 按标签统计
-        tag_stats = self.session.query(
-            Memory.tag,
-            func.count(Memory.id)
-        ).group_by(Memory.tag).all()
+            # 按标签统计
+            tag_stats = session.query(
+                Memory.tag,
+                func.count(Memory.id)
+            ).group_by(Memory.tag).all()
 
-        return {
-            "total": total,
-            "by_tag": {tag: count for tag, count in tag_stats}
-        }
+            return {
+                "total": total,
+                "by_tag": {tag: count for tag, count in tag_stats}
+            }
+        finally:
+            session.close()
 
     def semantic_recall(self, query, tag=None, limit=10, min_score=0.15):
         """Semantic search using TF-IDF and cosine similarity"""
@@ -170,9 +189,10 @@ class MemoryManager:
             keywords = query.split()
             return self.recall_by_keywords(keywords, tag=tag, limit=limit)
 
+        session = Session()
         try:
             # 查询所有记忆
-            query_obj = self.session.query(Memory)
+            query_obj = session.query(Memory)
             if tag:
                 query_obj = query_obj.filter(Memory.tag == tag)
 
@@ -199,7 +219,7 @@ class MemoryManager:
             result_ids = [mem_id for mem_id, _ in results]
             id_to_score = {mem_id: score for mem_id, score in results}
 
-            matched_memories = self.session.query(Memory).filter(
+            matched_memories = session.query(Memory).filter(
                 Memory.id.in_(result_ids)
             ).all()
 
@@ -228,6 +248,8 @@ class MemoryManager:
             print(f"⚠️ 语义搜索失败: {e}，降级到关键词搜索")
             keywords = query.split()
             return self.recall_by_keywords(keywords, tag=tag, limit=limit)
+        finally:
+            session.close()
 
     # v0.6.0 Phase 3方法: 需要数据库迁移后启用
     # def _update_access(self, memory_id):
@@ -268,47 +290,51 @@ class MemoryManager:
         Returns:
             float: 重要性分数(0-1)
         """
-        mem = self.session.query(Memory).filter(
-            Memory.id == memory_id
-        ).first()
+        session = Session()
+        try:
+            mem = session.query(Memory).filter(
+                Memory.id == memory_id
+            ).first()
 
-        if not mem:
-            return 0.0
+            if not mem:
+                return 0.0
 
-        # 1. 访问频率分数 (0-1)
-        # 访问次数越多越重要，使用对数函数避免线性增长
-        import math
-        access_score = min(
-            math.log(mem.access_count + 1) / math.log(100),
-            1.0
-        )
+            # 1. 访问频率分数 (0-1)
+            # 访问次数越多越重要，使用对数函数避免线性增长
+            import math
+            access_score = min(
+                math.log(mem.access_count + 1) / math.log(100),
+                1.0
+            )
 
-        # 2. 时间衰减分数 (0-1)
-        # 最近的记忆更重要，使用指数衰减
-        days_ago = (datetime.now() - mem.created_at).days
-        time_score = math.exp(-days_ago / 30.0)  # 30天半衰期
+            # 2. 时间衰减分数 (0-1)
+            # 最近的记忆更重要，使用指数衰减
+            days_ago = (datetime.now() - mem.created_at).days
+            time_score = math.exp(-days_ago / 30.0)  # 30天半衰期
 
-        # 3. 标签权重 (0-1)
-        tag_weights = {
-            'facts': 1.0,      # 用户明确告知的事实最重要
-            'task': 0.8,       # 任务记录次重要
-            'general': 0.5,    # 普通对话中等重要
-            'system': 0.3      # 系统日志较不重要
-        }
-        tag_score = tag_weights.get(mem.tag, 0.5)
+            # 3. 标签权重 (0-1)
+            tag_weights = {
+                'facts': 1.0,      # 用户明确告知的事实最重要
+                'task': 0.8,       # 任务记录次重要
+                'general': 0.5,    # 普通对话中等重要
+                'system': 0.3      # 系统日志较不重要
+            }
+            tag_score = tag_weights.get(mem.tag, 0.5)
 
-        # Weighted average calculation
-        importance = (
-            access_score * 0.4 +
-            time_score * 0.3 +
-            tag_score * 0.3
-        )
+            # Weighted average calculation
+            importance = (
+                access_score * 0.4 +
+                time_score * 0.3 +
+                tag_score * 0.3
+            )
 
-        # 更新数据库
-        mem.importance_score = importance
-        self.session.commit()
+            # 更新数据库
+            mem.importance_score = importance
+            session.commit()
 
-        return importance
+            return importance
+        finally:
+            session.close()
 
     def update_all_importance_scores(self):
         """
@@ -317,13 +343,22 @@ class MemoryManager:
         Returns:
             int: 更新的记忆数量
         """
-        all_memories = self.session.query(Memory).filter(
-            Memory.is_archived == False  # noqa: E712
-        ).all()
+        session = Session()
+        try:
+            all_memories = session.query(Memory).filter(
+                Memory.is_archived == False  # noqa: E712
+            ).all()
 
-        updated_count = 0
-        for mem in all_memories:
-            self.calculate_importance(mem.id)
+            updated_count = 0
+            # 注意：这里调用了 self.calculate_importance，它内部也会创建 Session
+            # 为了避免嵌套 Session 问题，我们应该重构 calculate_importance 或者在这里直接计算
+            # 但为了简单起见，我们先获取 ID 列表，然后逐个调用
+            memory_ids = [m.id for m in all_memories]
+        finally:
+            session.close()
+
+        for mem_id in memory_ids:
+            self.calculate_importance(mem_id)
             updated_count += 1
 
         print(f"✅ 已更新 {updated_count} 条记忆的重要性分数")
@@ -340,26 +375,30 @@ class MemoryManager:
         Returns:
             [{content, tag, importance_score, access_count}]
         """
-        query = self.session.query(Memory).filter(
-            Memory.is_archived == False  # noqa: E712
-        )
+        session = Session()
+        try:
+            query = session.query(Memory).filter(
+                Memory.is_archived == False  # noqa: E712
+            )
 
-        if tag:
-            query = query.filter(Memory.tag == tag)
+            if tag:
+                query = query.filter(Memory.tag == tag)
 
-        query = query.order_by(
-            Memory.importance_score.desc()
-        ).limit(limit)
+            query = query.order_by(
+                Memory.importance_score.desc()
+            ).limit(limit)
 
-        memories = query.all()
+            memories = query.all()
 
-        return [{
-            'content': m.content,
-            'tag': m.tag,
-            'importance_score': m.importance_score,
-            'access_count': m.access_count,
-            'created_at': m.created_at.strftime('%Y-%m-%d %H:%M:%S')
-        } for m in memories]
+            return [{
+                'content': m.content,
+                'tag': m.tag,
+                'importance_score': m.importance_score,
+                'access_count': m.access_count,
+                'created_at': m.created_at.strftime('%Y-%m-%d %H:%M:%S')
+            } for m in memories]
+        finally:
+            session.close()
 
     def auto_archive_low_importance(self, threshold=0.1, min_age_days=30):
         """
@@ -378,74 +417,81 @@ class MemoryManager:
             int: archived count
         """
         from datetime import timedelta
+        session = Session()
+        try:
+            cutoff_date = datetime.now() - timedelta(days=min_age_days)
 
-        cutoff_date = datetime.now() - timedelta(days=min_age_days)
+            # 查找需要归档的记忆
+            low_importance_memories = session.query(Memory).filter(
+                Memory.is_archived == False,  # noqa: E712
+                Memory.importance_score < threshold,
+                Memory.created_at < cutoff_date,
+                Memory.access_count <= 1
+            ).all()
 
-        # 查找需要归档的记忆
-        low_importance_memories = self.session.query(Memory).filter(
-            Memory.is_archived == False,  # noqa: E712
-            Memory.importance_score < threshold,
-            Memory.created_at < cutoff_date,
-            Memory.access_count <= 1
-        ).all()
+            archived_count = 0
+            for mem in low_importance_memories:
+                mem.is_archived = True
+                archived_count += 1
 
-        archived_count = 0
-        for mem in low_importance_memories:
-            mem.is_archived = True
-            archived_count += 1
+            session.commit()
 
-        self.session.commit()
+            if archived_count > 0:
+                print(f"✅ 已归档 {archived_count} 条低重要性记忆")
 
-        if archived_count > 0:
-            print(f"✅ 已归档 {archived_count} 条低重要性记忆")
-
-        return archived_count
+            return archived_count
+        finally:
+            session.close()
 
     def get_memory_stats(self):
         """Get memory statistics with importance analysis"""
-        # 基础统计
-        total = self.session.query(func.count(Memory.id)).scalar()
-        archived = self.session.query(func.count(Memory.id)).filter(
-            Memory.is_archived == True  # noqa: E712
-        ).scalar()
-        active = total - archived
+        session = Session()
+        try:
+            # 基础统计
+            total = session.query(func.count(Memory.id)).scalar()
+            archived = session.query(func.count(Memory.id)).filter(
+                Memory.is_archived == True  # noqa: E712
+            ).scalar()
+            active = total - archived
 
-        # 按标签统计
-        tag_stats = self.session.query(
-            Memory.tag,
-            func.count(Memory.id)
-        ).filter(
-            Memory.is_archived == False  # noqa: E712
-        ).group_by(Memory.tag).all()
+            # 按标签统计
+            tag_stats = session.query(
+                Memory.tag,
+                func.count(Memory.id)
+            ).filter(
+                Memory.is_archived == False  # noqa: E712
+            ).group_by(Memory.tag).all()
 
-        # 重要性分布
-        high_importance = self.session.query(func.count(Memory.id)).filter(
-            Memory.is_archived == False,  # noqa: E712
-            Memory.importance_score >= 0.7
-        ).scalar()
+            # 重要性分布
+            high_importance = session.query(func.count(Memory.id)).filter(
+                Memory.is_archived == False,  # noqa: E712
+                Memory.importance_score >= 0.7
+            ).scalar()
 
-        medium_importance = self.session.query(func.count(Memory.id)).filter(
-            Memory.is_archived == False,  # noqa: E712
-            Memory.importance_score >= 0.3,
-            Memory.importance_score < 0.7
-        ).scalar()
+            medium_importance = session.query(func.count(Memory.id)).filter(
+                Memory.is_archived == False,  # noqa: E712
+                Memory.importance_score >= 0.3,
+                Memory.importance_score < 0.7
+            ).scalar()
 
-        low_importance = self.session.query(func.count(Memory.id)).filter(
-            Memory.is_archived == False,  # noqa: E712
-            Memory.importance_score < 0.3
-        ).scalar()
+            low_importance = session.query(func.count(Memory.id)).filter(
+                Memory.is_archived == False,  # noqa: E712
+                Memory.importance_score < 0.3
+            ).scalar()
 
-        return {
-            "total": total,
-            "active": active,
-            "archived": archived,
-            "by_tag": {tag: count for tag, count in tag_stats},
-            "importance_distribution": {
-                "high (≥0.7)": high_importance,
-                "medium (0.3-0.7)": medium_importance,
-                "low (<0.3)": low_importance
+            return {
+                "total": total,
+                "active": active,
+                "archived": archived,
+                "by_tag": {tag: count for tag, count in tag_stats},
+                "importance_distribution": {
+                    "high (≥0.7)": high_importance,
+                    "medium (0.3-0.7)": medium_importance,
+                    "low (<0.3)": low_importance
+                }
             }
-        }
+        finally:
+            session.close()
 
     def cleanup_old_conversations(self, days=7):
         """
@@ -457,17 +503,21 @@ class MemoryManager:
         Returns:
             删除的记忆数量
         """
-        cutoff_date = datetime.now() - timedelta(days=days)
+        session = Session()
+        try:
+            cutoff_date = datetime.now() - timedelta(days=days)
 
-        old_conversations = self.session.query(Memory).filter(
-            Memory.tag.like('conversation:%'),
-            Memory.created_at < cutoff_date
-        ).all()
+            old_conversations = session.query(Memory).filter(
+                Memory.tag.like('conversation:%'),
+                Memory.created_at < cutoff_date
+            ).all()
 
-        count = len(old_conversations)
-        for mem in old_conversations:
-            self.session.delete(mem)
+            count = len(old_conversations)
+            for mem in old_conversations:
+                session.delete(mem)
 
-        self.session.commit()
-        print(f"🗑️ 清理了 {count} 条超过{days}天的conversation记忆")
-        return count
+            session.commit()
+            print(f"🗑️ 清理了 {count} 条超过{days}天的conversation记忆")
+            return count
+        finally:
+            session.close()

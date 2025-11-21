@@ -90,6 +90,28 @@ export const useChatStore = defineStore('chat', () => {
             // 获取最终文本
             const full = response.reply || response.response || ''
             const msgIndex = messages.value.findIndex(m => m.id === placeholderId)
+
+            // 同步最新的消息ID
+            if (msgIndex !== -1) {
+                // 1. 更新 AI 回复的消息 ID
+                if (response.assistant_message_id) {
+                    messages.value[msgIndex].id = response.assistant_message_id
+                }
+
+                // 2. 更新用户消息的 ID
+                if (response.user_message_id) {
+                    // 向前查找最近的一条临时ID的用户消息
+                    for (let i = msgIndex - 1; i >= 0; i--) {
+                        const msg = messages.value[i]
+                        if (msg.role === 'user' && String(msg.id).startsWith('temp-')) {
+                            console.log('✅ Syncing user message ID:', msg.id, '->', response.user_message_id)
+                            messages.value[i].id = response.user_message_id
+                            break
+                        }
+                    }
+                }
+            }
+
             if (msgIndex !== -1) {
                 messages.value[msgIndex].status = 'typing'
                 messages.value[msgIndex].fullContent = full
@@ -150,7 +172,7 @@ export const useChatStore = defineStore('chat', () => {
             formData.append('image', file)
 
             const response = await api.uploadImage(formData)
-            return response.image_path
+            return response.file_path
         } catch (error) {
             console.error('Failed to upload image:', error)
             return null
@@ -161,6 +183,30 @@ export const useChatStore = defineStore('chat', () => {
         messages.value = []
         sessionInfo.value = null
         currentSessionId.value = null
+    }
+
+    const deleteMessage = (messageId) => {
+        const index = messages.value.findIndex(m => m.id === messageId)
+        if (index !== -1) {
+            messages.value.splice(index, 1)
+        }
+    }
+
+    const deleteMessageApi = async (messageId) => {
+        try {
+            await api.deleteMessage(messageId)
+        } catch (error) {
+            console.error('Failed to delete message from backend:', error)
+        }
+    }
+
+    const submitFeedback = async (data) => {
+        try {
+            return await api.submitFeedback(data)
+        } catch (error) {
+            console.error('Failed to submit feedback:', error)
+            return { success: false, error }
+        }
     }
 
     return {
@@ -175,6 +221,9 @@ export const useChatStore = defineStore('chat', () => {
         sendMessage,
         stopGeneration,
         uploadImage,
-        clearCurrentSession
+        clearCurrentSession,
+        deleteMessage,
+        deleteMessageApi, // Export this
+        submitFeedback
     }
 })

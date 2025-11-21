@@ -34,28 +34,15 @@ class ConversationManager:
     """对话管理器"""
 
     def __init__(self):
-        self.session = Session()
+        pass
 
     def create_session(self, user_id="default_user", title=None):
-        """创建新的对话会话（带去重）"""
+        """创建新的对话会话"""
         if not title:
             title = f"对话 {datetime.now().strftime('%Y-%m-%d %H:%M')}"
 
-        # 检查是否已存在相同title的会话（10分钟内）
-        from datetime import timedelta
-        time_threshold = datetime.now() - timedelta(minutes=10)
-
-        existing = self.session.query(Conversation).filter(
-            Conversation.user_id == user_id,
-            Conversation.title == title,
-            Conversation.created_at >= time_threshold
-        ).first()
-
-        if existing:
-            # 如果已存在，更新时间并返回已有的session_id
-            existing.updated_at = datetime.now()
-            self.session.commit()
-            return existing.session_id
+        # 移除会话去重逻辑，确保每次都创建新会话
+        # 之前的逻辑会导致10分钟内相同标题的会话被合并，用户体验不佳
 
         # 创建新会话
         session_id = str(uuid.uuid4())
@@ -64,54 +51,99 @@ class ConversationManager:
             user_id=user_id,
             title=title
         )
-        self.session.add(conversation)
-        self.session.commit()
-        return session_id
+
+        session = Session()
+        try:
+            session.add(conversation)
+            session.commit()
+            return session_id
+        finally:
+            session.close()
 
     def add_message(self, session_id, role, content, image_path=None):
         """添加消息到对话会话"""
-        message = Message(
-            session_id=session_id,
-            role=role,
-            content=content,
-            image_path=image_path
-        )
-        self.session.add(message)
-        self.session.commit()
+        session = Session()
+        try:
+            message = Message(
+                session_id=session_id,
+                role=role,
+                content=content,
+                image_path=image_path
+            )
+            session.add(message)
+            session.commit()
 
-        # 更新会话的最后更新时间
-        conversation = self.session.query(Conversation).filter(
-            Conversation.session_id == session_id
-        ).first()
-        if conversation:
-            conversation.updated_at = datetime.now()
-            self.session.commit()
+            # 更新会话的最后更新时间
+            conversation = session.query(Conversation).filter(
+                Conversation.session_id == session_id
+            ).first()
+            if conversation:
+                conversation.updated_at = datetime.now()
+                session.commit()
+
+            return message.id
+        finally:
+            session.close()
 
     def get_history(self, session_id, limit=10):
         """获取对话历史"""
-        messages = self.session.query(Message).filter(
-            Message.session_id == session_id
-        ).order_by(Message.created_at.desc()).limit(limit).all()
+        session = Session()
+        try:
+            messages = session.query(Message).filter(
+                Message.session_id == session_id
+            ).order_by(Message.created_at.desc()).limit(limit).all()
 
-        # 反转顺序，使最早的消息在前
-        messages.reverse()
+            # 反转顺序，使最早的消息在前
+            messages.reverse()
 
-        return [
-            {
-                "role": m.role,
-                "content": m.content,
-                "timestamp": m.created_at.strftime('%Y-%m-%d %H:%M:%S'),
-                "created_at": m.created_at.strftime('%Y-%m-%d %H:%M:%S'),
-                "image_path": (m.image_path if hasattr(m, 'image_path')
-                               else None)
-            }
-            for m in messages
-        ]
+            return [
+                {
+                    "id": m.id,
+                    "role": m.role,
+                    "content": m.content,
+                    "timestamp": m.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                    "created_at": m.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                    "image_path": (m.image_path if hasattr(m, 'image_path')
+                                   else None)
+                }
+                for m in messages
+            ]
+        finally:
+            session.close()
+
+    def delete_message_and_following(self, message_id):
+        """删除指定消息及其之后的所有消息"""
+        session = Session()
+        try:
+            # 查找目标消息
+            target_msg = session.query(Message).filter(
+                Message.id == message_id
+            ).first()
+
+            if not target_msg:
+                return False
+
+            # 删除该会话中，创建时间晚于等于该消息的所有消息
+            # 注意：使用 >= 包含目标消息本身
+            session.query(Message).filter(
+                Message.session_id == target_msg.session_id,
+                Message.created_at >= target_msg.created_at
+            ).delete(synchronize_session=False)
+
+            session.commit()
+            return True
+        except Exception as e:
+            print(f"删除消息失败: {e}")
+            session.rollback()
+            return False
+        finally:
+            session.close()
 
     def get_recent_sessions(self, user_id="default_user", limit=None):
         """获取最近的对话会话"""
+        session = Session()
         try:
-            query = self.session.query(Conversation).filter(
+            query = session.query(Conversation).filter(
                 Conversation.user_id == user_id
             ).order_by(Conversation.updated_at.desc())
 
@@ -132,72 +164,89 @@ class ConversationManager:
             ]
         except Exception as e:
             print(f"获取会话列表失败: {e}")
-            self.session.rollback()
+            session.rollback()
             return []
+        finally:
+            session.close()
 
     def delete_session(self, session_id):
         """删除对话会话及其消息"""
-        # 删除消息
-        self.session.query(Message).filter(
-            Message.session_id == session_id
-        ).delete()
+        session = Session()
+        try:
+            # 删除消息
+            session.query(Message).filter(
+                Message.session_id == session_id
+            ).delete()
 
-        # 删除会话
-        self.session.query(Conversation).filter(
-            Conversation.session_id == session_id
-        ).delete()
+            # 删除会话
+            session.query(Conversation).filter(
+                Conversation.session_id == session_id
+            ).delete()
 
-        self.session.commit()
+            session.commit()
+        finally:
+            session.close()
 
     def update_session_title(self, session_id, new_title):
         """更新会话标题"""
-        conversation = self.session.query(Conversation).filter(
-            Conversation.session_id == session_id
-        ).first()
+        session = Session()
+        try:
+            conversation = session.query(Conversation).filter(
+                Conversation.session_id == session_id
+            ).first()
 
-        if conversation:
-            conversation.title = new_title
-            conversation.updated_at = datetime.now()
-            self.session.commit()
-            return True
-        return False
+            if conversation:
+                conversation.title = new_title
+                conversation.updated_at = datetime.now()
+                session.commit()
+                return True
+            return False
+        finally:
+            session.close()
 
     def update_session_pinned(self, session_id, pinned):
         """更新会话置顶状态"""
-        conversation = self.session.query(Conversation).filter(
-            Conversation.session_id == session_id
-        ).first()
+        session = Session()
+        try:
+            conversation = session.query(Conversation).filter(
+                Conversation.session_id == session_id
+            ).first()
 
-        if conversation:
-            conversation.pinned = pinned
-            conversation.updated_at = datetime.now()
-            self.session.commit()
-            return True
-        return False
+            if conversation:
+                conversation.pinned = pinned
+                conversation.updated_at = datetime.now()
+                session.commit()
+                return True
+            return False
+        finally:
+            session.close()
 
     def get_session_stats(self, session_id):
         """获取会话统计信息"""
         from sqlalchemy import func
+        session = Session()
+        try:
+            conversation = session.query(Conversation).filter(
+                Conversation.session_id == session_id
+            ).first()
 
-        conversation = self.session.query(Conversation).filter(
-            Conversation.session_id == session_id
-        ).first()
+            if not conversation:
+                return None
 
-        if not conversation:
-            return None
+            message_count = session.query(func.count(Message.id)).filter(
+                Message.session_id == session_id
+            ).scalar()
 
-        message_count = self.session.query(func.count(Message.id)).filter(
-            Message.session_id == session_id
-        ).scalar()
-
-        return {
-            "session_id": session_id,
-            "title": conversation.title,
-            "message_count": message_count,
-            "created_at": conversation.created_at.strftime(
-                '%Y-%m-%d %H:%M:%S'
-            ),
-            "updated_at": conversation.updated_at.strftime(
-                '%Y-%m-%d %H:%M:%S'
-            )
-        }
+            return {
+                "session_id": session_id,
+                "title": conversation.title,
+                "message_count": message_count,
+                "created_at": conversation.created_at.strftime(
+                    '%Y-%m-%d %H:%M:%S'
+                ),
+                "updated_at": conversation.updated_at.strftime(
+                    '%Y-%m-%d %H:%M:%S'
+                )
+            }
+        finally:
+            session.close()

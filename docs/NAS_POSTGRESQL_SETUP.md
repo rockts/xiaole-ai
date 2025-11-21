@@ -1,4 +1,4 @@
-# 小乐AI - NAS PostgreSQL 配置指南
+sudo grep "listen_addresses" /volume2/@database/pgsql/postgresql.conf# 小乐AI - NAS PostgreSQL 配置指南
 
 ## 📋 准备工作
 

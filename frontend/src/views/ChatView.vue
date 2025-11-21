@@ -46,17 +46,40 @@
             </template>
           </template>
           <template v-else>
-            <div class="user-bubble">
+            <div class="user-bubble" v-if="editingMessageId !== message.id">
               <div
                 class="md-content"
                 v-html="renderMarkdown(message.content)"
               ></div>
             </div>
+            <!-- 编辑模式 -->
+            <div v-else class="edit-mode-container">
+              <textarea
+                :id="`edit-textarea-${message.id}`"
+                v-model="editingContent"
+                class="edit-textarea"
+                @input="autoResizeTextarea"
+                @keydown.enter.exact.prevent
+                @keydown.enter.ctrl="saveEdit(message)"
+                @keydown.enter.meta="saveEdit(message)"
+              ></textarea>
+              <div class="edit-actions">
+                <button class="btn-edit-action cancel" @click="cancelEdit">
+                  取消
+                </button>
+                <button class="btn-edit-action save" @click="saveEdit(message)">
+                  发送
+                </button>
+              </div>
+            </div>
           </template>
 
           <div
             class="message-toolbar"
-            v-if="message.role === 'user' || message.status === 'done'"
+            v-if="
+              (message.role === 'user' || message.status === 'done') &&
+              editingMessageId !== message.id
+            "
           >
             <button
               v-if="message.role === 'user'"
@@ -85,9 +108,26 @@
             <button
               class="toolbar-icon"
               @click.stop="copyMessage(message)"
-              title="复制"
+              :title="copiedMessageId === message.id ? '已复制' : '复制'"
             >
+              <!-- 复制成功图标 (对号) -->
               <svg
+                v-if="copiedMessageId === message.id"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="text-success"
+              >
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+              <!-- 默认复制图标 -->
+              <svg
+                v-else
                 width="16"
                 height="16"
                 viewBox="0 0 24 24"
@@ -104,7 +144,10 @@
               </svg>
             </button>
             <button
-              v-if="message.role === 'assistant'"
+              v-if="
+                message.role === 'assistant' &&
+                feedbackState.get(message.id) !== 'down'
+              "
               class="toolbar-icon"
               :class="{ active: feedbackState.get(message.id) === 'up' }"
               @click.stop="feedbackMessage(message, 'up')"
@@ -127,7 +170,10 @@
               </svg>
             </button>
             <button
-              v-if="message.role === 'assistant'"
+              v-if="
+                message.role === 'assistant' &&
+                feedbackState.get(message.id) !== 'up'
+              "
               class="toolbar-icon"
               :class="{ active: feedbackState.get(message.id) === 'down' }"
               @click.stop="feedbackMessage(message, 'down')"
@@ -194,9 +240,10 @@
               </svg>
             </button>
             <button
+              v-if="message.role === 'assistant'"
               class="toolbar-icon"
-              @click.stop="moreActions(message)"
-              title="更多"
+              @click.stop="shareMessage(message)"
+              title="分享"
             >
               <svg
                 width="16"
@@ -208,9 +255,11 @@
                 stroke-linecap="round"
                 stroke-linejoin="round"
               >
-                <circle cx="5" cy="12" r="1"></circle>
-                <circle cx="12" cy="12" r="1"></circle>
-                <circle cx="19" cy="12" r="1"></circle>
+                <circle cx="18" cy="5" r="3"></circle>
+                <circle cx="6" cy="12" r="3"></circle>
+                <circle cx="18" cy="19" r="3"></circle>
+                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
               </svg>
             </button>
           </div>
@@ -244,13 +293,145 @@
     <div
       v-if="imagePreviewUrl"
       class="image-preview-overlay"
-      @click="closeImagePreview"
+      @click.self="closeImagePreview"
+      @wheel.prevent="handleZoom"
     >
-      <img :src="imagePreviewUrl" alt="预览图" class="image-preview" />
+      <div class="preview-controls" @click.stop>
+        <button class="control-btn" @click="zoomOut" title="缩小">
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+        </button>
+        <span class="zoom-level">{{ Math.round(imageScale * 100) }}%</span>
+        <button class="control-btn" @click="zoomIn" title="放大">
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+        </button>
+        <div class="divider"></div>
+        <button
+          class="control-btn close-btn"
+          @click="closeImagePreview"
+          title="关闭"
+        >
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      <img
+        :src="imagePreviewUrl"
+        alt="预览图"
+        class="image-preview"
+        :style="{
+          transform: `translate(${imageTranslate.x}px, ${imageTranslate.y}px) scale(${imageScale})`,
+          cursor: isDragging ? 'grabbing' : 'grab',
+        }"
+        @mousedown="startDrag"
+        @mousemove="onDrag"
+        @mouseup="stopDrag"
+        @mouseleave="stopDrag"
+        @click.stop
+        draggable="false"
+      />
     </div>
+
+    <!-- 文本选中浮动按钮 -->
+    <Teleport to="body">
+      <div
+        v-if="showQuoteBtn"
+        class="quote-float-btn"
+        :style="{ top: `${quoteBtnPos.top}px`, left: `${quoteBtnPos.left}px` }"
+        @mousedown.prevent="applyQuote"
+      >
+        <span
+          style="
+            font-size: 32px;
+            line-height: 0.5;
+            margin-right: 4px;
+            font-family: Georgia, serif;
+            font-weight: 900;
+            display: inline-block;
+            transform: translateY(4px);
+          "
+          >”</span
+        >
+        询问小乐
+      </div>
+    </Teleport>
 
     <div class="input-container">
       <div class="input-wrapper">
+        <!-- 引用预览条 -->
+        <div v-if="quoteText" class="quote-preview-bar">
+          <div class="quote-content">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              class="quote-icon"
+            >
+              <polyline points="15 10 20 15 15 20"></polyline>
+              <path d="M4 4v7a4 4 0 0 0 4 4h12"></path>
+            </svg>
+            <div class="quote-text">
+              “{{
+                quoteText.replace(/\n/g, " ").substring(0, 100) +
+                (quoteText.length > 100 ? "..." : "")
+              }}”
+            </div>
+          </div>
+          <button class="close-quote-btn" @click="clearQuote">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+
         <div class="input-controls">
           <button class="icon-btn" @click="handleUpload" title="附件">
             <svg
@@ -381,6 +562,96 @@
       style="display: none"
       @change="handleFileChange"
     />
+
+    <!-- 反馈弹窗 (负面反馈) -->
+    <div
+      v-if="showFeedbackDialog"
+      class="feedback-overlay"
+      @click.self="closeFeedbackDialog"
+    >
+      <div class="feedback-modal">
+        <div class="feedback-header">
+          <h3>请与我们分享更多信息：</h3>
+          <button class="close-btn" @click="closeFeedbackDialog">
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+        <div class="feedback-tags">
+          <button
+            v-for="tag in feedbackTags"
+            :key="tag"
+            class="feedback-tag"
+            :class="{ selected: selectedTags.includes(tag) }"
+            @click="toggleTag(tag)"
+          >
+            {{ tag }}
+          </button>
+          <button class="feedback-tag more" @click="openMoreFeedback">
+            更多...
+          </button>
+        </div>
+        <div class="feedback-actions" v-if="selectedTags.length > 0">
+          <button class="btn-submit" @click="submitBadFeedback">
+            提交反馈
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 更多反馈弹窗 -->
+    <div
+      v-if="showMoreFeedbackDialog"
+      class="feedback-overlay"
+      @click.self="closeMoreFeedbackDialog"
+    >
+      <div class="feedback-modal large">
+        <div class="feedback-header">
+          <h3>提供详细反馈</h3>
+          <button class="close-btn" @click="closeMoreFeedbackDialog">
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+        <textarea
+          v-model="customFeedbackText"
+          class="feedback-textarea"
+          placeholder="请详细描述您遇到的问题，帮助我们改进..."
+        ></textarea>
+        <div class="feedback-footer">
+          <button class="btn-cancel" @click="closeMoreFeedbackDialog">
+            取消
+          </button>
+          <button class="btn-submit" @click="submitCustomFeedback">提交</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 分享弹窗 -->
+    <ShareDialog
+      v-if="showShareDialog"
+      :title="shareDialogTitle"
+      :share-url="shareDialogUrl"
+      @close="showShareDialog = false"
+    />
   </div>
 </template>
 
@@ -397,8 +668,11 @@ import { useRoute, useRouter } from "vue-router";
 import { useChatStore } from "@/stores/chat";
 import { storeToRefs } from "pinia";
 import { marked } from "marked";
-import { markedHighlight } from "marked-highlight";
+import markedKatex from "marked-katex-extension";
 import hljs from "highlight.js";
+import "katex/dist/katex.min.css";
+
+import ShareDialog from "@/components/common/ShareDialog.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -413,14 +687,45 @@ const chatContainer = ref(null);
 const fileInput = ref(null);
 const isRecording = ref(false);
 const isVoiceMode = ref(false);
+const recognition = ref(null); // 语音识别实例
 const imagePreviewUrl = ref(null);
+const imageScale = ref(1);
+const imageTranslate = ref({ x: 0, y: 0 });
+const isDragging = ref(false);
+const dragStart = ref({ x: 0, y: 0 });
 const showScrollToBottom = ref(false);
+const observer = ref(null);
+
+// 分享弹窗状态
+const showShareDialog = ref(false);
+const shareDialogUrl = ref("");
+const shareDialogTitle = ref("分享对话");
+
+// 引用功能状态
+const quoteText = ref("");
+const tempSelectedText = ref("");
+const showQuoteBtn = ref(false);
+const quoteBtnPos = ref({ top: 0, left: 0 });
 const feedbackState = ref(new Map());
 const speakingMessageId = ref(null);
 const inputContent = ref("");
 const shouldScrollToBottom = ref(false); // 标志位：是否需要滚动到底部
 const isLoadingSession = ref(true); // 初始就设置为 true，默认隐藏
 let currentSpeech = null;
+
+// 反馈相关状态
+const showFeedbackDialog = ref(false);
+const showMoreFeedbackDialog = ref(false);
+const currentFeedbackMessageId = ref(null);
+const selectedTags = ref([]);
+const customFeedbackText = ref("");
+const feedbackTags = [
+  "不应该使用记忆",
+  "不喜欢此人物",
+  "不喜欢这种风格",
+  "与事实不符",
+  "未完全遵循指令",
+];
 
 // 判断是否有输入内容
 const hasInputContent = computed(() => {
@@ -478,16 +783,27 @@ const selectRandomGreeting = () => {
 
 const currentGreeting = ref(selectRandomGreeting());
 
-// 配置 marked 使用代码高亮
+// 配置 marked 使用 KaTeX 数学公式
 marked.use(
-  markedHighlight({
-    langPrefix: "hljs language-",
-    highlight(code, lang) {
-      const language = hljs.getLanguage(lang) ? lang : "plaintext";
-      return hljs.highlight(code, { language }).value;
-    },
+  markedKatex({
+    throwOnError: false,
+    output: "html",
+    trust: true, // 允许更多命令
+    strict: false, // 宽松模式
   })
 );
+
+// 配置 marked 使用代码高亮
+const renderer = {
+  code(code, lang) {
+    const language = hljs.getLanguage(lang) ? lang : "plaintext";
+    return `<pre><code class="hljs language-${language}">${
+      hljs.highlight(code, { language }).value
+    }</code></pre>`;
+  },
+};
+
+marked.use({ renderer });
 
 marked.setOptions({
   breaks: true,
@@ -544,42 +860,144 @@ watch(
           }
         }, 50); // 减少延迟，更快响应
       }
-      enhanceRenderedContent();
     });
   },
   { deep: true }
 );
 
 const renderMarkdown = (content) => {
-  return marked.parse(content || "");
+  if (!content) return "";
+  // 预处理 LaTeX 分隔符，兼容 \[ \] 和 \( \)
+  // 确保 block 公式 $$ 独占一行
+  let preprocessed = content
+    .replace(/\\\[([\s\S]*?)\\\]/g, (_, match) => `\n$$\n${match}\n$$\n`)
+    .replace(/\\\(([\s\S]*?)\\\)/g, (_, match) => `$${match}$`);
+
+  // 尝试修复常见的 LaTeX 格式问题
+  // 1. 修复 \begin{equation} 没有包裹在 $$ 中的情况
+  preprocessed = preprocessed.replace(
+    /(?<!\$)\n\\begin\{([a-z]+)\}([\s\S]*?)\\end\{\1\}(?!\$)/g,
+    "\n$$\n\\begin{$1}$2\\end{$1}\n$$\n"
+  );
+
+  // 2. 修复缺失开头 $ 的常见物理/数学公式 (针对 \mu_0 I$ 等情况)
+  // 匹配模式：非$字符 + (\命令 + 可选下标 + 可选空格 + 可选变量) + $
+  preprocessed = preprocessed.replace(
+    /(^|[^\$])(\\[a-zA-Z]+(?:_[a-zA-Z0-9]+)?(?:\s+[a-zA-Z](?:_[a-zA-Z0-9]+)?)?)\$/g,
+    "$1$$$2$$"
+  );
+
+  // 3. 修复缺失结尾 $ 的情况 (针对 $\varepsilon_0 后直接跟中文的情况)
+  preprocessed = preprocessed.replace(
+    /\$(\\[a-zA-Z]+(?:_[a-zA-Z0-9]+)?)(?=\s*[\u4e00-\u9fa5]|，|。|；)/g,
+    "$$$1$$"
+  );
+
+  // 4. 自动包裹独立的 LaTeX 公式块 (针对 \oiint, \begin{equation} 等未包裹的情况)
+  // 匹配行首的常见数学命令
+  preprocessed = preprocessed.replace(
+    /(^|\n)(\s*\\(oiint|iint|int|frac|sum|prod|lim|begin|mathbf|mathcal|partial)[\s\S]+?)(\n|$)/g,
+    (match, p1, p2, p3, p4) => {
+      // 如果已经包含 $ 或 $$，则不处理
+      if (p2.includes("$")) return match;
+      return `${p1}$$\n${p2.trim()}\n$$${p4}`;
+    }
+  );
+
+  return marked.parse(preprocessed);
 };
+
+const copiedMessageId = ref(null);
+const editingMessageId = ref(null);
+const editingContent = ref("");
+const isSavingEdit = ref(false); // 防止重复提交
 
 const copyMessage = async (message) => {
   try {
     const text = message?.content || "";
     if (!text) return;
     await navigator.clipboard.writeText(text);
+
+    // 显示复制成功状态
+    copiedMessageId.value = message.id;
+    setTimeout(() => {
+      if (copiedMessageId.value === message.id) {
+        copiedMessageId.value = null;
+      }
+    }, 2000);
   } catch (_) {}
 };
 
 const editMessage = (message) => {
   // 编辑用户消息：将消息内容填充到输入框
   if (message?.role !== "user") return;
-  // 设置 contenteditable div 的内容
+  editingMessageId.value = message.id;
+  editingContent.value = message.content;
+
+  // 自动调整高度
   nextTick(() => {
-    const editor = messageInput.value;
-    if (editor) {
-      editor.textContent = message.content || "";
-      editor.focus();
-      // 将光标移到末尾
-      const range = document.createRange();
-      const sel = window.getSelection();
-      range.selectNodeContents(editor);
-      range.collapse(false);
-      sel.removeAllRanges();
-      sel.addRange(range);
+    const textarea = document.getElementById(`edit-textarea-${message.id}`);
+    if (textarea) {
+      textarea.style.height = "auto";
+      textarea.style.height = textarea.scrollHeight + "px";
+      textarea.focus();
     }
   });
+};
+
+const cancelEdit = () => {
+  editingMessageId.value = null;
+  editingContent.value = "";
+};
+
+const saveEdit = async (message) => {
+  if (isSavingEdit.value) return;
+
+  const newContent = editingContent.value.trim();
+  if (!newContent || newContent === message.content) {
+    cancelEdit();
+    return;
+  }
+
+  isSavingEdit.value = true;
+  try {
+    // 找到当前消息的索引
+    const index = messages.value.findIndex((m) => m.id === message.id);
+    if (index !== -1) {
+      // 如果是已保存的消息（非临时ID），调用后端删除该消息及其后续消息
+      if (message.id && !String(message.id).startsWith("temp-")) {
+        await chatStore.deleteMessageApi(message.id);
+      }
+
+      // 1. 更新当前消息内容
+      messages.value[index].content = newContent;
+      // 标记为临时ID，等待发送成功后更新为新ID
+      messages.value[index].id = `temp-edit-${Date.now()}`;
+
+      // 2. 删除当前消息之后的所有消息（通常是 AI 的回复）
+      // 注意：splice 会修改原数组
+      if (index < messages.value.length - 1) {
+        messages.value.splice(index + 1);
+      }
+
+      // 3. 退出编辑模式
+      cancelEdit();
+
+      // 4. 重新发送请求
+      // 注意：chatStore.sendMessage 不会重复添加用户消息，只会触发 AI 回复
+      await chatStore.sendMessage(newContent, null, router);
+    }
+  } catch (e) {
+    console.error("Save edit failed:", e);
+  } finally {
+    isSavingEdit.value = false;
+  }
+};
+
+const autoResizeTextarea = (e) => {
+  const target = e.target;
+  target.style.height = "auto";
+  target.style.height = target.scrollHeight + "px";
 };
 
 const isSpeaking = (messageId) => {
@@ -641,17 +1059,50 @@ const regenerateMessage = async (message) => {
   // 这里先简单触发一次基于同一 prompt 的发送
   try {
     if (message?.role !== "assistant") return;
-    const lastUser = [...messages.value]
-      .reverse()
-      .find((m) => m.role === "user");
-    if (!lastUser?.content) return;
-    await chatStore.sendMessage(lastUser.content, null, router);
-  } catch (_) {}
+
+    // 找到上一条用户消息
+    const index = messages.value.findIndex((m) => m.id === message.id);
+    if (index === -1) return;
+
+    let lastUserContent = null;
+    // 向前查找最近的用户消息
+    for (let i = index - 1; i >= 0; i--) {
+      if (messages.value[i].role === "user") {
+        lastUserContent = messages.value[i].content;
+        break;
+      }
+    }
+
+    if (!lastUserContent) return;
+
+    // 删除当前 AI 回复
+    chatStore.deleteMessage(message.id);
+
+    // 重新发送
+    await chatStore.sendMessage(lastUserContent, null, router);
+  } catch (e) {
+    console.error("Regenerate failed:", e);
+  }
 };
 
-const moreActions = (message) => {
-  // 预留更多操作，如反馈、删除、引用、分享
-  console.debug("更多操作", message?.id);
+const shareMessage = async (message) => {
+  if (!message?.content) return;
+
+  // 使用当前会话的分享链接
+  const sessionId = route.params.sessionId;
+  if (sessionId) {
+    shareDialogTitle.value = sessionInfo.value?.title || "分享对话";
+    shareDialogUrl.value = `${window.location.origin}/share/${sessionId}`;
+    showShareDialog.value = true;
+  } else {
+    // 如果没有会话ID（例如新对话未保存），回退到复制文本
+    try {
+      await navigator.clipboard.writeText(message.content);
+      alert("内容已复制到剪贴板");
+    } catch (e) {
+      console.error("Copy failed:", e);
+    }
+  }
 };
 
 const formatImagePath = (path) => {
@@ -686,6 +1137,11 @@ const onScroll = () => {
   // 检查是否接近底部
   const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 140;
   showScrollToBottom.value = !nearBottom;
+
+  // 滚动时隐藏引用按钮，避免位置错乱
+  if (showQuoteBtn.value) {
+    showQuoteBtn.value = false;
+  }
 };
 
 const scrollToBottomSmooth = () => {
@@ -695,6 +1151,8 @@ const scrollToBottomSmooth = () => {
 const openImage = (src) => {
   if (!src) return;
   imagePreviewUrl.value = src;
+  imageScale.value = 1;
+  imageTranslate.value = { x: 0, y: 0 };
   try {
     document.body.style.overflow = "hidden";
   } catch (_) {}
@@ -705,6 +1163,44 @@ const closeImagePreview = () => {
   try {
     document.body.style.overflow = "";
   } catch (_) {}
+};
+
+const handleZoom = (e) => {
+  const delta = e.deltaY > 0 ? -0.1 : 0.1;
+  const newScale = Math.max(0.1, Math.min(5, imageScale.value + delta));
+  imageScale.value = parseFloat(newScale.toFixed(2));
+};
+
+const zoomIn = () => {
+  const newScale = Math.min(5, imageScale.value + 0.2);
+  imageScale.value = parseFloat(newScale.toFixed(2));
+};
+
+const zoomOut = () => {
+  const newScale = Math.max(0.1, imageScale.value - 0.2);
+  imageScale.value = parseFloat(newScale.toFixed(2));
+};
+
+const startDrag = (e) => {
+  e.preventDefault();
+  isDragging.value = true;
+  dragStart.value = {
+    x: e.clientX - imageTranslate.value.x,
+    y: e.clientY - imageTranslate.value.y,
+  };
+};
+
+const onDrag = (e) => {
+  if (!isDragging.value) return;
+  e.preventDefault();
+  imageTranslate.value = {
+    x: e.clientX - dragStart.value.x,
+    y: e.clientY - dragStart.value.y,
+  };
+};
+
+const stopDrag = () => {
+  isDragging.value = false;
 };
 
 // 委托点击 Markdown 图片放大预览
@@ -719,6 +1215,129 @@ const onChatClick = (e) => {
     const src = target.currentSrc || target.src;
     openImage(src);
   }
+};
+
+// 引用功能
+const applyQuote = () => {
+  if (!tempSelectedText.value) return;
+
+  // 每次引用只保留最后一次的内容，覆盖之前的引用
+  quoteText.value = tempSelectedText.value;
+
+  showQuoteBtn.value = false;
+  tempSelectedText.value = ""; // 清除临时选中
+
+  // 清除选区，避免视觉干扰
+  const sel = window.getSelection();
+  if (sel) sel.removeAllRanges();
+};
+
+const clearQuote = () => {
+  quoteText.value = "";
+};
+
+// 监听文本选择
+const handleSelection = () => {
+  const selection = window.getSelection();
+
+  // 基础检查：是否有选区，是否折叠（光标状态）
+  if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
+    showQuoteBtn.value = false;
+    return;
+  }
+
+  const text = selection.toString().trim();
+
+  // 检查是否有文本内容，且长度至少为3
+  if (!text || text.length < 3) {
+    showQuoteBtn.value = false;
+    return;
+  }
+
+  // 检查选区是否在聊天容器内
+  // 只要起点或终点在容器内即可
+  const isInside =
+    chatContainer.value &&
+    (chatContainer.value.contains(selection.anchorNode) ||
+      chatContainer.value.contains(selection.focusNode));
+
+  if (isInside) {
+    const range = selection.getRangeAt(0);
+    const rect = range.getBoundingClientRect();
+
+    tempSelectedText.value = text;
+
+    // 计算位置，优先显示在上方，如果空间不足则显示在下方
+    const viewportHeight = window.innerHeight;
+    const topSpace = rect.top;
+
+    let top;
+    if (topSpace > 60) {
+      top = rect.top - 45; // 上方
+    } else {
+      top = rect.bottom + 10; // 下方
+    }
+
+    // 水平居中，但防止溢出屏幕
+    let left = rect.left + rect.width / 2 - 40;
+    if (left < 10) left = 10;
+    if (left + 80 > window.innerWidth) left = window.innerWidth - 90;
+
+    quoteBtnPos.value = { top, left };
+    showQuoteBtn.value = true;
+  } else {
+    showQuoteBtn.value = false;
+  }
+};
+
+// 在 onMounted 中添加 selectionchange 监听
+// 注意：selectionchange 是 document 级别的事件
+
+// 反馈相关逻辑
+const toggleTag = (tag) => {
+  if (selectedTags.value.includes(tag)) {
+    selectedTags.value = selectedTags.value.filter((t) => t !== tag);
+  } else {
+    selectedTags.value.push(tag);
+  }
+};
+
+const openMoreFeedback = () => {
+  showMoreFeedbackDialog.value = true;
+};
+
+const closeFeedbackDialog = () => {
+  showFeedbackDialog.value = false;
+  selectedTags.value = [];
+  currentFeedbackMessageId.value = null;
+};
+
+const closeMoreFeedbackDialog = () => {
+  showMoreFeedbackDialog.value = false;
+  customFeedbackText.value = "";
+};
+
+const submitBadFeedback = async () => {
+  if (!currentFeedbackMessageId.value) return;
+
+  try {
+    await chatStore.submitFeedback(currentFeedbackMessageId.value, "down", {
+      tags: selectedTags.value,
+      comment: customFeedbackText.value,
+    });
+
+    // 更新本地状态
+    feedbackState.value.set(currentFeedbackMessageId.value, "down");
+
+    closeFeedbackDialog();
+    closeMoreFeedbackDialog();
+  } catch (e) {
+    console.error("Feedback failed:", e);
+  }
+};
+
+const submitCustomFeedback = async () => {
+  await submitBadFeedback();
 };
 
 // 为代码块添加复制按钮等增强，避免重复添加
@@ -800,13 +1419,26 @@ const handleEnter = (e) => {
 };
 
 const sendMessage = async () => {
-  const content = messageInput.value?.innerText?.trim();
+  let content = messageInput.value?.innerText?.trim();
+
+  // 如果有引用内容，拼接到消息头部
+  if (quoteText.value) {
+    // 确保每一行都被引用
+    const quote =
+      quoteText.value
+        .split("\n")
+        .map((line) => `> ${line}`)
+        .join("\n") + "\n\n";
+    content = quote + (content || "");
+  }
+
   if (!content || isTyping.value) return;
 
-  // 立即清空输入框
+  // 立即清空输入框和引用
   messageInput.value.innerText = "";
   messageInput.value.innerHTML = "";
   inputContent.value = "";
+  quoteText.value = ""; // 清空引用
 
   // 立即添加用户消息到界面末尾（保持对话顺序）
   messages.value.push({
@@ -881,36 +1513,77 @@ const canSend = computed(() => {
 onMounted(() => {
   // 移除自动滚动，让浏览器保持用户的滚动位置
   currentGreeting.value = selectRandomGreeting();
-  nextTick(enhanceRenderedContent);
+
   if (chatContainer.value) {
     chatContainer.value.addEventListener("click", onChatClick);
     chatContainer.value.addEventListener("scroll", onScroll, { passive: true });
+
+    // 使用 MutationObserver 监听 DOM 变化，自动添加代码块头部
+    observer.value = new MutationObserver(() => {
+      enhanceRenderedContent();
+    });
+    observer.value.observe(chatContainer.value, {
+      childList: true,
+      subtree: true,
+    });
   }
+
+  // 初始执行一次
+  nextTick(enhanceRenderedContent);
+
+  document.addEventListener("selectionchange", handleSelection);
 });
 
 onBeforeUnmount(() => {
   // 停止朗读
   stopSpeech();
 
+  if (observer.value) {
+    observer.value.disconnect();
+  }
+
   if (chatContainer.value) {
     chatContainer.value.removeEventListener("click", onChatClick);
     chatContainer.value.removeEventListener("scroll", onScroll);
   }
+  document.removeEventListener("selectionchange", handleSelection);
 });
 
 const feedbackMessage = async (message, type) => {
   try {
     const id = message?.id;
     if (!id) return;
-    const current = feedbackState.value.get(id);
-    if (current === type) {
-      feedbackState.value.delete(id); // 取消当前选择
-    } else {
-      feedbackState.value.set(id, type);
+
+    // 如果是点赞 (up)
+    if (type === "up") {
+      // 如果已经是 up，则取消
+      if (feedbackState.value.get(id) === "up") {
+        feedbackState.value.delete(id);
+        // TODO: 发送取消反馈请求
+      } else {
+        // 如果是 down，先清除 down
+        feedbackState.value.set(id, "up");
+        await chatStore.submitFeedback(id, "up");
+      }
     }
-    // TODO: 可在此调用后端反馈接口
-    console.debug("反馈", type, id);
-  } catch (_) {}
+    // 如果是点踩 (down)
+    else if (type === "down") {
+      // 如果已经是 down，则取消
+      if (feedbackState.value.get(id) === "down") {
+        feedbackState.value.delete(id);
+        // TODO: 发送取消反馈请求
+      } else {
+        // 打开反馈弹窗
+        currentFeedbackMessageId.value = id;
+        showFeedbackDialog.value = true;
+        // 暂时不立即设置状态，等提交后再设置
+        // 或者先设置为 down，如果取消弹窗再撤销？
+        // 这里选择：先不设置，提交后设置
+      }
+    }
+  } catch (e) {
+    console.error("Feedback error:", e);
+  }
 };
 </script>
 
@@ -1036,10 +1709,18 @@ const feedbackMessage = async (message, type) => {
   overflow-wrap: break-word;
   hyphens: auto;
 }
+[data-theme="light"] .user-bubble {
+  background: #f3f4f6;
+  color: #1f2937;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
 .user-bubble :deep(p) {
   margin: 0 0 0.5em 0;
   line-height: 1.6;
   color: #ececec;
+}
+[data-theme="light"] .user-bubble :deep(p) {
+  color: #1f2937;
 }
 .user-bubble :deep(p:last-child) {
   margin-bottom: 0;
@@ -1334,13 +2015,24 @@ const feedbackMessage = async (message, type) => {
 .message.user .toolbar-icon {
   color: rgba(255, 255, 255, 0.5);
 }
+[data-theme="light"] .message.user .toolbar-icon {
+  color: var(--text-tertiary);
+}
 .message.user .toolbar-icon:hover {
   background: rgba(255, 255, 255, 0.15);
   color: rgba(255, 255, 255, 0.9);
 }
+[data-theme="light"] .message.user .toolbar-icon:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
 .message.user .toolbar-icon.active {
   background: rgba(255, 255, 255, 0.2);
   color: #fff;
+}
+[data-theme="light"] .message.user .toolbar-icon.active {
+  background: var(--bg-active);
+  color: var(--text-primary);
 }
 .input-container {
   padding: 12px 16px 16px;
@@ -1361,6 +2053,7 @@ const feedbackMessage = async (message, type) => {
   transition: all 0.2s ease;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
   min-height: 50px;
+  position: relative;
 }
 .input-wrapper:focus-within {
   border-color: var(--text-tertiary);
@@ -1369,7 +2062,7 @@ const feedbackMessage = async (message, type) => {
 .input-controls {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 4px;
   width: 100%;
 }
 .message-editor {
@@ -1377,7 +2070,7 @@ const feedbackMessage = async (message, type) => {
   max-height: 200px;
   overflow-y: auto;
   outline: none;
-  padding: 9px 10px;
+  padding: 9px 4px;
   color: var(--text-primary);
   font-size: 15px;
   line-height: 1.5;
@@ -1471,8 +2164,8 @@ const feedbackMessage = async (message, type) => {
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 0 8px rgba(255, 255, 255, 0.6);
+  background: var(--text-primary);
+  box-shadow: 0 0 8px var(--text-primary);
   animation: thinkingPulse 1s ease-in-out infinite;
 }
 @keyframes thinkingPulse {
@@ -1585,5 +2278,357 @@ const feedbackMessage = async (message, type) => {
   .input-wrapper {
     max-width: 98vw;
   }
+}
+
+/* 编辑模式样式 */
+.edit-mode-container {
+  width: 100%;
+  max-width: 68%;
+  background: var(--bg-secondary);
+  border: 1px solid var(--brand-primary);
+  border-radius: 12px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.edit-textarea {
+  width: 100%;
+  min-height: 60px;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  font-size: 16px;
+  line-height: 1.6;
+  resize: none;
+  outline: none;
+  font-family: inherit;
+}
+
+.edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.btn-edit-action {
+  padding: 4px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.2s;
+}
+
+.btn-edit-action.cancel {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+}
+
+.btn-edit-action.cancel:hover {
+  background: var(--bg-hover);
+}
+
+.btn-edit-action.save {
+  background: var(--brand-primary);
+  color: #fff;
+}
+
+.btn-edit-action.save:hover {
+  opacity: 0.9;
+}
+
+/* 复制成功图标颜色 */
+.text-success {
+  color: #3fb950;
+}
+
+/* 图片预览控制栏 */
+.preview-controls {
+  position: absolute;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(10px);
+  padding: 8px 16px;
+  border-radius: 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  z-index: 2001;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.control-btn {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.8);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.control-btn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.zoom-level {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  min-width: 40px;
+  text-align: center;
+}
+
+.divider {
+  width: 1px;
+  height: 16px;
+  background: rgba(255, 255, 255, 0.2);
+  margin: 0 4px;
+}
+
+/* 引用浮动按钮 */
+.quote-float-btn {
+  position: fixed;
+  z-index: 2147483647 !important;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-medium);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  padding: 6px 12px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--text-primary);
+  transition: all 0.2s;
+  animation: fadeIn 0.2s ease;
+  backdrop-filter: blur(4px); /* 增加毛玻璃效果 */
+}
+
+.quote-float-btn:hover {
+  background: var(--bg-hover);
+  transform: translateY(-2px);
+}
+
+/* 引用预览条 */
+.quote-preview-bar {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  right: 0;
+  margin-bottom: 8px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-medium);
+  border-radius: 12px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  z-index: 10;
+  height: 44px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.quote-content {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  overflow: hidden;
+}
+
+.quote-icon {
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+
+.quote-text {
+  font-size: 13px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.5;
+}
+
+.close-quote-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+}
+
+.close-quote-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+/* 反馈弹窗样式 */
+.feedback-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  backdrop-filter: blur(2px);
+}
+
+.feedback-modal {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-medium);
+  border-radius: 12px;
+  padding: 20px;
+  width: 90%;
+  max-width: 400px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+  animation: modalIn 0.2s ease-out;
+}
+
+.feedback-modal.large {
+  max-width: 500px;
+}
+
+@keyframes modalIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.feedback-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.feedback-header h3 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.close-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+}
+
+.close-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.feedback-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.feedback-tag {
+  background: var(--bg-tertiary);
+  border: 1px solid transparent;
+  color: var(--text-secondary);
+  padding: 6px 12px;
+  border-radius: 16px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.feedback-tag:hover {
+  background: var(--bg-hover);
+}
+
+.feedback-tag.selected {
+  background: var(--brand-primary-bg, rgba(59, 130, 246, 0.1));
+  border-color: var(--brand-primary);
+  color: var(--brand-primary);
+}
+
+.feedback-tag.more {
+  background: transparent;
+  border: 1px dashed var(--border-medium);
+}
+
+.feedback-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.btn-submit {
+  background: var(--brand-primary);
+  color: #fff;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.btn-submit:hover {
+  opacity: 0.9;
+}
+
+.feedback-textarea {
+  width: 100%;
+  height: 120px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-medium);
+  border-radius: 8px;
+  padding: 12px;
+  color: var(--text-primary);
+  font-size: 14px;
+  resize: none;
+  margin-bottom: 16px;
+  outline: none;
+}
+
+.feedback-textarea:focus {
+  border-color: var(--brand-primary);
+}
+
+.feedback-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.btn-cancel {
+  background: transparent;
+  border: 1px solid var(--border-medium);
+  color: var(--text-secondary);
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.btn-cancel:hover {
+  background: var(--bg-hover);
 }
 </style>
