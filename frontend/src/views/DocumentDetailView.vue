@@ -20,16 +20,21 @@ const route = useRoute();
 const document = ref(null);
 const loading = ref(false);
 
+// ...existing code...
 onMounted(async () => {
   try {
     loading.value = true;
-    document.value = await api.getDocument(route.params.id);
+    const data = await api.getDocument(route.params.id);
+    if (data.success && data.document) {
+      document.value = data.document;
+    }
   } catch (error) {
     console.error("Failed to load document:", error);
   } finally {
     loading.value = false;
   }
 });
+// ...existing code...
 </script>
 
 <style scoped>

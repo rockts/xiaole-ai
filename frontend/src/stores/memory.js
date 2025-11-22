@@ -19,10 +19,11 @@ export const useMemoryStore = defineStore('memory', () => {
         }
     }
 
-    const loadRecentMemories = async (hours = 720, limit = 100) => {
+    // ...existing code...
+    const loadRecentMemories = async (hours = 720, limit = 100, tag = null) => {
         try {
             memoriesLoading.value = true
-            const data = await api.getRecentMemories(hours, limit)
+            const data = await api.getRecentMemories(hours, limit, tag)
             console.log('[Memory Store] loadRecentMemories response:', data)
             // 后端返回 memory 字段
             memories.value = data.memory || []
@@ -71,6 +72,22 @@ export const useMemoryStore = defineStore('memory', () => {
         }
     }
 
+    const updateMemory = async (memoryId, content, tag) => {
+        try {
+            await api.updateMemory(memoryId, { content, tag })
+            const memory = memories.value.find(m => m.id === memoryId)
+            if (memory) {
+                memory.content = content
+                memory.tag = tag
+            }
+            await loadStats()
+            return true
+        } catch (error) {
+            console.error('Failed to update memory:', error)
+            return false
+        }
+    }
+
     return {
         stats,
         memories,
@@ -80,6 +97,7 @@ export const useMemoryStore = defineStore('memory', () => {
         loadRecentMemories,
         searchMemories,
         semanticSearch,
-        deleteMemory
+        deleteMemory,
+        updateMemory
     }
 })

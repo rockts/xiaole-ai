@@ -37,7 +37,12 @@
                 P{{ reminder.priority }}
               </span>
             </div>
-            <div class="reminder-content">{{ reminder.content }}</div>
+            <div
+              class="reminder-content"
+              v-if="reminder.content && reminder.content !== reminder.title"
+            >
+              {{ reminder.content }}
+            </div>
             <div class="reminder-condition">
               <span class="icon">⏰</span>
               {{ formatCondition(reminder) }}
@@ -285,7 +290,11 @@ onMounted(() => {
 
   // 监听 WebSocket 消消息，自动刷新列表
   wsUnsubscribe = on((data) => {
-    if (data.type === "reminder_created" || data.type === "reminder_updated") {
+    if (
+      data.type === "reminder_created" ||
+      data.type === "reminder_updated" ||
+      data.type === "reminder_deleted"
+    ) {
       loadReminders();
     }
   });

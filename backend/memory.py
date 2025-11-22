@@ -42,6 +42,10 @@ class MemoryManager:
         else:
             self.semantic_search = None
 
+        # 兼容性：为 agent.py 提供 session 属性
+        # 注意：这会创建一个持久的 session，请确保正确管理
+        self.session = Session()
+
     def remember(self, content, tag="general", initial_importance=0.5):
         """
         Store memory with importance score.

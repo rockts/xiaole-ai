@@ -19,7 +19,13 @@
       <div v-if="topTags.length" class="tags-section">
         <div class="section-title">标签分布</div>
         <div class="tags-grid">
-          <div class="tag-item" v-for="t in topTags" :key="t.key">
+          <div
+            class="tag-item"
+            v-for="t in topTags"
+            :key="t.key"
+            :class="{ active: activeTag === t.key }"
+            @click="filterByTag(t.key)"
+          >
             <span class="tag-label">{{ t.label }}</span>
             <span class="tag-count">{{ t.value }}</span>
           </div>
@@ -116,6 +122,42 @@
           <div class="memory-actions">
             <button
               class="btn-icon"
+              @click="copyContent(memory.content)"
+              title="复制"
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path
+                  d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
+                ></path>
+              </svg>
+            </button>
+            <button class="btn-icon" @click="startEdit(memory)" title="编辑">
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path
+                  d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"
+                ></path>
+                <path
+                  d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"
+                ></path>
+              </svg>
+            </button>
+            <button
+              class="btn-icon"
               @click="deleteMemory(memory.id)"
               title="删除"
             >
@@ -137,6 +179,29 @@
         </div>
       </div>
     </div>
+
+    <!-- 编辑弹窗 -->
+    <div v-if="editingMemory" class="modal-overlay" @click="cancelEdit">
+      <div class="edit-dialog" @click.stop>
+        <h3 class="dialog-title">编辑记忆</h3>
+        <div class="form-group">
+          <label>内容</label>
+          <textarea
+            v-model="editContent"
+            rows="5"
+            class="form-input"
+          ></textarea>
+        </div>
+        <div class="form-group">
+          <label>标签</label>
+          <input v-model="editTag" type="text" class="form-input" />
+        </div>
+        <div class="dialog-actions">
+          <button class="btn-cancel" @click="cancelEdit">取消</button>
+          <button class="btn-save" @click="saveEdit">保存</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -149,6 +214,11 @@ const memoryStore = useMemoryStore();
 const { stats, memories, loading, memoriesLoading } = storeToRefs(memoryStore);
 
 const searchQuery = ref("");
+const activeTag = ref(null);
+const editingMemory = ref(null);
+const editContent = ref("");
+const editTag = ref("");
+
 // 统一使用绝对时间显示，移除相对时间开关
 const labelMap = {
   total: "总记忆数",
@@ -310,23 +380,79 @@ const formatTime = (ts) => {
 };
 
 const handleSearch = () => {
+  activeTag.value = null;
   if (searchQuery.value.trim()) {
     memoryStore.searchMemories(searchQuery.value);
   }
 };
 
 const handleSemanticSearch = () => {
+  activeTag.value = null;
   if (searchQuery.value.trim()) {
     memoryStore.semanticSearch(searchQuery.value);
   }
 };
 
 const loadAllMemories = async () => {
+  activeTag.value = null;
   // 加载更长时间范围，避免列表为空（近10年，最多200条）
   searchQuery.value = "";
   await memoryStore.loadRecentMemories(24 * 365 * 10, 200);
   // 同时刷新统计，保持一致
   await memoryStore.loadStats();
+};
+
+const filterByTag = async (tag) => {
+  // 如果点击的是 friendly label，需要找到对应的原始 key 前缀
+  // 这里简化处理，直接传 label，后端支持模糊匹配 tag
+  // 或者我们可以反向查找？
+  // 实际上 topTags 里的 key 就是原始 key (如 conversation:default) 或者聚合后的 key (如 conversation)
+  // 我们传递 key 给后端
+
+  if (activeTag.value === tag) {
+    activeTag.value = null;
+    await loadAllMemories();
+  } else {
+    activeTag.value = tag;
+    searchQuery.value = "";
+    // 传递 tag 给 loadRecentMemories
+    await memoryStore.loadRecentMemories(24 * 365 * 10, 200, tag);
+  }
+};
+
+const startEdit = (memory) => {
+  editingMemory.value = memory;
+  editContent.value = memory.content;
+  editTag.value = memory.tag;
+};
+
+const cancelEdit = () => {
+  editingMemory.value = null;
+  editContent.value = "";
+  editTag.value = "";
+};
+
+const saveEdit = async () => {
+  if (!editingMemory.value) return;
+
+  const success = await memoryStore.updateMemory(
+    editingMemory.value.id,
+    editContent.value,
+    editTag.value
+  );
+
+  if (success) {
+    cancelEdit();
+  } else {
+    alert("更新失败，请重试");
+  }
+};
+
+const copyContent = (text) => {
+  navigator.clipboard.writeText(text).then(() => {
+    // 可以添加一个简单的提示，这里简化处理
+    console.log("已复制");
+  });
 };
 
 const deleteMemory = async (id) => {
@@ -445,15 +571,22 @@ onMounted(() => {
   background: var(--bg-secondary);
   border-radius: var(--radius-md);
   font-size: 13px;
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out);
 }
 
-.tag-label {
-  color: var(--text-primary);
+.tag-item:hover {
+  background: var(--bg-hover);
 }
 
-.tag-count {
-  color: var(--text-tertiary);
-  font-weight: 500;
+.tag-item.active {
+  background: var(--brand-primary);
+  color: var(--text-inverse);
+}
+
+.tag-item.active .tag-label,
+.tag-item.active .tag-count {
+  color: var(--text-inverse);
 }
 
 /* 搜索区域 */
@@ -689,5 +822,121 @@ onMounted(() => {
     var(--bg-secondary) 100%
   );
   background-size: 200% 100%;
+}
+
+/* 编辑弹窗 */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.edit-dialog {
+  background: var(--bg-primary);
+  border-radius: 16px;
+  padding: 24px;
+  width: 90%;
+  max-width: 500px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  animation: slideUp 0.2s ease-out;
+}
+
+.dialog-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 20px 0;
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.form-input {
+  width: 100%;
+  padding: 10px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.form-input:focus {
+  border-color: var(--brand-primary);
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.btn-cancel,
+.btn-save {
+  padding: 8px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-cancel {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.btn-cancel:hover {
+  background: var(--bg-hover);
+}
+
+.btn-save {
+  background: var(--brand-primary);
+  color: var(--text-inverse);
+}
+
+.btn-save:hover {
+  background: var(--brand-primary-hover);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 </style>

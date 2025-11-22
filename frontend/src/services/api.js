@@ -72,6 +72,10 @@ export default {
         return api.delete(`/api/chat/sessions/${sessionId}`)
     },
 
+    deleteMessage(messageId) {
+        return api.delete(`/api/messages/${messageId}`)
+    },
+
     sendMessage(data) {
         // 后端使用查询参数而不是 POST body
         const params = new URLSearchParams()
@@ -81,7 +85,11 @@ export default {
         if (data.response_style) params.append('response_style', data.response_style)
         if (data.image_path) params.append('image_path', data.image_path)
 
-        return api.post(`/chat?${params.toString()}`)
+        // 增加超时时间到 120 秒，并禁用自动重试
+        return api.post(`/chat?${params.toString()}`, null, {
+            timeout: 120000,
+            retryCount: MAX_RETRIES // 设置为最大重试次数，防止拦截器重试
+        })
     },
 
     uploadImage(formData) {
@@ -95,11 +103,12 @@ export default {
         return api.get('/memory/stats')
     },
 
-    getRecentMemories(hours = 24, limit = 20) {
-        return api.get('/memory/recent', { params: { hours, limit } })
+    getRecentMemories(hours = 24, limit = 20, tag = null) {
+        return api.get('/memory/recent', { params: { hours, limit, tag } })
     },
 
     searchMemories(keywords) {
+        // ...existing code...
         return api.get('/memory/search', { params: { keywords } })
     },
 
@@ -108,7 +117,11 @@ export default {
     },
 
     deleteMemory(memoryId) {
-        return api.delete(`/memory/${memoryId}`)
+        return api.delete(`/api/memory/${memoryId}`)
+    },
+
+    updateMemory(memoryId, data) {
+        return api.put(`/api/memory/${memoryId}`, data)
     },
 
     // 任务相关
@@ -147,6 +160,14 @@ export default {
 
     deleteReminder(reminderId) {
         return api.delete(`/api/reminders/${reminderId}`)
+    },
+
+    confirmReminder(reminderId) {
+        return api.post(`/api/reminders/${reminderId}/confirm`)
+    },
+
+    snoozeReminder(reminderId, minutes = 5) {
+        return api.post(`/api/reminders/${reminderId}/snooze`, null, { params: { minutes } })
     },
 
     // 文档相关
@@ -194,4 +215,16 @@ export default {
     getFeedbackStats() {
         return api.get('/api/feedback/stats')
     },
+
+    // 语音合成
+    synthesizeVoice(text) {
+        return api.post('/api/voice/synthesize', {
+            text,
+            person: 0, // 默认度小美
+            speed: 5,
+            pitch: 5,
+            volume: 5,
+            audio_format: 'mp3'
+        })
+    }
 }

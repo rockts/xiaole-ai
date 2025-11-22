@@ -1,20 +1,42 @@
+// ...existing code...
 <template>
   <div class="schedule-view">
     <div class="card">
       <h3>📅 课程表管理</h3>
       <div class="schedule-content">
         <div v-if="loading" class="loading">加载中...</div>
-        <div v-else-if="!schedule || schedule.length === 0" class="empty">
+        <div v-else-if="!scheduleData || !scheduleData.weekdays" class="empty">
           <p>暂无课程安排</p>
           <button @click="addSchedule" class="btn-primary">添加课程</button>
         </div>
-        <div v-else class="schedule-grid">
-          <div v-for="item in schedule" :key="item.id" class="schedule-item">
-            <div class="schedule-day">{{ item.day }}</div>
-            <div class="schedule-time">{{ item.time }}</div>
-            <div class="schedule-course">{{ item.course }}</div>
-            <div class="schedule-location">{{ item.location }}</div>
-          </div>
+        <div v-else class="schedule-table-container">
+          <table class="schedule-table">
+            <thead>
+              <tr>
+                <th></th>
+                <th v-for="day in scheduleData.weekdays" :key="day">
+                  {{ day }}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="(period, pIndex) in scheduleData.periods"
+                :key="period"
+              >
+                <td class="period-cell">{{ period }}</td>
+                <td
+                  v-for="day in scheduleData.weekdays"
+                  :key="day"
+                  class="course-cell"
+                >
+                  <div class="course-content">
+                    {{ getCourse(day, pIndex) }}
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
@@ -25,19 +47,28 @@
 import { ref, onMounted } from "vue";
 import api from "@/services/api";
 
-const schedule = ref([]);
+const scheduleData = ref(null);
 const loading = ref(false);
 
 const loadSchedule = async () => {
   try {
     loading.value = true;
     const data = await api.getSchedule();
-    schedule.value = data.schedule || [];
+    if (data.success && data.schedule) {
+      scheduleData.value = data.schedule;
+    }
   } catch (error) {
     console.error("Failed to load schedule:", error);
   } finally {
     loading.value = false;
   }
+};
+
+const getCourse = (day, periodIndex) => {
+  if (!scheduleData.value || !scheduleData.value.courses) return "";
+  // Backend key format: "periodIndex_day" (e.g. "0_周一")
+  const key = `${periodIndex}_${day}`;
+  return scheduleData.value.courses[key] || "";
 };
 
 const addSchedule = () => {
@@ -62,6 +93,7 @@ onMounted(() => {
   border-radius: 12px;
   padding: 20px;
   box-shadow: 0 2px 8px var(--shadow-light);
+  overflow-x: auto;
 }
 
 .schedule-content {
@@ -85,38 +117,45 @@ onMounted(() => {
   margin-top: 16px;
 }
 
-.schedule-grid {
-  display: grid;
-  gap: 12px;
+.schedule-table-container {
+  overflow-x: auto;
 }
 
-.schedule-item {
-  padding: 16px;
-  background: var(--input-bg);
-  border-radius: 8px;
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  gap: 12px;
-  align-items: center;
+.schedule-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 600px;
 }
 
-.schedule-day {
+.schedule-table th,
+.schedule-table td {
+  border: 1px solid var(--border-light);
+  padding: 12px;
+  text-align: center;
+}
+
+.schedule-table th {
+  background: var(--bg-secondary);
   font-weight: 600;
-  color: #667eea;
+  color: var(--text-primary);
 }
 
-.schedule-time {
-  color: var(--text-secondary);
-  font-size: 14px;
-}
-
-.schedule-course {
+.period-cell {
+  background: var(--bg-secondary);
   font-weight: 500;
+  color: var(--text-secondary);
+  width: 80px;
 }
 
-.schedule-location {
-  color: var(--text-secondary);
+.course-cell {
+  background: var(--bg-primary);
+  height: 60px;
+}
+
+.course-content {
   font-size: 14px;
+  color: var(--text-primary);
+  font-weight: 500;
 }
 
 .loading {
@@ -125,3 +164,4 @@ onMounted(() => {
   color: var(--text-secondary);
 }
 </style>
+

@@ -85,7 +85,12 @@ class EnhancedToolSelector:
             '最新', '新闻', '资讯', '发布',
             'iphone 17', 'iphone17', '什么时候'
         ]
-        if any(kw in prompt_lower for kw in search_keywords):
+
+        # 排除天气相关的查询，让它们进入深度分析
+        weather_keywords = ['天气', '气温', '温度', '下雨', '下雪', '预报']
+        is_weather_query = any(kw in prompt_lower for kw in weather_keywords)
+
+        if any(kw in prompt_lower for kw in search_keywords) and not is_weather_query:
             matches.append(ToolCall(
                 tool_name='search',
                 parameters={'query': prompt},
@@ -93,15 +98,15 @@ class EnhancedToolSelector:
                 confidence=0.95
             ))
 
-        # 天气工具
-        weather_keywords = ['天气', '温度', '下雨', '下雪', '预报']
-        if any(kw in prompt_lower for kw in weather_keywords):
-            matches.append(ToolCall(
-                tool_name='weather',
-                parameters={'query_type': 'now'},
-                priority=80,
-                confidence=0.9
-            ))
+        # 天气工具 - 移除快速匹配，交给LLM处理以支持从记忆中提取城市
+        # weather_keywords = ['天气', '温度', '下雨', '下雪', '预报']
+        # if any(kw in prompt_lower for kw in weather_keywords):
+        #     matches.append(ToolCall(
+        #         tool_name='weather',
+        #         parameters={'query_type': 'now'},
+        #         priority=80,
+        #         confidence=0.9
+        #     ))
 
         # 文件工具
         file_keywords = ['文件', '读取', '写入', '保存', '打开']

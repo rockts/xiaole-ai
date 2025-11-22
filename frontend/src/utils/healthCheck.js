@@ -15,10 +15,10 @@ export const healthCheck = {
     if (checkInterval) return
 
     console.log('🔍 启动后端健康检查...')
-    
+
     // 立即检查一次
     this.check()
-    
+
     // 定期检查
     checkInterval = setInterval(() => {
       this.check()
@@ -47,7 +47,10 @@ export const healthCheck = {
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), 5000)
 
-      const response = await fetch('/', {
+      // 使用后端API路径而不是前端根路径
+      const apiBase = import.meta.env.VITE_API_BASE || ''
+      // 使用 /api/scheduler/status 作为健康检查端点，因为它被代理且返回JSON
+      const response = await fetch(`${apiBase}/api/scheduler/status`, {
         method: 'GET',
         signal: controller.signal
       })

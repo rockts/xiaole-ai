@@ -17,6 +17,10 @@ import requests
 from datetime import datetime
 import re
 import asyncio  # v0.4.0 用于同步执行异步工具调用
+import sys
+
+# 将项目根目录添加到 sys.path，以便导入 tools 模块
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 load_dotenv()
 
@@ -228,7 +232,7 @@ class XiaoLeAgent:
     )
     @handle_api_errors
     @log_execution
-    def _call_deepseek(self, system_prompt, user_prompt):
+    def _call_deepseek(self, system_prompt, user_prompt, max_tokens=512):
         """调用 DeepSeek API"""
         logger.info(f"调用 DeepSeek API - Prompt长度: {len(user_prompt)}")
 
@@ -244,7 +248,7 @@ class XiaoLeAgent:
                 {"role": "user", "content": user_prompt}
             ],
             "temperature": 0.5,
-            "max_tokens": 512,
+            "max_tokens": max_tokens,
             "stream": False
         }
 
@@ -268,13 +272,13 @@ class XiaoLeAgent:
     )
     @handle_api_errors
     @log_execution
-    def _call_claude(self, system_prompt, user_prompt):
+    def _call_claude(self, system_prompt, user_prompt, max_tokens=1024):
         """调用 Claude API"""
         logger.info(f"调用 Claude API - Prompt长度: {len(user_prompt)}")
 
         response = self.client.messages.create(
             model=self.model,
-            max_tokens=1024,
+            max_tokens=max_tokens,
             system=system_prompt,
             messages=[
                 {"role": "user", "content": user_prompt}
@@ -483,6 +487,9 @@ class XiaoLeAgent:
         # v0.4.0: 智能工具调用 - 先分析是否需要调用工具
         tool_result = None
 
+        # v0.8.0: 优先检查是否有等待中的任务需要恢复
+        task_result = self._check_and_resume_task(prompt, user_id, session_id)
+
         # v0.8.0: 任务关键词预检查 (优先级高于工具调用)
         task_keywords = [
             '创建任务', '添加任务', '新建任务',
@@ -490,6 +497,11 @@ class XiaoLeAgent:
             '帮我安排', '帮我计划', '帮我组织'
         ]
         skip_tool_check = any(keyword in prompt for keyword in task_keywords)
+
+        if task_result:
+            # 如果成功恢复任务，跳过工具调用
+            skip_tool_check = True
+            tool_result = None
 
         if not skip_tool_check:
             try:
@@ -525,56 +537,88 @@ class XiaoLeAgent:
                     logger.warning(f"旧工具调用也失败: {e2}")
 
         # v0.8.0: 任务识别和执行
-        task_result = None
-        try:
-            # 识别是否为复杂任务
-            task_check = self.identify_complex_task(prompt, user_id)
-            if task_check.get('is_task', False):
-                confidence = task_check.get('confidence', 0)
-                if confidence >= 0.7:
-                    logger.info(
-                        f"识别到复杂任务(置信度:{confidence}): "
-                        f"{task_check.get('title')}"
-                    )
-
-                    # 拆解任务
-                    decompose_result = self.decompose_task(
-                        task_title=task_check['title'],
-                        task_description=task_check.get('description', ''),
-                        user_id=user_id
-                    )
-
-                    if decompose_result.get('success'):
-                        # 创建任务
-                        task_id = self.task_manager.create_task(
-                            user_id=user_id,
-                            session_id=session_id,
-                            title=task_check['title'],
-                            description=task_check.get('description', ''),
-                            priority=decompose_result.get('priority', 0)
+        if not task_result:
+            try:
+                # 识别是否为复杂任务
+                task_check = self.identify_complex_task(prompt, user_id)
+                if task_check.get('is_task', False):
+                    confidence = task_check.get('confidence', 0)
+                    if confidence >= 0.7:
+                        # 检查最近是否有相同任务（防止重复创建）
+                        recent_tasks = self.task_manager.get_tasks_by_user(
+                            user_id, limit=5
                         )
+                        is_duplicate = False
+                        for t in recent_tasks:
+                            # 检查1分钟内创建的同名任务
+                            # 注意：created_at可能是字符串或datetime
+                            created_at = t['created_at']
+                            if isinstance(created_at, str):
+                                try:
+                                    created_at = datetime.fromisoformat(
+                                        created_at
+                                    )
+                                except ValueError:
+                                    continue
 
-                        if task_id:
-                            # 创建步骤
-                            for step in decompose_result.get('steps', []):
-                                self.task_manager.create_step(
-                                    task_id=task_id,
-                                    step_num=step.get('step_num', 0),
-                                    description=step.get('description', ''),
-                                    action_type=step.get('action_type'),
-                                    action_params=step.get('action_params')
-                                )
+                            # 简单的去重逻辑
+                            if (t['title'] == task_check['title'] and
+                                    (datetime.now() - created_at).total_seconds() < 60):
+                                is_duplicate = True
+                                break
 
-                            # 执行任务
-                            task_result = self.task_executor.execute_task(
-                                task_id=task_id,
-                                user_id=user_id,
-                                session_id=session_id
+                        if is_duplicate:
+                            logger.info(f"跳过重复任务创建: {task_check['title']}")
+                            task_result = {
+                                'success': False,
+                                'error': '任务已存在，请勿重复创建'
+                            }
+                        else:
+                            logger.info(
+                                f"识别到复杂任务(置信度:{confidence}): "
+                                f"{task_check.get('title')}"
                             )
 
-                            logger.info(f"任务执行结果: {task_result}")
-        except Exception as e:
-            logger.warning(f"任务处理失败: {e}", exc_info=True)
+                            # 拆解任务
+                            decompose_result = self.decompose_task(
+                                task_title=task_check['title'],
+                                task_description=task_check.get(
+                                    'description', ''),
+                                user_id=user_id
+                            )
+
+                        if decompose_result.get('success'):
+                            # 创建任务
+                            task_id = self.task_manager.create_task(
+                                user_id=user_id,
+                                session_id=session_id,
+                                title=task_check['title'],
+                                description=task_check.get('description', ''),
+                                priority=decompose_result.get('priority', 0)
+                            )
+
+                            if task_id:
+                                # 创建步骤
+                                for step in decompose_result.get('steps', []):
+                                    self.task_manager.create_step(
+                                        task_id=task_id,
+                                        step_num=step.get('step_num', 0),
+                                        description=step.get(
+                                            'description', ''),
+                                        action_type=step.get('action_type'),
+                                        action_params=step.get('action_params')
+                                    )
+
+                                # 执行任务
+                                task_result = self.task_executor.execute_task(
+                                    task_id=task_id,
+                                    user_id=user_id,
+                                    session_id=session_id
+                                )
+
+                                logger.info(f"任务执行结果: {task_result}")
+            except Exception as e:
+                logger.warning(f"任务处理失败: {e}", exc_info=True)
 
         # v0.6.0: 调用 AI 生成回复（带上下文、工具结果和响应风格）
         reply = self._think_with_context(
@@ -766,6 +810,11 @@ class XiaoLeAgent:
         # 检查是否包含搜索关键词
         has_search_keyword = any(kw in prompt_lower for kw in search_keywords)
 
+        # 排除天气相关的查询，让它们进入深度分析
+        weather_keywords = ['天气', '气温', '温度', '下雨', '下雪', '预报']
+        if any(kw in prompt_lower for kw in weather_keywords):
+            has_search_keyword = False
+
         # 检查是否包含实时信息关键词
         has_realtime_keyword = any(
             kw in prompt_lower for kw in realtime_keywords
@@ -804,8 +853,48 @@ class XiaoLeAgent:
             # 需要AI解析时间和内容，返回None让AI处理
             return None
 
-        # 6. 天气 - 需要提取城市，让AI处理
+        # 6. 天气 - 智能快速匹配（尝试从记忆中提取城市）
         if '天气' in prompt_lower:
+            # 尝试从记忆中查找城市信息
+            try:
+                # 1. 检查是否包含已知城市名
+                # 这里简单列举一些常见城市，实际应该从WeatherTool获取
+                common_cities = ['北京', '上海', '广州', '深圳',
+                                 '天水', '秦州', '成都', '杭州', '武汉', '西安']
+                for city in common_cities:
+                    if city in prompt:
+                        return {
+                            "needs_tool": True,
+                            "tool_name": "weather",
+                            "parameters": {"city": city, "query_type": "now"}
+                        }
+
+                # 2. 如果没有明确城市，检查记忆库
+                location_memories = self.memory.recall(tag="facts", limit=20)
+                user_city = None
+                for mem in location_memories:
+                    # 简单的规则匹配提取城市
+                    if "天水" in mem or "秦州" in mem:
+                        user_city = "天水"
+                        break
+                    elif "深圳" in mem:
+                        user_city = "深圳"
+                        break
+                    elif "北京" in mem:
+                        user_city = "北京"
+                        break
+
+                if user_city:
+                    logger.info(f"🔍 快速匹配: 从记忆中提取城市 '{user_city}'")
+                    return {
+                        "needs_tool": True,
+                        "tool_name": "weather",
+                        "parameters": {"city": user_city, "query_type": "now"}
+                    }
+            except Exception as e:
+                logger.warning(f"天气快速匹配失败: {e}")
+
+            # 如果无法快速匹配，返回None让AI处理
             return None
 
         # 7. 文件操作 - 需要AI精确解析
@@ -952,6 +1041,7 @@ class XiaoLeAgent:
                     "\n\n用户背景信息（从记忆库提取）：\n"
                     + "\n".join(location_memories)
                 )
+                logger.info(f"🔍 意图分析 - 注入用户上下文: {len(location_memories)} 条记忆")
         except Exception as e:
             logger.warning(f"获取用户位置信息失败: {e}")
 
@@ -965,7 +1055,8 @@ class XiaoLeAgent:
 2. system_info - info_type(cpu/memory/disk/all)
 3. time - format(full/date/time)
 4. calculator - expression(数学表达式)
-5. reminder - content(内容), time_desc(时间), title(可选)
+5. reminder - operation(create/list/delete), content(创建必填),
+   time_desc(创建必填), reminder_id(删除必填)
 6. search - query(关键词), max_results(可选)
 7. file - operation(read/write/list/search), path(路径),
    content(写入内容), pattern(搜索模式), recursive(可选)
@@ -978,10 +1069,13 @@ class XiaoLeAgent:
 - 询问"什么时候发布"、"上市时间"等
 - 你的知识可能过时的内容
 
+**查询提醒/任务** -> reminder工具 (operation="list")
+
 天气规则:
 - 用户指定城市 -> 使用该城市
-- 从位置信息提取城市名（只提取城市名如"深圳"）
-- 无城市信息 -> needs_tool=false
+- 用户说"这里"、"我这"、"当地"或未指定城市 -> 必须从位置信息提取城市名
+- 从位置信息提取城市名（只提取城市名如"深圳"、"天水"）
+- 只有当无法获取任何城市信息时 -> needs_tool=false
 - query_type: "明天"/"后天"=3d, "未来几天"/"本周"=7d, 其他=now
 
 返回JSON（无markdown）:
@@ -1063,25 +1157,36 @@ class XiaoLeAgent:
             )
 
             # v0.4.0: 如果有工具执行结果，添加到系统提示词
-            if tool_result and tool_result.get('success'):
-                # 格式化工具结果
-                tool_data = tool_result.get('data') or tool_result
-                if isinstance(tool_data, dict):
-                    # 去除不需要显示的字段
-                    display_data = {
-                        k: v for k, v in tool_data.items()
-                        if k not in ['success', 'user_id', 'session_id']
-                    }
-                    tool_info_text = str(display_data)
-                else:
-                    tool_info_text = str(tool_data)
+            if tool_result:
+                if tool_result.get('success'):
+                    # 格式化工具结果
+                    tool_data = tool_result.get(
+                        'data') or tool_result.get('result') or tool_result
+                    if isinstance(tool_data, dict):
+                        # 去除不需要显示的字段
+                        display_data = {
+                            k: v for k, v in tool_data.items()
+                            if k not in ['success', 'user_id', 'session_id']
+                        }
+                        tool_info_text = str(display_data)
+                    else:
+                        tool_info_text = str(tool_data)
 
-                tool_info = (
-                    f"\n\n📊 工具执行结果：\n"
-                    f"{tool_info_text}\n"
-                    f"请根据这个工具结果，用自然友好的语言回答用户的问题。"
-                )
-                system_prompt += tool_info
+                    tool_info = (
+                        f"\n\n📊 工具执行结果：\n"
+                        f"{tool_info_text}\n"
+                        f"请根据这个工具结果，用自然友好的语言回答用户的问题。"
+                    )
+                    system_prompt += tool_info
+                else:
+                    # 工具执行失败，也要告知 AI
+                    error_msg = tool_result.get('error', '未知错误')
+                    tool_info = (
+                        f"\n\n⚠️ 工具执行失败：\n"
+                        f"错误信息：{error_msg}\n"
+                        f"请告知用户你尝试了相关操作但遇到了问题，不要假装无法执行该功能。"
+                    )
+                    system_prompt += tool_info
 
             # 添加长期记忆到系统提示词
             # 1. 优先获取 facts 标签的关键事实（用户主动告知的真实信息）
@@ -1412,7 +1517,10 @@ class XiaoLeAgent:
 """
 
         try:
-            response = self._call_deepseek(prompt)
+            response = self._call_deepseek(
+                system_prompt="你是任务分析助手，专门识别复杂任务。",
+                user_prompt=prompt
+            )
             # 提取JSON
             import json
             import re
@@ -1454,11 +1562,25 @@ class XiaoLeAgent:
             for tool in self.tool_registry.list_tools()
         ])
 
+        # 获取用户上下文信息（位置、偏好等）
+        user_context = ""
+        try:
+            # 从facts标签中查找城市、地点相关信息
+            location_memories = self.memory.recall(tag="facts", limit=20)
+            if location_memories:
+                user_context = (
+                    "\n\n用户背景信息（从记忆库提取）：\n"
+                    + "\n".join(location_memories)
+                )
+        except Exception as e:
+            logger.warning(f"获取用户上下文失败: {e}")
+
         prompt = f"""
 请将以下任务拆解为具体的执行步骤:
 
 任务标题: {task_title}
 任务描述: {task_description}
+{user_context}
 
 可用工具:
 {tools_info}
@@ -1466,9 +1588,14 @@ class XiaoLeAgent:
 要求:
 1. 每个步骤要具体、可执行
 2. 步骤之间要有逻辑顺序
-3. 需要调用工具的要标明工具名称和参数
-4. 需要用户确认的要标明
-5. 每个步骤包含: 序号、描述、操作类型、所需参数
+3. **必须将所有变量（如"当前城市"、"明天"）替换为具体的值**
+   - 如果知道用户在"天水"，weather工具的city参数必须填"天水"，绝不能填"当前城市"
+   - 如果不知道城市，请默认使用"北京"或在步骤中要求用户提供
+4. 需要调用工具的要标明工具名称和参数
+   - reminder工具参数: content(必填), time_desc(必填), title(可选)
+   - **重要：time_desc 请直接使用用户的自然语言描述（如"明天早上8点"），不要尝试转换为UTC时间或具体日期，工具会自动处理。**
+5. 需要用户确认的要标明
+6. 每个步骤包含: 序号、描述、操作类型、所需参数
 
 以JSON格式返回:
 {{
@@ -1486,16 +1613,16 @@ class XiaoLeAgent:
     ]
 }}
 
-示例任务"准备周末野餐":
+示例任务"准备周末野餐"（假设用户在上海）:
 {{
     "steps": [
         {{
             "step_num": 1,
-            "description": "查询周末天气预报",
+            "description": "查询上海周末天气预报",
             "action_type": "tool_call",
             "action_params": {{
                 "tool_name": "weather",
-                "params": {{"city": "当前城市"}},
+                "params": {{"city": "上海", "query_type": "7d"}},
                 "notes": "确定天气情况"
             }}
         }},
@@ -1515,30 +1642,169 @@ class XiaoLeAgent:
                 "question": "是否需要设置购物提醒?",
                 "if_yes": "tool_call:reminder"
             }}
+        }},
+        {{
+            "step_num": 4,
+            "description": "创建购物提醒",
+            "action_type": "tool_call",
+            "action_params": {{
+                "tool_name": "reminder",
+                "params": {{
+                    "content": "购买野餐用品：餐垫、水果、饮料",
+                    "time_desc": "明天早上9点"
+                }},
+                "notes": "用户确认后执行"
+            }}
         }}
     ]
 }}
 """
 
         try:
-            response = self._call_deepseek(prompt)
+            response = self._call_deepseek(
+                system_prompt=(
+                    "你是任务拆解助手，专门将复杂任务拆解为执行步骤。"
+                    "请只返回纯JSON数据，不要包含markdown标记。"
+                ),
+                user_prompt=prompt,
+                max_tokens=4096
+            )
             # 提取JSON
             import json
             import re
-            json_match = re.search(r'\{[\s\S]*\}', response)
-            if json_match:
-                result = json.loads(json_match.group())
-                steps = result.get('steps', [])
-                logger.info(f"任务拆解完成: 共 {len(steps)} 个步骤")
-                return {
-                    'success': True,
-                    'steps': steps,
-                    'priority': result.get('priority', 0)
-                }
-            else:
-                logger.error("无法解析任务拆解结果")
-                return {'success': False, 'error': '无法解析结果'}
+
+            # 尝试清理markdown标记
+            cleaned_response = response.strip()
+            if cleaned_response.startswith("```"):
+                cleaned_response = cleaned_response.split("```")[1]
+                if cleaned_response.startswith("json"):
+                    cleaned_response = cleaned_response[4:]
+            cleaned_response = cleaned_response.strip()
+
+            # 尝试直接解析
+            try:
+                result = json.loads(cleaned_response)
+            except json.JSONDecodeError:
+                # 如果直接解析失败，尝试使用正则提取
+                json_match = re.search(r'\{[\s\S]*\}', cleaned_response)
+                if json_match:
+                    try:
+                        result = json.loads(json_match.group())
+                    except json.JSONDecodeError as e:
+                        logger.error(
+                            f"JSON解析失败: {e}\n响应内容: {cleaned_response}")
+                        return {'success': False, 'error': 'JSON格式错误'}
+                else:
+                    logger.error(f"未找到JSON内容\n响应内容: {cleaned_response}")
+                    return {'success': False, 'error': '无法解析结果'}
+
+            steps = result.get('steps', [])
+            logger.info(f"任务拆解完成: 共 {len(steps)} 个步骤")
+            return {
+                'success': True,
+                'steps': steps,
+                'priority': result.get('priority', 0)
+            }
 
         except Exception as e:
             logger.error(f"任务拆解失败: {e}")
             return {'success': False, 'error': str(e)}
+
+    def _analyze_confirmation(self, prompt: str, step_description: str) -> str:
+        """
+        分析用户输入是否是对步骤的确认
+
+        Returns:
+            'confirmed', 'rejected', 'unrelated'
+        """
+        system_prompt = "你是意图判断助手。判断用户的输入是否是对待确认步骤的确认。"
+        user_prompt = f"""
+待确认步骤: {step_description}
+用户输入: "{prompt}"
+
+请判断用户是:
+1. 确认/同意 (如"好的", "没问题", "确认", "是的") -> 返回 'confirmed'
+2. 拒绝/取消 (如"不要", "取消", "不行", "算了") -> 返回 'rejected'
+3. 无关内容 (如问天气, 聊其他话题) -> 返回 'unrelated'
+
+只返回一个单词: confirmed / rejected / unrelated
+"""
+        try:
+            if self.api_type == "deepseek":
+                result = self._call_deepseek(system_prompt, user_prompt)
+            else:
+                result = self._call_claude(system_prompt, user_prompt)
+
+            result = result.strip().lower()
+            if 'confirmed' in result:
+                return 'confirmed'
+            if 'rejected' in result:
+                return 'rejected'
+            return 'unrelated'
+        except Exception:
+            return 'unrelated'
+
+    def _check_and_resume_task(self, prompt, user_id, session_id):
+        """检查并恢复等待中的任务"""
+        import json
+        try:
+            # 获取等待中的任务
+            tasks = self.task_manager.get_tasks_by_session(
+                session_id, status='waiting'
+            )
+            if not tasks:
+                return None
+
+            task = tasks[0]
+
+            # 获取等待的步骤
+            steps = self.task_manager.get_task_steps(task['id'])
+            waiting_step = next(
+                (s for s in steps if s['status'] == 'waiting'), None
+            )
+
+            if not waiting_step:
+                return None
+
+            # 分析用户意图
+            confirmation = self._analyze_confirmation(
+                prompt, waiting_step['description']
+            )
+
+            if confirmation == 'unrelated':
+                return None
+
+            logger.info(f"任务恢复: 用户输入'{prompt}'被判定为 {confirmation}")
+
+            if confirmation == 'confirmed':
+                # 标记步骤为完成
+                self.task_manager.update_step_status(
+                    waiting_step['id'],
+                    status='completed',
+                    result=json.dumps(
+                        {'confirmed': True, 'user_input': prompt}
+                    )
+                )
+                # 恢复执行
+                return self.task_executor.resume_task(
+                    task['id'], user_id, session_id
+                )
+            else:
+                # 用户拒绝，终止任务
+                self.task_manager.update_step_status(
+                    waiting_step['id'],
+                    status='failed',
+                    error_message=f'用户拒绝: {prompt}'
+                )
+                self.task_manager.update_task_status(
+                    task['id'], status='failed'
+                )
+                return {
+                    'success': False,
+                    'error': f'任务已根据您的要求取消 (用户拒绝: {prompt})',
+                    'task_id': task['id']
+                }
+
+        except Exception as e:
+            logger.error(f"恢复任务失败: {e}")
+            return None

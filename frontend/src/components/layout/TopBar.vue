@@ -582,13 +582,13 @@ onBeforeUnmount(() => {
 .reminder-dropdown {
   position: absolute;
   top: calc(100% + 8px);
-  right: -80px;
+  right: 0;
   z-index: 1000;
 }
 
 @media (max-width: 768px) {
   .reminder-dropdown {
-    right: -50px;
+    right: -60px;
   }
 }
 

@@ -73,6 +73,14 @@ class ReminderCreate(BaseModel):
     repeat_interval: Optional[int] = None
 
 
+class ReminderUpdate(BaseModel):
+    content: Optional[str] = None
+    title: Optional[str] = None
+    priority: Optional[int] = None
+    enabled: Optional[bool] = None
+    trigger_condition: Optional[Dict[str, Any]] = None
+
+
 # v0.8.0: 语音合成请求体
 class TTSRequest(BaseModel):
     text: str
@@ -839,25 +847,14 @@ async def get_reminder(reminder_id: int, user_id: str = "default_user"):
 @app.put("/api/reminders/{reminder_id}")
 async def update_reminder(
     reminder_id: int,
-    content: str = None,
-    title: str = None,
-    priority: int = None,
-    enabled: bool = None,
-    trigger_condition: dict = None
+    reminder: ReminderUpdate
 ):
     """更新提醒"""
-    updates = {}
-    if content is not None:
-        updates['content'] = content
-    if title is not None:
-        updates['title'] = title
-    if priority is not None:
-        updates['priority'] = priority
-    if enabled is not None:
-        updates['enabled'] = enabled
-    if trigger_condition is not None:
+    updates = reminder.dict(exclude_unset=True)
+
+    if 'trigger_condition' in updates:
         import json
-        updates['trigger_condition'] = json.dumps(trigger_condition)
+        updates['trigger_condition'] = json.dumps(updates['trigger_condition'])
 
     success = await reminder_manager.update_reminder(reminder_id, **updates)
 

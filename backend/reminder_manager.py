@@ -73,7 +73,8 @@ class ReminderManager:
         title: Optional[str] = None,
         priority: int = 1,
         repeat: bool = False,
-        repeat_interval: Optional[int] = None  # 秒
+        repeat_interval: Optional[int] = None,  # 秒
+        task_id: Optional[int] = None
     ) -> Dict[str, Any]:
         """
         创建提醒
@@ -91,6 +92,7 @@ class ReminderManager:
             priority: 优先级（1-5，1最高）
             repeat: 是否重复
             repeat_interval: 重复间隔（秒）
+            task_id: 关联的任务ID
 
         Returns:
             创建的提醒信息
@@ -102,14 +104,14 @@ class ReminderManager:
                     INSERT INTO reminders (
                         user_id, reminder_type, trigger_condition,
                         content, title, priority, repeat, repeat_interval,
-                        enabled, created_at
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
+                        enabled, created_at, task_id
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP, %s)
                     RETURNING reminder_id, user_id, reminder_type, trigger_condition,
                               content, title, priority, repeat, repeat_interval,
-                              enabled, created_at
+                              enabled, created_at, task_id
                 """, (
                     user_id, reminder_type, json.dumps(trigger_condition),
-                    content, title, priority, repeat, repeat_interval, True
+                    content, title, priority, repeat, repeat_interval, True, task_id
                 ))
                 reminder = dict(cur.fetchone())
                 conn.commit()

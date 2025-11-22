@@ -7,7 +7,13 @@
           <h3>{{ currentReminder.title || "提醒" }}</h3>
         </div>
 
-        <div class="reminder-content">
+        <div
+          class="reminder-content"
+          v-if="
+            currentReminder.content &&
+            currentReminder.content !== currentReminder.title
+          "
+        >
           {{ currentReminder.content }}
         </div>
 

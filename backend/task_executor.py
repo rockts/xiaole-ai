@@ -4,6 +4,7 @@
 """
 import json
 import logging
+import asyncio
 from typing import Dict, Any, Optional
 
 from task_manager import TaskManager
@@ -91,15 +92,28 @@ class TaskExecutor:
                 # 执行步骤
                 step_result = self._execute_step(
                     step=step,
-                    user_confirm_callback=user_confirm_callback
+                    user_confirm_callback=user_confirm_callback,
+                    task_id=task_id,
+                    user_id=user_id,
+                    session_id=session_id
                 )
 
                 results.append({
                     'step_id': step['id'],
-                    'step_order': step['step_order'],
-                    'title': step['title'],
+                    'step_order': step['step_num'],
+                    'title': step['description'],
                     'result': step_result
                 })
+
+                # 检查是否需要等待用户确认
+                if step_result.get('status') == 'waiting':
+                    self.task_manager.update_step_status(
+                        step_id=step['id'],
+                        status='waiting',
+                        result=json.dumps(step_result, ensure_ascii=False)
+                    )
+                    # 停止执行循环
+                    break
 
                 # 更新步骤状态
                 if step_result['success']:
@@ -119,7 +133,7 @@ class TaskExecutor:
 
                     # 如果步骤失败,判断是否继续
                     if not step.get('continue_on_error', False):
-                        logger.warning(f"步骤失败,停止执行: {step['title']}")
+                        logger.warning(f"步骤失败,停止执行: {step['description']}")
                         break
 
             # 更新任务状态
@@ -171,13 +185,19 @@ class TaskExecutor:
     def _execute_step(
         self,
         step: Dict[str, Any],
-        user_confirm_callback: Optional[callable] = None
+        user_confirm_callback: Optional[callable] = None,
+        task_id: Optional[int] = None,
+        user_id: str = "default_user",
+        session_id: Optional[str] = None
     ) -> Dict[str, Any]:
         """执行单个步骤
 
         Args:
             step: 步骤信息
             user_confirm_callback: 用户确认回调
+            task_id: 任务ID
+            user_id: 用户ID
+            session_id: 会话ID
 
         Returns:
             执行结果
@@ -188,7 +208,12 @@ class TaskExecutor:
         try:
             if action_type == 'tool_call':
                 # 调用工具
-                return self._execute_tool_call(action_params)
+                return self._execute_tool_call(
+                    params=action_params,
+                    task_id=task_id,
+                    user_id=user_id,
+                    session_id=session_id
+                )
 
             elif action_type == 'user_confirm':
                 # 用户确认
@@ -219,11 +244,20 @@ class TaskExecutor:
                 'error': str(e)
             }
 
-    def _execute_tool_call(self, params: Dict[str, Any]) -> Dict[str, Any]:
+    def _execute_tool_call(
+        self,
+        params: Dict[str, Any],
+        task_id: Optional[int] = None,
+        user_id: str = "default_user",
+        session_id: Optional[str] = None
+    ) -> Dict[str, Any]:
         """执行工具调用
 
         Args:
             params: 工具参数,格式: {"tool_name": "xxx", "params": {...}}
+            task_id: 任务ID
+            user_id: 用户ID
+            session_id: 会话ID
 
         Returns:
             执行结果
@@ -240,10 +274,14 @@ class TaskExecutor:
 
             # 调用工具
             logger.info(f"调用工具: {tool_name}")
-            result = self.tool_registry.execute(
+            # 使用 asyncio.run 执行异步工具方法
+            result = asyncio.run(self.tool_registry.execute(
                 tool_name=tool_name,
-                params=tool_params
-            )
+                params=tool_params,
+                user_id=user_id,
+                session_id=session_id,
+                task_id=task_id
+            ))
 
             return {
                 'success': True,
@@ -274,12 +312,14 @@ class TaskExecutor:
             执行结果
         """
         if not callback:
-            # 没有回调函数,默认确认
-            logger.warning("用户确认步骤没有回调函数,默认确认")
+            # 没有回调函数, 暂停任务等待用户确认
+            logger.info("用户确认步骤没有回调函数, 暂停任务等待用户确认")
             return {
                 'success': True,
-                'confirmed': True,
-                'action_type': 'user_confirm'
+                'confirmed': False,
+                'action_type': 'user_confirm',
+                'status': 'waiting',
+                'message': step.get('description', '需要用户确认')
             }
 
         try:

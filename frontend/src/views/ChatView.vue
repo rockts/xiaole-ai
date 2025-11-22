@@ -1055,31 +1055,54 @@ const stopSpeech = () => {
 };
 
 const regenerateMessage = async (message) => {
-  // 预留：调用后端重生该条回答或以该条为上下文重试
-  // 这里先简单触发一次基于同一 prompt 的发送
   try {
     if (message?.role !== "assistant") return;
 
-    // 找到上一条用户消息
+    // 找到当前 AI 消息的索引
     const index = messages.value.findIndex((m) => m.id === message.id);
     if (index === -1) return;
 
-    let lastUserContent = null;
+    let lastUserMessage = null;
     // 向前查找最近的用户消息
     for (let i = index - 1; i >= 0; i--) {
       if (messages.value[i].role === "user") {
-        lastUserContent = messages.value[i].content;
+        lastUserMessage = messages.value[i];
         break;
       }
     }
 
-    if (!lastUserContent) return;
+    if (!lastUserMessage) return;
 
-    // 删除当前 AI 回复
-    chatStore.deleteMessage(message.id);
+    // 保存必要信息
+    const userMsgId = lastUserMessage.id;
+    const content = lastUserMessage.content;
 
-    // 重新发送
-    await chatStore.sendMessage(lastUserContent, null, router);
+    // 1. 立即从前端移除 (防止重复点击)
+    const userMsgIndex = messages.value.findIndex((m) => m.id === userMsgId);
+
+    if (userMsgIndex !== -1) {
+      // 删除从用户消息开始的所有后续消息
+      messages.value.splice(userMsgIndex);
+    } else {
+      // 如果找不到用户消息，至少删除当前的 AI 消息
+      chatStore.deleteMessage(message.id);
+    }
+
+    // 2. 立即插入新消息
+    messages.value.push({
+      id: `temp-regen-${Date.now()}`,
+      role: "user",
+      content: content,
+      timestamp: new Date().toISOString(),
+    });
+
+    // 3. 后端操作 (异步执行)
+    if (userMsgId && !String(userMsgId).startsWith("temp-")) {
+      await chatStore.deleteMessageApi(userMsgId);
+    }
+
+    // 4. 重新发送
+    await chatStore.sendMessage(content, null, router);
   } catch (e) {
     console.error("Regenerate failed:", e);
   }
@@ -1321,7 +1344,9 @@ const submitBadFeedback = async () => {
   if (!currentFeedbackMessageId.value) return;
 
   try {
-    await chatStore.submitFeedback(currentFeedbackMessageId.value, "down", {
+    await chatStore.submitFeedback({
+      message_id: currentFeedbackMessageId.value,
+      rating: "down",
       tags: selectedTags.value,
       comment: customFeedbackText.value,
     });
@@ -1563,7 +1588,10 @@ const feedbackMessage = async (message, type) => {
       } else {
         // 如果是 down，先清除 down
         feedbackState.value.set(id, "up");
-        await chatStore.submitFeedback(id, "up");
+        await chatStore.submitFeedback({
+          message_id: id,
+          rating: "up",
+        });
       }
     }
     // 如果是点踩 (down)
@@ -2630,5 +2658,43 @@ const feedbackMessage = async (message, type) => {
 
 .btn-cancel:hover {
   background: var(--bg-hover);
+}
+
+@media (max-width: 768px) {
+  .chat-inner {
+    padding: 16px 12px;
+  }
+
+  .user-bubble {
+    max-width: 85%;
+  }
+
+  .message-image {
+    max-width: 100%;
+    height: auto;
+  }
+
+  .input-container {
+    padding: 8px 10px 10px;
+  }
+
+  .welcome-title {
+    font-size: 20px;
+  }
+
+  .welcome-icon {
+    font-size: 40px;
+  }
+
+  /* 移动端代码块优化 */
+  .md-content :deep(pre) {
+    border-radius: 8px;
+    margin: 0.8em 0;
+  }
+
+  .md-content :deep(pre code) {
+    padding: 12px 14px;
+    font-size: 13px;
+  }
 }
 </style>

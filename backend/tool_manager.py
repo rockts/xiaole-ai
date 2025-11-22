@@ -189,7 +189,8 @@ class ToolRegistry:
         tool_name: str,
         params: Dict[str, Any],
         user_id: str = "default_user",
-        session_id: Optional[str] = None
+        session_id: Optional[str] = None,
+        task_id: Optional[int] = None
     ) -> Dict[str, Any]:
         """执行工具并记录"""
         start_time = datetime.now()
@@ -223,9 +224,13 @@ class ToolRegistry:
 
         # 执行工具
         try:
-            # 将 user_id 和 session_id 添加到执行参数中
-            exec_params = {**validated_params,
-                           "user_id": user_id, "session_id": session_id}
+            # 将 user_id, session_id 和 task_id 添加到执行参数中
+            exec_params = {
+                **validated_params,
+                "user_id": user_id,
+                "session_id": session_id,
+                "task_id": task_id
+            }
             result = await tool.execute(**exec_params)
             execution_time = (datetime.now() - start_time).total_seconds()
 

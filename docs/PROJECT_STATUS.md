@@ -153,7 +153,7 @@ Claude 3.5 Sonnet   # 备用模型
 | 文件 | `tools/file_tool.py`     | 文件操作       | ✅    |
 | 天气 | `tools/weather_tool.py`  | 天气查询       | ✅    |
 | 系统 | `tools/system_tool.py`   | 系统信息       | ✅    |
-| 提醒 | `tools/reminder_tool.py` | 提醒创建       | ✅    |
+| 提醒 | `tools/reminder_tool.py` | 提醒创建/查询/删除 | ✅    |
 
 ### 前端界面
 | 文件                        | 功能             | 行数  | 状态 |
