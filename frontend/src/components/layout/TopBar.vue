@@ -1,5 +1,26 @@
 <template>
   <div class="top-bar">
+    <button
+      class="mobile-menu-btn"
+      @click="toggleSidebar"
+      aria-label="打开菜单"
+    >
+      <svg
+        width="24"
+        height="24"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <line x1="3" y1="12" x2="21" y2="12"></line>
+        <line x1="3" y1="6" x2="21" y2="6"></line>
+        <line x1="3" y1="18" x2="21" y2="18"></line>
+      </svg>
+    </button>
+
     <div class="top-bar-center">
       <input
         v-if="isEditingTitle && isChatPage"
@@ -53,6 +74,42 @@
           <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
         </svg>
       </button>
+
+      <!-- 提醒按钮 -->
+      <div class="reminder-container">
+        <button
+          class="icon-btn reminder-btn"
+          @click="toggleReminders"
+          aria-label="提醒"
+        >
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+          </svg>
+          <span v-if="activeRemindersCount > 0" class="badge">{{
+            activeRemindersCount
+          }}</span>
+        </button>
+
+        <transition name="dropdown">
+          <div v-if="showReminders" class="reminder-dropdown">
+            <ReminderListPopup
+              :reminders="reminders"
+              :loading="loadingReminders"
+              :time-remaining-map="timeRemainingMap"
+              @close="closeReminders"
+              @delete="handleDeleteReminder"
+            />
+          </div>
+        </transition>
+      </div>
 
       <div class="user-menu">
         <button class="user-avatar" @click="toggleUserMenu">
@@ -128,6 +185,9 @@
 import { computed, ref, onMounted, onBeforeUnmount, watch } from "vue";
 import { useRoute } from "vue-router";
 import { useChatStore } from "@/stores/chat";
+import api from "@/services/api";
+import { useWebSocket } from "@/composables/useWebSocket";
+import ReminderListPopup from "@/components/common/ReminderListPopup.vue";
 
 const route = useRoute();
 const chatStore = useChatStore();
@@ -138,6 +198,102 @@ const showUserMenu = ref(false);
 const isEditingTitle = ref(false);
 const editingTitle = ref("");
 const titleInput = ref(null);
+
+// 提醒相关状态
+const showReminders = ref(false);
+const reminders = ref([]);
+const loadingReminders = ref(false);
+const timeRemainingMap = ref({});
+let timerInterval = null;
+
+const activeRemindersCount = computed(() => reminders.value.length);
+
+const toggleReminders = () => {
+  showReminders.value = !showReminders.value;
+  if (showReminders.value) {
+    showUserMenu.value = false; // 关闭其他菜单
+    // 每次打开刷新一次，虽然有 websocket 自动更新
+    loadReminders();
+  }
+};
+
+const closeReminders = () => {
+  showReminders.value = false;
+};
+
+const updateTimeRemaining = () => {
+  const now = Date.now();
+  const map = {};
+
+  reminders.value.forEach((r) => {
+    if (!r.enabled || r.reminder_type !== "time") return;
+
+    let condition = r.trigger_condition;
+    if (typeof condition === "string") {
+      try {
+        condition = JSON.parse(condition);
+      } catch (e) {
+        return;
+      }
+    }
+    if (!condition || !condition.datetime) return;
+
+    let nextTime = new Date(condition.datetime).getTime();
+
+    if (r.repeat && r.repeat_interval) {
+      const interval = r.repeat_interval * 1000;
+      if (r.last_triggered) {
+        const last = new Date(r.last_triggered).getTime();
+        nextTime = last + interval;
+      }
+    }
+
+    const diff = nextTime - now;
+    if (diff < 0) {
+      map[r.reminder_id] = "即将触发";
+    } else {
+      const seconds = Math.floor(diff / 1000);
+      const minutes = Math.floor(seconds / 60);
+      const hours = Math.floor(minutes / 60);
+      const days = Math.floor(hours / 24);
+
+      if (days > 0) {
+        map[r.reminder_id] = `${days}天 ${hours % 24}小时后`;
+      } else if (hours > 0) {
+        map[r.reminder_id] = `${hours}小时 ${minutes % 60}分后`;
+      } else if (minutes > 0) {
+        map[r.reminder_id] = `${minutes}分钟后`;
+      } else {
+        map[r.reminder_id] = `${seconds}秒后`;
+      }
+    }
+  });
+  timeRemainingMap.value = map;
+};
+
+const loadReminders = async () => {
+  try {
+    loadingReminders.value = true;
+    // 只获取启用的提醒
+    const data = await api.getReminders("default_user", true);
+    reminders.value = data.reminders || [];
+    updateTimeRemaining();
+  } catch (error) {
+    console.error("Failed to load reminders:", error);
+  } finally {
+    loadingReminders.value = false;
+  }
+};
+
+const handleDeleteReminder = async (id) => {
+  try {
+    await api.deleteReminder(id);
+    reminders.value = reminders.value.filter((r) => r.reminder_id !== id);
+  } catch (error) {
+    console.error("Failed to delete reminder:", error);
+    alert("删除失败");
+  }
+};
 
 const isChatPage = computed(() => route.path.startsWith("/chat"));
 
@@ -222,19 +378,39 @@ const toggleTheme = () => {
 
 const toggleUserMenu = () => {
   showUserMenu.value = !showUserMenu.value;
+  if (showUserMenu.value) {
+    showReminders.value = false;
+  }
 };
 
-const closeUserMenu = (e) => {
+const handleOutsideClick = (e) => {
   if (!e.target.closest(".user-menu")) {
     showUserMenu.value = false;
   }
+  if (!e.target.closest(".reminder-container")) {
+    showReminders.value = false;
+  }
 };
+
+const { on } = useWebSocket();
+let wsUnsubscribe = null;
 
 onMounted(() => {
   const savedTheme = localStorage.getItem("theme");
   isDark.value = savedTheme === "dark";
   document.documentElement.setAttribute("data-theme", savedTheme || "light");
-  document.addEventListener("click", closeUserMenu);
+  document.addEventListener("click", handleOutsideClick);
+
+  // Reminders init
+  loadReminders();
+  timerInterval = setInterval(updateTimeRemaining, 1000);
+  window.addEventListener("reminder-confirmed", loadReminders);
+
+  wsUnsubscribe = on((data) => {
+    if (data.type === "reminder_created" || data.type === "reminder_updated") {
+      loadReminders();
+    }
+  });
 });
 
 // 同步网页标题为当前对话标题
@@ -256,7 +432,10 @@ watch(
 );
 
 onBeforeUnmount(() => {
-  document.removeEventListener("click", closeUserMenu);
+  document.removeEventListener("click", handleOutsideClick);
+  window.removeEventListener("reminder-confirmed", loadReminders);
+  if (timerInterval) clearInterval(timerInterval);
+  if (wsUnsubscribe) wsUnsubscribe();
 });
 </script>
 
@@ -272,6 +451,31 @@ onBeforeUnmount(() => {
   position: sticky;
   top: 0;
   z-index: 100;
+}
+
+.mobile-menu-btn {
+  display: none;
+  position: absolute;
+  left: var(--space-lg);
+  background: transparent;
+  border: none;
+  padding: 0;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+@media (max-width: 768px) {
+  .mobile-menu-btn {
+    display: flex;
+  }
+
+  .top-bar {
+    padding: 0 var(--space-md);
+  }
+
+  .mobile-menu-btn {
+    left: var(--space-md);
+  }
 }
 
 .top-bar-center {
@@ -347,6 +551,45 @@ onBeforeUnmount(() => {
 
 .user-menu {
   position: relative;
+}
+
+.reminder-container {
+  position: relative;
+}
+
+.reminder-btn {
+  position: relative;
+}
+
+.badge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  background: var(--error);
+  color: white;
+  font-size: 10px;
+  font-weight: bold;
+  min-width: 16px;
+  height: 16px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  border: 2px solid var(--bg-primary);
+}
+
+.reminder-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: -80px;
+  z-index: 1000;
+}
+
+@media (max-width: 768px) {
+  .reminder-dropdown {
+    right: -50px;
+  }
 }
 
 .user-avatar {

@@ -1,5 +1,12 @@
 <template>
   <div class="sidebar" :class="{ collapsed: isCollapsed }">
+    <teleport to="body">
+      <div
+        v-if="!isCollapsed && isMobile"
+        class="sidebar-overlay"
+        @click="toggleSidebar"
+      ></div>
+    </teleport>
     <div class="sidebar-content">
       <!-- 顶部：logo + 标题 + 收起按钮 -->
       <div class="sidebar-logo-title">
@@ -81,8 +88,9 @@
           :to="item.path"
           class="nav-item"
           :class="{ active: isActive(item.path) }"
+          @click="handleMobileNav"
         >
-          <span class="nav-icon" v-html="item.icon"></span>
+          <span class="icon" v-html="item.icon"></span>
           <span class="nav-label">{{ item.label }}</span>
         </router-link>
       </nav>
@@ -165,7 +173,8 @@
               <button
                 v-if="
                   hoveredSessionId === (session.id || session.session_id) ||
-                  activeMenuSessionId === (session.id || session.session_id)
+                  activeMenuSessionId === (session.id || session.session_id) ||
+                  isCurrentSession(session)
                 "
                 class="session-menu-btn"
                 aria-label="会话操作菜单"
@@ -358,9 +367,12 @@ const route = useRoute();
 const chatStore = useChatStore();
 const { sessions, loading } = storeToRefs(chatStore);
 
+// 移动端检测
+const isMobile = ref(window.innerWidth <= 768);
+
 // 使用新的 logo
 const logoSrc = computed(() => logoImage);
-const isCollapsed = ref(false);
+const isCollapsed = ref(isMobile.value); // 移动端默认收起
 const showFallbackLogo = ref(false);
 const onLogoError = () => {
   showFallbackLogo.value = true;
@@ -371,11 +383,6 @@ const navItems = [
     path: "/memory",
     label: "记忆",
     icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" xmlns="http://www.w3.org/2000/svg"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"></path></svg>',
-  },
-  {
-    path: "/reminders",
-    label: "提醒",
-    icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" xmlns="http://www.w3.org/2000/svg"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>',
   },
   {
     path: "/tasks",
@@ -399,14 +406,32 @@ const navItems = [
   },
 ];
 
+// ...existing code...
 const isActive = (path) => route.path.startsWith(path);
 const isCurrentSession = (session) =>
   route.params.sessionId == (session.id || session.session_id);
-const newChat = () => router.push("/chat");
-const loadSession = (id) => router.push(`/chat/${id}`);
-const goToSettings = () => router.push("/settings");
+
+const handleMobileNav = () => {
+  if (isMobile.value) {
+    isCollapsed.value = true;
+  }
+};
+
+const newChat = () => {
+  router.push("/chat");
+  handleMobileNav();
+};
+const loadSession = (id) => {
+  router.push(`/chat/${id}`);
+  handleMobileNav();
+};
+const goToSettings = () => {
+  router.push("/settings");
+  handleMobileNav();
+};
 
 // 悬停和菜单状态
+// ...existing code...
 const hoveredSessionId = ref(null);
 const activeMenuSessionId = ref(null);
 const editingSessionId = ref(null);
@@ -694,6 +719,16 @@ onMounted(() => {
   ensureScrollable();
   // 窗口变化时关闭菜单或重算
   const onResize = () => {
+    const newIsMobile = window.innerWidth <= 768;
+    if (isMobile.value !== newIsMobile) {
+      isMobile.value = newIsMobile;
+      // 切换到移动端时自动收起，切换到桌面端时如果之前是收起的（且不是用户手动收起...这里简化处理，切换模式重置或保持）
+      // 简单策略：切换到移动端必定收起
+      if (newIsMobile) {
+        isCollapsed.value = true;
+      }
+    }
+
     if (activeMenuSessionId.value)
       updateMenuPosition(activeMenuSessionId.value);
   };
@@ -728,11 +763,36 @@ watch(
   height: 100vh;
   background: var(--bg-primary);
   border-right: 1px solid var(--border-light);
-  transition: width var(--duration-normal) var(--ease-out);
+  transition: all var(--duration-normal) var(--ease-out);
+  z-index: 900;
 }
 
 .sidebar.collapsed {
   width: 70px;
+}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 260px !important; /* 移动端展开时宽度固定 */
+    transform: translateX(0);
+    box-shadow: var(--shadow-lg);
+    z-index: 1000;
+  }
+
+  .sidebar.collapsed {
+    width: 260px !important;
+    transform: translateX(-100%);
+  }
+
+  /* 移动端隐藏收起按钮，因为有遮罩层点击关闭 */
+  .collapse-btn {
+    display: none !important;
+  }
 }
 
 .sidebar-content {
@@ -1304,6 +1364,21 @@ watch(
 .btn-delete:hover {
   background: #dc2626;
   box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+}
+</style>
+
+<style>
+/* 全局样式用于 Teleport 的遮罩层 */
+.sidebar-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 999;
+  animation: fadeIn 0.2s ease-out;
+  backdrop-filter: blur(2px);
 }
 </style>
 
