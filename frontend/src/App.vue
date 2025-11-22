@@ -11,12 +11,14 @@
         </router-view>
       </div>
     </div>
+    <ReminderNotification />
   </div>
 </template>
 
 <script setup>
 import SidebarModern from "@/components/layout/SidebarModern.vue";
 import TopBar from "@/components/layout/TopBar.vue";
+import ReminderNotification from "@/components/common/ReminderNotification.vue";
 import { ref, onMounted } from "vue";
 import { useWebSocket } from "@/composables/useWebSocket";
 

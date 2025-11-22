@@ -119,6 +119,23 @@ class ReminderManager:
 
                 logger.info(
                     f"Created reminder {reminder['reminder_id']} for user {user_id}")
+
+                # 广播提醒创建事件，以便前端刷新列表
+                if self.websocket_broadcast:
+                    try:
+                        # 转换datetime对象为字符串，避免JSON序列化错误
+                        reminder_data = reminder.copy()
+                        if 'created_at' in reminder_data and reminder_data['created_at']:
+                            reminder_data['created_at'] = reminder_data['created_at'].isoformat(
+                            )
+
+                        await self.websocket_broadcast({
+                            "type": "reminder_created",
+                            "data": reminder_data
+                        })
+                    except Exception as ws_error:
+                        logger.error(f"WebSocket broadcast failed: {ws_error}")
+
                 return reminder
 
         except Exception as e:
@@ -163,7 +180,10 @@ class ReminderManager:
                     query += " AND reminder_type = %s"
                     params.append(reminder_type)
 
-                query += " ORDER BY priority ASC, created_at DESC"
+                # 优化排序：启用的在前，然后按优先级（小号优先），最后按创建时间倒序
+                query += (
+                    " ORDER BY enabled DESC, priority ASC, created_at DESC"
+                )
 
                 cur.execute(query, params)
                 reminders = [dict(row) for row in cur.fetchall()]
@@ -217,6 +237,20 @@ class ReminderManager:
                 self.reminders_cache.clear()
 
                 logger.info(f"Updated reminder {reminder_id}")
+
+                # 广播提醒更新事件
+                if self.websocket_broadcast:
+                    try:
+                        await self.websocket_broadcast({
+                            "type": "reminder_updated",
+                            "data": {
+                                "reminder_id": reminder_id,
+                                "updates": updates
+                            }
+                        })
+                    except Exception as ws_error:
+                        logger.error(f"WebSocket broadcast failed: {ws_error}")
+
                 return True
 
         except Exception as e:
@@ -231,6 +265,14 @@ class ReminderManager:
         conn = get_db_connection()
         try:
             with conn.cursor() as cur:
+                # 先查询用户ID，以便清除缓存
+                cur.execute(
+                    "SELECT user_id FROM reminders WHERE reminder_id = %s",
+                    (reminder_id,)
+                )
+                result = cur.fetchone()
+                user_id = result[0] if result else None
+
                 cur.execute(
                     "DELETE FROM reminders WHERE reminder_id = %s", (reminder_id,))
                 conn.commit()
@@ -239,6 +281,19 @@ class ReminderManager:
                 self.reminders_cache.clear()
 
                 logger.info(f"Deleted reminder {reminder_id}")
+
+                # 广播删除事件
+                if self.websocket_broadcast:
+                    try:
+                        await self.websocket_broadcast({
+                            "type": "reminder_deleted",
+                            "data": {
+                                "reminder_id": reminder_id
+                            }
+                        })
+                    except Exception as ws_error:
+                        logger.error(f"WebSocket broadcast failed: {ws_error}")
+
                 return True
 
         except Exception as e:
@@ -282,6 +337,10 @@ class ReminderManager:
                     # 检查是否最近已触发（避免重复）
                     last_triggered = reminder.get('last_triggered')
                     if last_triggered:
+                        # 如果刚刚触发过（10秒内），忽略（防止并发重复触发）
+                        if (now - last_triggered).total_seconds() < 10:
+                            continue
+
                         # 如果是重复提醒，检查间隔
                         if reminder.get('repeat'):
                             interval = reminder.get(
@@ -289,8 +348,14 @@ class ReminderManager:
                             if (now - last_triggered).total_seconds() < interval:
                                 continue
                         else:
-                            # 非重复提醒已触发过，跳过
-                            continue
+                            # 非重复提醒，如果已启用（未确认），每5分钟提醒一次
+                            # 如果已禁用（已确认），则不会出现在这里（get_user_reminders过滤了）
+                            retry_interval = 300  # 5分钟
+                            if (
+                                (now - last_triggered).total_seconds()
+                                < retry_interval
+                            ):
+                                continue
 
                     triggered.append(reminder)
 
@@ -383,9 +448,33 @@ class ReminderManager:
 
                 conn.commit()
 
+                # 清除缓存，确保下次检查时能获取到最新的last_triggered
+                self._clear_user_cache(reminder['user_id'])
+
                 logger.info(
                     f"Notified reminder {reminder_id} (not confirmed yet)"
                 )
+
+                # 动态生成语音提醒内容
+                trigger_count = reminder.get('trigger_count', 0) + 1
+                # 尝试获取用户昵称，这里暂时使用默认值，后续可以从用户配置中获取
+                nickname = "主人"
+
+                # 格式化时间
+                current_time_str = datetime.now().strftime("%H:%M")
+
+                voice_text = ""
+                content = reminder['content']
+
+                if trigger_count <= 1:
+                    # 第一次提醒
+                    voice_text = f"现在是{current_time_str}，请{nickname}{content}。"
+                elif trigger_count == 2:
+                    # 第二次提醒（稍后提醒后）
+                    voice_text = f"请{nickname}赶快{content}。"
+                else:
+                    # 第三次及以上
+                    voice_text = f"请{nickname}立马马上{content}！"
 
                 # WebSocket实时推送提醒（用户需要确认）
                 if self.websocket_broadcast:
@@ -396,6 +485,7 @@ class ReminderManager:
                                 "reminder_id": reminder_id,
                                 "title": reminder.get('title', '提醒'),
                                 "content": reminder['content'],
+                                "voice_text": voice_text,  # 新增字段
                                 "priority": reminder.get('priority', 3),
                                 "reminder_type": reminder.get('reminder_type'),
                                 "triggered_at": datetime.now().isoformat()
@@ -441,6 +531,10 @@ class ReminderManager:
                     return False
 
                 reminder = dict(reminder)
+                logger.info(
+                    f"Confirming reminder {reminder_id}, "
+                    f"repeat={reminder.get('repeat')}"
+                )
 
                 # 记录提醒历史（用户已确认）
                 cur.execute("""
@@ -454,12 +548,58 @@ class ReminderManager:
                 ))
 
                 # 如果是非重复提醒，禁用它
-                if not reminder.get('repeat'):
+                # 确保正确处理 None 或 0 的情况
+                is_repeat = reminder.get('repeat')
+                repeat_interval = reminder.get('repeat_interval')
+
+                # 如果标记为重复，但没有设置间隔，视为非重复（防御性编程）
+                if is_repeat and (not repeat_interval or repeat_interval <= 0):
+                    logger.warning(
+                        f"Reminder {reminder_id} marked as repeat but has "
+                        f"invalid interval {repeat_interval}. "
+                        f"Treating as non-repeat."
+                    )
+                    is_repeat = False
+
+                if not is_repeat:
+                    logger.info(
+                        f"Disabling non-repeating reminder {reminder_id}"
+                    )
                     cur.execute("""
                         UPDATE reminders
                         SET enabled = false
                         WHERE reminder_id = %s
                     """, (reminder_id,))
+
+                    # 既然状态改变了，需要清除缓存
+                    self._clear_user_cache(reminder['user_id'])
+
+                    # 广播更新事件
+                    if self.websocket_broadcast:
+                        try:
+                            await self.websocket_broadcast({
+                                "type": "reminder_updated",
+                                "data": {
+                                    "reminder_id": reminder_id,
+                                    "updates": {"enabled": False}
+                                }
+                            })
+                        except Exception as ws_error:
+                            logger.error(
+                                f"WebSocket broadcast failed: {ws_error}")
+                else:
+                    logger.info(
+                        f"Keeping repeating reminder {reminder_id} enabled"
+                    )
+                    # 对于重复提醒，重置trigger_count，以便下次触发时重新开始计数
+                    cur.execute("""
+                        UPDATE reminders
+                        SET trigger_count = 0
+                        WHERE reminder_id = %s
+                    """, (reminder_id,))
+
+                    # 对于重复提醒，我们也清除缓存，以防万一
+                    self._clear_user_cache(reminder['user_id'])
 
                 conn.commit()
 
@@ -500,35 +640,35 @@ class ReminderManager:
         finally:
             conn.close()
 
-    async def get_pending_reminders(self, user_id: str, limit: int = 5) -> List[Dict[str, Any]]:
+    async def get_pending_reminders(
+        self, user_id: str, limit: int = 5
+    ) -> List[Dict[str, Any]]:
         """
-        获取用户未读的提醒（最近触发但未确认的）
-
-        Args:
-            user_id: 用户ID
-            limit: 返回数量限制
-
-        Returns:
-            未读提醒列表
+        获取待处理的提醒（已触发但未确认）
         """
         conn = get_db_connection()
         try:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
-                # 获取最近5分钟内触发的提醒
+                # 查找已触发且未确认的提醒
+                # 确认的标志是：reminder_history 中存在
+                # triggered_at >= reminders.last_triggered 的记录
                 cur.execute("""
-                    SELECT h.*, r.title, r.reminder_type, r.priority
-                    FROM reminder_history h
-                    LEFT JOIN reminders r ON h.reminder_id = r.reminder_id
-                    WHERE h.user_id = %s
-                    AND h.triggered_at > NOW() - INTERVAL '5 minutes'
-                    ORDER BY r.priority ASC, h.triggered_at DESC
+                    SELECT r.*
+                    FROM reminders r
+                    WHERE r.user_id = %s
+                    AND r.enabled = true
+                    AND r.last_triggered IS NOT NULL
+                    AND r.last_triggered > NOW() - INTERVAL '24 hours'
+                    AND NOT EXISTS (
+                        SELECT 1 FROM reminder_history h
+                        WHERE h.reminder_id = r.reminder_id
+                        AND h.triggered_at >= r.last_triggered
+                    )
+                    ORDER BY r.last_triggered DESC
                     LIMIT %s
                 """, (user_id, limit))
-                return [dict(row) for row in cur.fetchall()]
-
-        except Exception as e:
-            logger.error(f"Failed to get pending reminders: {e}")
-            return []
+                reminders = cur.fetchall()
+                return [dict(r) for r in reminders]
         finally:
             conn.close()
 
@@ -543,7 +683,8 @@ class ReminderManager:
         """检查缓存是否有效"""
         if not self.last_cache_update:
             return False
-        return (datetime.now() - self.last_cache_update).total_seconds() < self.cache_ttl
+        delta = datetime.now() - self.last_cache_update
+        return delta.total_seconds() < self.cache_ttl
 
     async def _get_user_last_active(self, user_id: str) -> Optional[datetime]:
         """获取用户最后活跃时间"""
