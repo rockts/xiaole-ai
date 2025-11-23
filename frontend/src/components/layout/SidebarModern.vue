@@ -332,16 +332,15 @@
       </div>
       <button class="settings-icon-btn" title="用户菜单">
         <svg
-          width="16"
-          height="16"
+          width="20"
+          height="20"
           viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
+          fill="currentColor"
+          stroke="none"
         >
-          <circle cx="12" cy="12" r="1" />
-          <circle cx="12" cy="5" r="1" />
-          <circle cx="12" cy="19" r="1" />
+          <circle cx="12" cy="12" r="2" />
+          <circle cx="12" cy="6" r="2" />
+          <circle cx="12" cy="18" r="2" />
         </svg>
       </button>
 
