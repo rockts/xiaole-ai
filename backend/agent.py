@@ -1480,6 +1480,18 @@ class XiaoLeAgent:
             except Exception as e:
                 logger.warning(f"获取课程表失败: {e}")
 
+            # 3.2 获取文档记忆 (document) - 新增：显式检索最近上传的文档
+            document_memories = []
+            try:
+                from db_setup import Memory
+                # 获取最新的文档总结
+                recent_docs = self.memory.session.query(Memory).filter(
+                    Memory.tag.like('document:%')
+                ).order_by(Memory.created_at.desc()).limit(3).all()
+                document_memories = [mem.content for mem in recent_docs]
+            except Exception as e:
+                logger.warning(f"获取文档记忆失败: {e}")
+
             # 4. 获取最近的对话摘要（了解之前聊了什么）
             conversation_memories = []
             try:
@@ -1523,6 +1535,12 @@ class XiaoLeAgent:
 
             # 新增：课程表 (schedule) - 高优先级
             for mem in schedule_memories:
+                if mem not in seen and not is_outdated_reminder_memory(mem):
+                    all_memories.append(mem)
+                    seen.add(mem)
+
+            # 新增：文档总结 (document) - 高优先级
+            for mem in document_memories:
                 if mem not in seen and not is_outdated_reminder_memory(mem):
                     all_memories.append(mem)
                     seen.add(mem)
@@ -2012,7 +2030,7 @@ class XiaoLeAgent:
         Returns:
             'confirmed', 'rejected', 'unrelated'
         """
-        system_prompt = "你是意图判断助手。判断用户的输入是否是对待确认步骤的确认。"
+        system_prompt = "你是意图判断助手。判断用户的输入是否对待确认步骤的确认。"
         user_prompt = f"""
 待确认步骤: {step_description}
 用户输入: "{prompt}"
