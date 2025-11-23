@@ -20,21 +20,21 @@ class ReminderTool(Tool):
             ToolParameter(
                 name="operation",
                 param_type="string",
-                description="操作类型：create(创建), list(查询), delete(删除)",
+                description="操作类型：create(创建), list(查询), delete(删除), update(修改)",
                 required=False,
                 default="create",
-                enum=["create", "list", "delete"]
+                enum=["create", "list", "delete", "update"]
             ),
             ToolParameter(
                 name="content",
                 param_type="string",
-                description="提醒内容（创建时必填）",
+                description="提醒内容（创建时必填，修改时可选）",
                 required=False
             ),
             ToolParameter(
                 name="time_desc",
                 param_type="string",
-                description="时间描述（创建时必填，如：明天下午3点）",
+                description="时间描述（创建时必填，修改时可选，如：明天下午3点）",
                 required=False
             ),
             ToolParameter(
@@ -46,7 +46,7 @@ class ReminderTool(Tool):
             ToolParameter(
                 name="reminder_id",
                 param_type="number",
-                description="提醒ID（删除时必填）",
+                description="提醒ID（删除/修改时必填）",
                 required=False
             ),
             ToolParameter(
@@ -77,6 +77,8 @@ class ReminderTool(Tool):
                 return await self._handle_list(reminder_mgr, user_id, kwargs)
             elif operation == "delete":
                 return await self._handle_delete(reminder_mgr, kwargs)
+            elif operation == "update":
+                return await self._handle_update(reminder_mgr, kwargs)
             else:
                 return await self._handle_create(reminder_mgr, kwargs, user_id)
 
@@ -272,6 +274,103 @@ class ReminderTool(Tool):
             "data": f"✅ 提醒已创建：{title}\n⏰ 触发时间：{time_str}\n📝 内容：{content}",
             "reminder_id": reminder['reminder_id']
         }
+
+    async def _handle_update(self, mgr, kwargs) -> dict:
+        """处理修改请求"""
+        reminder_id = kwargs.get("reminder_id")
+        user_id = kwargs.get("user_id", "default_user")
+
+        # 智能ID推断：如果未提供ID，尝试查找唯一活跃提醒
+        if not reminder_id:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info("🔍 修改提醒未提供ID，尝试智能查找唯一活跃提醒...")
+            
+            active_reminders = await mgr.get_user_reminders(
+                user_id, enabled_only=True
+            )
+            
+            if len(active_reminders) == 1:
+                reminder_id = active_reminders[0]['reminder_id']
+                logger.info(f"✅ 智能锁定唯一提醒 ID: {reminder_id}")
+            elif len(active_reminders) == 0:
+                return {
+                    "success": False,
+                    "data": "❌ 当前没有未完成的提醒，无法修改。"
+                }
+            else:
+                # 多个提醒，列出让用户选择
+                lines = ["❌ 无法确定要修改哪个提醒，请提供ID："]
+                for r in active_reminders:
+                    time_str = self._format_reminder_time(r)
+                    lines.append(f"- ID:{r['reminder_id']} | {time_str} | {r['content']}")
+                return {
+                    "success": False,
+                    "data": "\n".join(lines)
+                }
+
+        updates = {}
+
+        # 处理内容更新
+        content = kwargs.get("content")
+        if content:
+            updates["content"] = content
+            # 如果更新了内容但没指定标题，尝试更新标题
+            if not kwargs.get("title"):
+                updates["title"] = self._extract_title(content)
+
+        # 处理标题更新
+        title = kwargs.get("title")
+        if title:
+            updates["title"] = title
+
+        # 处理时间更新
+        time_desc = kwargs.get("time_desc")
+        if time_desc:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(f"🕐 开始解析新时间: time_desc='{time_desc}'")
+            trigger_time = self._parse_time(time_desc)
+
+            if not trigger_time:
+                return {
+                    "success": False,
+                    "data": (
+                        f"❌ 无法识别新时间：{time_desc}\n"
+                        "支持格式：明天/后天/X小时后/X分钟后/具体时间"
+                    )
+                }
+
+            updates["trigger_condition"] = {
+                "datetime": trigger_time.strftime("%Y-%m-%d %H:%M:%S")
+            }
+            # 格式化时间显示用于返回消息
+            time_str = self._format_time_display(trigger_time)
+        else:
+            time_str = "保持原时间"
+
+        if not updates:
+            return {"success": False, "data": "⚠️ 未提供任何需要修改的内容"}
+
+        updated_reminder = await mgr.update_reminder(int(reminder_id), **updates)
+
+        if updated_reminder:
+            msg_parts = [f"✅ 提醒已修改 (ID: {reminder_id})"]
+            
+            # 显示当前最新状态
+            current_content = updated_reminder.get('content', '未知内容')
+            msg_parts.append(f"📝 当前内容：{current_content}")
+            
+            # 格式化时间
+            time_str = self._format_reminder_time(updated_reminder)
+            msg_parts.append(f"⏰ 当前时间：{time_str}")
+
+            return {"success": True, "data": "\n".join(msg_parts)}
+        else:
+            return {
+                "success": False,
+                "data": f"❌ 修改失败，未找到提醒 ID: {reminder_id}"
+            }
 
     def _extract_title(self, content: str) -> str:
         """从内容中提取标题"""

@@ -77,6 +77,24 @@
         </div>
       </div>
     </div>
+
+    <!-- 删除确认弹窗 -->
+    <div v-if="showDeleteConfirm" class="modal-overlay" @click="cancelDelete">
+      <div class="confirm-dialog" @click.stop>
+        <h3 class="confirm-title">删除文档</h3>
+        <p class="confirm-message">
+          确定要删除 "{{
+            documentToDelete?.original_filename || documentToDelete?.filename
+          }}" 吗？此操作无法撤销。
+        </p>
+        <div class="confirm-actions">
+          <button class="btn-cancel" @click="cancelDelete">取消</button>
+          <button class="btn-confirm-delete" @click="confirmDelete">
+            删除
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -90,6 +108,10 @@ const documents = ref([]);
 const loading = ref(false);
 const fileInput = ref(null);
 const isDragging = ref(false);
+
+// 删除确认弹窗状态
+const showDeleteConfirm = ref(false);
+const documentToDelete = ref(null);
 
 const loadDocuments = async () => {
   try {
@@ -149,9 +171,21 @@ const uploadFile = async (file) => {
   }
 };
 
-const handleDelete = async (doc) => {
-  if (!confirm(`确定要删除 "${doc.original_filename || doc.filename}" 吗？`))
-    return;
+const handleDelete = (doc) => {
+  documentToDelete.value = doc;
+  showDeleteConfirm.value = true;
+};
+
+const cancelDelete = () => {
+  showDeleteConfirm.value = false;
+  documentToDelete.value = null;
+};
+
+const confirmDelete = async () => {
+  if (!documentToDelete.value) return;
+
+  const doc = documentToDelete.value;
+  showDeleteConfirm.value = false; // 立即关闭弹窗
 
   try {
     await api.deleteDocument(doc.id);
@@ -159,6 +193,8 @@ const handleDelete = async (doc) => {
   } catch (error) {
     console.error("Failed to delete document:", error);
     alert("删除失败");
+  } finally {
+    documentToDelete.value = null;
   }
 };
 
@@ -426,5 +462,100 @@ onMounted(() => {
   to {
     transform: rotate(360deg);
   }
+}
+
+/* 删除确认对话框 */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  animation: fadeIn 0.15s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.confirm-dialog {
+  background: var(--bg-primary);
+  border-radius: 16px;
+  padding: 24px;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  animation: slideUp 0.2s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.confirm-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 12px 0;
+}
+
+.confirm-message {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin: 0 0 24px 0;
+}
+
+.confirm-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.btn-cancel,
+.btn-confirm-delete {
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+
+.btn-cancel {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.btn-cancel:hover {
+  background: var(--bg-hover);
+}
+
+.btn-confirm-delete {
+  background: var(--error);
+  color: white;
+}
+
+.btn-confirm-delete:hover {
+  background: #dc2626;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
 }
 </style>

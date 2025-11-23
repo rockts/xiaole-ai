@@ -16,7 +16,7 @@ from conflict_detector import ConflictDetector
 from proactive_qa import ProactiveQA  # v0.3.0 主动问答
 from reminder_manager import get_reminder_manager, get_db_connection  # v0.5.0 主动提醒
 from scheduler import get_scheduler  # v0.5.0 定时调度
-from baidu_voice_tool import baidu_voice_tool  # v0.8.0 百度语音识别
+from tools.baidu_voice_tool import baidu_voice_tool  # v0.8.0 百度语音识别
 from document_summarizer import DocumentSummarizer  # v0.8.0 Phase 3 文档总结
 import time
 
@@ -356,7 +356,7 @@ def chat(
     """
     # 如果有图片，先进行图片识别
     if image_path:
-        from vision_tool import VisionTool
+        from tools.vision_tool import VisionTool
         vision_tool = VisionTool()
 
         try:
@@ -1271,7 +1271,7 @@ async def upload_image(file: UploadFile = File(...)):
     Returns:
         dict: 包含文件路径的响应
     """
-    from vision_tool import VisionTool
+    from tools.vision_tool import VisionTool
 
     try:
         # 检查文件名
@@ -1442,7 +1442,7 @@ def analyze_image(request: dict):
     Returns:
         dict: 图片分析结果
     """
-    from vision_tool import VisionTool
+    from tools.vision_tool import VisionTool
 
     try:
         image_path = request.get('image_path')
@@ -1783,9 +1783,58 @@ async def upload_document(
                 doc_id, summary, key_points, processing_time
             )
 
+            # v0.8.0: 将文档总结存入记忆库，以便Agent能够检索和回答相关问题
+            try:
+                key_points_list = key_points if isinstance(
+                    key_points, list) else []
+                key_points_str = "\n".join([f"- {p}" for p in key_points_list])
+
+                memory_content = (
+                    f"【文档知识】用户上传了文档《{file.filename}》\n"
+                    f"文档总结：\n{summary}\n\n"
+                    f"关键要点：\n{key_points_str}"
+                )
+
+                # 存入记忆 (tag使用 document:文件名)
+                xiaole.memory.remember(
+                    content=memory_content,
+                    tag=f"document:{file.filename}"
+                )
+                print(f"✅ 文档总结已存入记忆库: {file.filename}")
+
+                # 保存对话记录
+                # 如果没有 session_id，创建一个新会话
+                target_session_id = session_id
+                if not target_session_id:
+                    target_session_id = xiaole.conversation.create_session(
+                        user_id=user_id,
+                        title=f"文档总结：{file.filename}"
+                    )
+
+                # 1. 保存用户上传消息
+                xiaole.conversation.add_message(
+                    session_id=target_session_id,
+                    role="user",
+                    content=f"📄 上传文档：{file.filename}"
+                )
+
+                # 2. 保存 AI 总结消息
+                # 构建完整的回复内容（包含总结和关键点）
+                ai_content = f"### 📄 文档总结：{file.filename}\n\n{summary}\n\n#### 💡 关键要点\n{key_points_str}"
+                xiaole.conversation.add_message(
+                    session_id=target_session_id,
+                    role="assistant",
+                    content=ai_content
+                )
+                print(f"✅ 文档对话记录已保存到会话: {target_session_id}")
+
+            except Exception as e:
+                print(f"⚠️ 文档记忆/对话存储失败: {e}")
+
             return {
                 "success": True,
                 "document_id": doc_id,
+                "session_id": target_session_id,  # 返回会话ID
                 "summary": summary,
                 "key_points": key_points,
                 "processing_time": processing_time,

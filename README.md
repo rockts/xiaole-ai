@@ -238,12 +238,16 @@ xiaole-ai/
 │   ├── db_migrations/      # 数据库迁移脚本
 │   ├── static/             # 静态资源
 │   └── ...
+├── tools/                  # 工具库
+│   ├── search_tool.py      # 搜索工具
+│   ├── vision_tool.py      # 视觉工具
+│   └── ...
 ├── frontend/               # 前端应用 (Vue 3 + Vite)
 │   ├── src/
 │   ├── package.json
-│   └── vite.config.ts
+│   └── vite.config.js
 ├── docs/                   # 文档
-├── scripts/                # 脚本工具
+├── scripts/                # 脚本工具 (debug/maintenance/analysis)
 ├── tests/                  # 测试文件
 ├── logs/                   # 日志文件
 ├── start.sh                # 统一启动脚本

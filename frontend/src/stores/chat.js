@@ -117,6 +117,11 @@ export const useChatStore = defineStore('chat', () => {
                 messages.value[msgIndex].fullContent = full
                 messages.value[msgIndex].content = ''
 
+                // 保存搜索结果
+                if (response.search_results) {
+                    messages.value[msgIndex].search_results = response.search_results
+                }
+
                 let i = 0
                 const step = Math.max(1, Math.round(full.length / 60)) // 约1秒60步
                 typingTimer.value = setInterval(() => {
@@ -179,6 +184,23 @@ export const useChatStore = defineStore('chat', () => {
         }
     }
 
+    const uploadDocument = async (file) => {
+        try {
+            const formData = new FormData()
+            formData.append('file', file)
+            formData.append('user_id', 'default_user')
+            if (currentSessionId.value) {
+                formData.append('session_id', currentSessionId.value)
+            }
+
+            const response = await api.uploadDocument(formData)
+            return response
+        } catch (error) {
+            console.error('Failed to upload document:', error)
+            throw error
+        }
+    }
+
     const clearCurrentSession = () => {
         messages.value = []
         sessionInfo.value = null
@@ -221,6 +243,7 @@ export const useChatStore = defineStore('chat', () => {
         sendMessage,
         stopGeneration,
         uploadImage,
+        uploadDocument,
         clearCurrentSession,
         deleteMessage,
         deleteMessageApi, // Export this

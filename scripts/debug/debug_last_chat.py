@@ -6,11 +6,14 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Manually set DB URL if not in env correctly for this script context
-DB_URL = "postgresql://xiaole_user:Xiaole2025User@192.168.88.188:5432/xiaole_ai"
+DB_URL = "postgresql://xiaole_user:Xiaole2025User@192.168.88.188:5432/xiaole_ai?client_encoding=utf8"
 
 engine = create_engine(DB_URL)
 
 with engine.connect() as conn:
+    # Ensure client encoding is UTF8
+    conn.execute(text("SET client_encoding TO 'UTF8'"))
+
     # Get the last session ID
     result = conn.execute(
         text("SELECT session_id FROM messages ORDER BY created_at DESC LIMIT 1"))

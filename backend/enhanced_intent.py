@@ -108,15 +108,15 @@ class EnhancedToolSelector:
         #         confidence=0.9
         #     ))
 
-        # 文件工具
-        file_keywords = ['文件', '读取', '写入', '保存', '打开']
-        if any(kw in prompt_lower for kw in file_keywords):
-            matches.append(ToolCall(
-                tool_name='file',
-                parameters={'operation': 'list'},
-                priority=70,
-                confidence=0.85
-            ))
+        # 文件工具 - 移除快速匹配，交给LLM处理以支持参数提取
+        # file_keywords = ['文件', '读取', '写入', '保存', '打开']
+        # if any(kw in prompt_lower for kw in file_keywords):
+        #     matches.append(ToolCall(
+        #         tool_name='file',
+        #         parameters={'operation': 'list'},
+        #         priority=70,
+        #         confidence=0.85
+        #     ))
 
         # 系统工具
         system_keywords = ['cpu', '内存', '磁盘', '系统信息']
@@ -190,7 +190,9 @@ class EnhancedToolSelector:
     def execute_with_retry(
         self,
         tool_call: ToolCall,
-        max_retries: int = 3
+        max_retries: int = 3,
+        user_id: str = "default_user",
+        session_id: Optional[str] = None
     ) -> ToolResult:
         """
         执行工具调用，支持智能重试
@@ -198,11 +200,14 @@ class EnhancedToolSelector:
         Args:
             tool_call: 工具调用请求
             max_retries: 最大重试次数
+            user_id: 用户ID
+            session_id: 会话ID
 
         Returns:
             工具执行结果
         """
         import time
+        import asyncio
 
         for attempt in range(max_retries):
             try:
@@ -214,10 +219,14 @@ class EnhancedToolSelector:
                 start_time = time.time()
 
                 # 执行工具
-                result = self.tool_manager.execute_tool(
+                # 使用 asyncio.run 执行异步方法
+                # 注意：ToolRegistry.execute 参数名为 params
+                result = asyncio.run(self.tool_manager.execute(
                     tool_name=tool_call.tool_name,
-                    parameters=tool_call.parameters
-                )
+                    params=tool_call.parameters,
+                    user_id=user_id,
+                    session_id=session_id
+                ))
 
                 execution_time = time.time() - start_time
 

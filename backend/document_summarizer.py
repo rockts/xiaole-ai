@@ -18,7 +18,7 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 
 # OCR工具
-from baidu_ocr_tool import baidu_ocr_tool
+from tools.baidu_ocr_tool import baidu_ocr_tool
 try:
     from pdf2image import convert_from_path
     HAS_PDF2IMAGE = True
@@ -64,6 +64,12 @@ class DocumentSummarizer:
         """获取数据库连接（UTF-8编码）"""
         conn = psycopg2.connect(**self.db_config, client_encoding='utf8')
         return conn
+
+    def _sanitize_text(self, text: str) -> str:
+        """移除文本中的NUL字符"""
+        if not text:
+            return text
+        return text.replace('\x00', '')
 
     def validate_file(self, filename: str, file_size: int) -> Tuple[bool, str, str]:
         """
@@ -291,7 +297,7 @@ class DocumentSummarizer:
         if not text or not text.strip():
             raise ValueError("无法提取文本内容（可能是扫描件或纯图片文档）")
 
-        return text
+        return self._sanitize_text(text)
 
     def split_text(self, text: str, chunk_size: int = None) -> List[str]:
         """
@@ -462,6 +468,9 @@ class DocumentSummarizer:
         conn = self._get_connection()
         cur = conn.cursor()
 
+        # Sanitize content
+        content = self._sanitize_text(content)
+
         try:
             cur.execute("""
                 UPDATE documents
@@ -489,6 +498,10 @@ class DocumentSummarizer:
         """更新文档总结"""
         conn = self._get_connection()
         cur = conn.cursor()
+
+        # Sanitize summary and key_points
+        summary = self._sanitize_text(summary)
+        key_points = [self._sanitize_text(p) for p in key_points]
 
         try:
             cur.execute("""

@@ -114,13 +114,22 @@ onMounted(() => {
   padding: 20px;
   max-width: 1200px;
   margin: 0 auto;
+  color: var(--text-primary);
 }
 
 .card {
   background: var(--card-bg);
   border-radius: 12px;
   padding: 20px;
-  box-shadow: 0 2px 8px var(--shadow-light);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border-light);
+  margin-bottom: 20px;
+}
+
+h3,
+h4 {
+  color: var(--text-primary);
+  margin-bottom: 16px;
 }
 
 .tools-header {
@@ -132,11 +141,16 @@ onMounted(() => {
 
 .btn-refresh {
   padding: 8px 16px;
-  background: #667eea;
+  background: var(--brand-primary);
   color: white;
   border: none;
   border-radius: 6px;
   cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-refresh:hover {
+  background: var(--brand-primary-hover);
 }
 
 .filter-label {
@@ -144,6 +158,7 @@ onMounted(() => {
   align-items: center;
   gap: 8px;
   cursor: pointer;
+  color: var(--text-primary);
 }
 
 .tools-content {
@@ -158,13 +173,15 @@ onMounted(() => {
 
 .tool-card {
   padding: 16px;
-  background: var(--input-bg);
+  background: var(--bg-secondary);
   border-radius: 8px;
-  transition: transform 0.2s;
+  transition: transform 0.2s, box-shadow 0.2s;
+  border: 1px solid var(--border-light);
 }
 
 .tool-card:hover {
   transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
 }
 
 .tool-header {
@@ -181,23 +198,26 @@ onMounted(() => {
 .tool-name {
   font-weight: 600;
   flex: 1;
+  color: var(--text-primary);
 }
 
 .tool-status {
   font-size: 12px;
   padding: 4px 8px;
   border-radius: 4px;
-  background: #e0e0e0;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
 }
 
 .tool-status.enabled {
-  background: #4caf50;
+  background: var(--success);
   color: white;
 }
 
 .tool-description {
   color: var(--text-secondary);
   font-size: 14px;
+  line-height: 1.5;
 }
 
 .history-list {
@@ -209,14 +229,16 @@ onMounted(() => {
 
 .history-item {
   padding: 12px;
-  background: var(--input-bg);
+  background: var(--bg-secondary);
   border-radius: 6px;
   display: flex;
   justify-content: space-between;
+  border: 1px solid var(--border-light);
 }
 
 .history-tool {
   font-weight: 500;
+  color: var(--text-primary);
 }
 
 .history-time {

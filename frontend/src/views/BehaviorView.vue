@@ -194,7 +194,7 @@ onMounted(() => {
   padding: 2rem;
   max-width: 1200px;
   margin: 0 auto;
-  color: #e0e0e0;
+  color: var(--text-primary);
 }
 
 .page-header {
@@ -207,7 +207,7 @@ onMounted(() => {
 .page-header h1 {
   font-size: 1.8rem;
   font-weight: 600;
-  color: #fff;
+  color: var(--text-primary);
 }
 
 .header-actions {
@@ -218,16 +218,16 @@ onMounted(() => {
 .time-select {
   padding: 0.5rem 1rem;
   border-radius: 8px;
-  background: #2d2d2d;
-  border: 1px solid #404040;
-  color: #fff;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-medium);
+  color: var(--text-primary);
   cursor: pointer;
 }
 
 .refresh-btn {
   padding: 0.5rem 1.5rem;
   border-radius: 8px;
-  background: #4caf50;
+  background: var(--brand-primary);
   border: none;
   color: white;
   cursor: pointer;
@@ -235,11 +235,12 @@ onMounted(() => {
 }
 
 .refresh-btn:hover {
-  background: #45a049;
+  background: var(--brand-primary-hover);
 }
 
 .refresh-btn:disabled {
-  background: #404040;
+  background: var(--bg-tertiary);
+  color: var(--text-disabled);
   cursor: not-allowed;
 }
 
@@ -257,15 +258,16 @@ onMounted(() => {
 }
 
 .stat-card {
-  background: #1e1e1e;
+  background: var(--card-bg);
   padding: 1.5rem;
   border-radius: 12px;
-  border: 1px solid #333;
+  border: 1px solid var(--border-light);
   text-align: center;
+  box-shadow: var(--shadow-sm);
 }
 
 .stat-label {
-  color: #888;
+  color: var(--text-secondary);
   font-size: 0.9rem;
   margin-bottom: 0.5rem;
 }
@@ -273,29 +275,30 @@ onMounted(() => {
 .stat-value {
   font-size: 2rem;
   font-weight: 700;
-  color: #4caf50;
+  color: var(--brand-primary);
 }
 
 .unit {
   font-size: 1rem;
-  color: #666;
+  color: var(--text-tertiary);
   font-weight: normal;
 }
 
 /* 图表区域 */
 .chart-section,
 .topics-section {
-  background: #1e1e1e;
+  background: var(--card-bg);
   padding: 1.5rem;
   border-radius: 12px;
-  border: 1px solid #333;
+  border: 1px solid var(--border-light);
+  box-shadow: var(--shadow-sm);
 }
 
 h2 {
   font-size: 1.2rem;
   margin-bottom: 1.5rem;
-  color: #ccc;
-  border-left: 4px solid #4caf50;
+  color: var(--text-primary);
+  border-left: 4px solid var(--brand-primary);
   padding-left: 1rem;
 }
 
@@ -327,7 +330,7 @@ h2 {
 .bar-track {
   flex: 1;
   width: 100%;
-  background: #2d2d2d;
+  background: var(--bg-secondary);
   border-radius: 4px;
   position: relative;
   display: flex;
@@ -336,7 +339,7 @@ h2 {
 
 .bar-fill {
   width: 100%;
-  background: #4caf50;
+  background: var(--brand-primary);
   border-radius: 4px;
   transition: height 0.3s ease;
   min-height: 2px;
@@ -344,7 +347,7 @@ h2 {
 
 .bar-label {
   font-size: 0.7rem;
-  color: #666;
+  color: var(--text-tertiary);
   margin-top: 4px;
   transform: scale(0.8);
 }
@@ -355,7 +358,7 @@ h2 {
   flex-direction: column;
   gap: 1rem;
   justify-content: center;
-  border-left: 1px solid #333;
+  border-left: 1px solid var(--border-light);
   padding-left: 2rem;
 }
 
@@ -365,13 +368,13 @@ h2 {
 }
 
 .summary-item .label {
-  color: #888;
+  color: var(--text-secondary);
   font-size: 0.9rem;
 }
 
 .summary-item .value {
   font-size: 1.5rem;
-  color: #fff;
+  color: var(--text-primary);
   font-weight: 600;
 }
 
@@ -384,23 +387,25 @@ h2 {
 }
 
 .topic-tag {
-  background: #2d2d2d;
+  background: var(--bg-secondary);
   padding: 0.5rem 1rem;
   border-radius: 20px;
-  color: #fff;
+  color: var(--text-primary);
   display: flex;
   align-items: center;
   gap: 0.5rem;
   transition: transform 0.2s;
+  border: 1px solid var(--border-light);
 }
 
 .topic-tag:hover {
   transform: scale(1.05);
-  background: #3d3d3d;
+  background: var(--bg-hover);
 }
 
 .topic-count {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
   padding: 2px 6px;
   border-radius: 10px;
   font-size: 0.8em;
@@ -408,29 +413,30 @@ h2 {
 
 .empty-topics {
   text-align: center;
-  color: #666;
+  color: var(--text-secondary);
   padding: 2rem;
 }
 
 .error-message {
-  background: rgba(244, 67, 54, 0.1);
-  color: #f44336;
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--error);
   padding: 1rem;
   border-radius: 8px;
   text-align: center;
+  border: 1px solid rgba(239, 68, 68, 0.2);
 }
 
 .loading-state {
   text-align: center;
   padding: 4rem;
-  color: #888;
+  color: var(--text-secondary);
 }
 
 .spinner {
   width: 40px;
   height: 40px;
-  border: 3px solid #333;
-  border-top-color: #4caf50;
+  border: 3px solid var(--border-light);
+  border-top-color: var(--brand-primary);
   border-radius: 50%;
   margin: 0 auto 1rem;
   animation: spin 1s linear infinite;
@@ -450,7 +456,7 @@ h2 {
   .activity-summary {
     width: 100%;
     border-left: none;
-    border-top: 1px solid #333;
+    border-top: 1px solid var(--border-light);
     padding-left: 0;
     padding-top: 1rem;
     flex-direction: row;

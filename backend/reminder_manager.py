@@ -208,7 +208,7 @@ class ReminderManager:
         self,
         reminder_id: int,
         **updates
-    ) -> bool:
+    ) -> Optional[Dict[str, Any]]:
         """
         更新提醒
 
@@ -217,10 +217,10 @@ class ReminderManager:
             **updates: 要更新的字段
 
         Returns:
-            是否成功
+            更新后的提醒信息（如果成功），否则为None
         """
         if not updates:
-            return False
+            return None
 
         # 处理JSONB字段：将字典转为JSON字符串
         processed_updates = {}
@@ -237,38 +237,44 @@ class ReminderManager:
 
         conn = get_db_connection()
         try:
-            with conn.cursor() as cur:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
                 cur.execute(f"""
                     UPDATE reminders
                     SET {set_clause}, updated_at = CURRENT_TIMESTAMP
                     WHERE reminder_id = %s
+                    RETURNING *
                 """, values)
+                updated_reminder = cur.fetchone()
                 conn.commit()
 
-                # 清除所有缓存
-                self.reminders_cache.clear()
+                if updated_reminder:
+                    updated_reminder = dict(updated_reminder)
+                    # 清除所有缓存
+                    self.reminders_cache.clear()
 
-                logger.info(f"Updated reminder {reminder_id}")
+                    logger.info(f"Updated reminder {reminder_id}")
 
-                # 广播提醒更新事件
-                if self.websocket_broadcast:
-                    try:
-                        await self.websocket_broadcast({
-                            "type": "reminder_updated",
-                            "data": {
-                                "reminder_id": reminder_id,
-                                "updates": updates
-                            }
-                        })
-                    except Exception as ws_error:
-                        logger.error(f"WebSocket broadcast failed: {ws_error}")
+                    # 广播提醒更新事件
+                    if self.websocket_broadcast:
+                        try:
+                            await self.websocket_broadcast({
+                                "type": "reminder_updated",
+                                "data": {
+                                    "reminder_id": reminder_id,
+                                    "updates": updates
+                                }
+                            })
+                        except Exception as ws_error:
+                            logger.error(f"WebSocket broadcast failed: {ws_error}")
 
-                return True
+                    return updated_reminder
+                else:
+                    return None
 
         except Exception as e:
             conn.rollback()
             logger.error(f"Failed to update reminder: {e}")
-            return False
+            return None
         finally:
             conn.close()
 

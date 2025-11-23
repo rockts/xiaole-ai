@@ -520,13 +520,22 @@ class XiaoLeAgent:
                     # 执行工具调用（按优先级）
                     for tool_call in tool_calls:
                         result = self.enhanced_selector.execute_with_retry(
-                            tool_call, max_retries=2
+                            tool_call,
+                            max_retries=2,
+                            user_id=user_id,
+                            session_id=session_id
                         )
                         if result.success:
-                            tool_result = result.data
+                            # 将 ToolResult 转换为字典格式，以保持与 _auto_call_tool 返回格式一致
+                            tool_result = {
+                                'success': True,
+                                'data': result.data,
+                                'tool_name': result.tool_name
+                            }
                             break
-                else:
-                    # 回退到旧的工具调用逻辑
+
+                # 如果增强选择器没有返回结果或执行失败，回退到旧的工具调用逻辑
+                if not tool_result:
                     tool_result = self._auto_call_tool(
                         prompt, user_id, session_id)
             except Exception as e:
@@ -744,6 +753,11 @@ class XiaoLeAgent:
         }
         if followup_info:
             result["followup"] = followup_info
+
+        # 如果有搜索结果，传递给前端用于展示"相关阅读"卡片
+        if (tool_result and tool_result.get('success') and
+                tool_result.get('tool_name') == 'search'):
+            result["search_results"] = tool_result.get('results', [])
 
         return result
 
@@ -1088,7 +1102,10 @@ class XiaoLeAgent:
             return None
 
         # 7. 文件操作 - 需要AI精确解析
-        file_keywords = ['读取文件', '写入文件', '文件列表', '搜索文件']
+        file_keywords = [
+            '读取文件', '写入文件', '文件列表', '搜索文件',
+            '创建文件', '新建文件', '写文件', '查看文件', '列出文件'
+        ]
         if any(kw in prompt_lower for kw in file_keywords):
             return None
 
@@ -1245,17 +1262,25 @@ class XiaoLeAgent:
 2. system_info - info_type(cpu/memory/disk/all)
 3. time - format(full/date/time)
 4. calculator - expression(数学表达式)
-5. reminder - operation(create/list/delete), content(创建必填),
-   time_desc(创建必填), reminder_id(删除必填), status(active/all/completed)
-   **删除提醒时**:
-   - 如用户说"删除提醒72"/"删除ID为72的提醒" -> 直接使用该ID
-   - 如用户说"删除这个/那个提醒"且**最近对话提到**具体提醒 -> 从上下文提取ID并删除
-   - 如果当前只有1个提醒且用户说"删除这个/那个提醒" -> 直接删除那个提醒
-   - 如果有多个提醒且无法确定ID -> 先list查询，告知用户提醒列表，让用户明确要删除哪个
+5. reminder - operation(create/list/delete/update), content(创建必填),
+   time_desc(创建必填), reminder_id(删除/修改必填), status(active/all/completed)
+   **删除/修改提醒时**:
+   - 关键词："删除"、"取消"、"修改"、"改一下"、"推迟"、"延后"
+   - 如用户说"删除/修改提醒72" -> 直接使用该ID
+   - 如用户说"删除/修改这个/那个提醒"且**最近对话提到**具体提醒 -> 从上下文提取ID
+   - 如果当前只有1个提醒且用户说"删除/修改这个" -> 直接操作那个提醒
+   - 如果有多个提醒且无法确定ID -> 先list查询，告知用户提醒列表，让用户明确要操作哪个
+   - **严禁**在用户想修改时创建新提醒！如果不确定ID，宁可先查询。
+   - **重要**：如果用户反馈"提醒错乱"、"不对"、"不是这个"或提到"手动删除"，**必须**先使用 list 操作刷新列表！
+   - **智能修改**：如果用户说"修改这个提醒"但你不知道ID，可以尝试不传reminder_id直接调用update，工具会自动检查是否只有唯一提醒。
 6. task - operation(list/delete), task_id(删除必填), status(可选)
 7. search - query(关键词), max_results(可选), timelimit(可选: d/w/m/y)
 8. file - operation(read/write/list/search), path(路径),
    content(写入内容), pattern(搜索模式), recursive(可选)
+   **文件操作映射**:
+   - "创建/新建/写文件" -> operation="write"
+   - "读取/查看/显示文件" -> operation="read"
+   - "列出/查看目录/有哪些文件" -> operation="list"
 9. 普通对话 -> needs_tool=false
 
 **search工具优先级最高** - 以下情况必须使用:
@@ -1337,7 +1362,7 @@ class XiaoLeAgent:
             system_prompt = (
                 f"你是小乐AI管家，一个诚实、友好的个人助手。\n\n"
                 f"核心原则：\n"
-                f"1. **你拥有完整的工具能力**：可以查询/创建/删除提醒、任务、搜索信息、查天气等\n"
+                f"1. **你拥有完整的工具能力**：可以查询/创建/删除提醒、任务、搜索信息、查天气、**读写文件**等\n"
                 f"   但没有连接智能设备（无手环/摄像头/传感器等物理设备）\n"
                 f"2. **数据优先级**（从高到低）：\n"
                 f"   ① 工具执行结果（最新实时数据，绝对准确）\n"
@@ -1383,7 +1408,13 @@ class XiaoLeAgent:
                         f"2. **必须完全基于此数据回答，严禁使用对话历史或记忆中的信息**\n"
                         f"3. 如果工具结果显示有数据，就说有；显示空，就说空\n"
                         f"4. 对话历史可能过时，完全忽略历史中关于该主题的所有内容\n"
-                        f"5. 用自然友好的语言，直接根据上面的工具结果回答用户"
+                        f"5. 用自然友好的语言，直接根据上面的工具结果回答用户\n"
+                        f"6. **必须保留来源链接**。对于搜索结果，必须在回答末尾逐一列出原始链接，严禁省略！格式如下：\n"
+                        f"   \n"
+                        f"   参考来源：\n"
+                        f"   1. [标题](链接)\n"
+                        f"   2. [标题](链接)\n"
+                        f"   ..."
                     )
                     system_prompt += tool_info
                 else:

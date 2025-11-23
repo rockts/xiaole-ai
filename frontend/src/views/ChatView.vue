@@ -41,8 +41,50 @@
               <div
                 class="md-content"
                 :class="{ typing: message.status === 'typing' }"
-                v-html="renderMarkdown(message.content)"
+                v-html="renderMarkdown(getDisplayContent(message))"
               ></div>
+
+              <!-- 相关阅读卡片 -->
+              <div v-if="hasRelatedReadings(message)" class="related-reading">
+                <div class="related-title">相关阅读</div>
+                <div class="related-cards">
+                  <a
+                    v-for="(item, i) in getRelatedReadings(message).slice(0, 3)"
+                    :key="i"
+                    :href="item.href"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="related-card"
+                  >
+                    <div class="card-image-area">
+                      <img
+                        :src="`https://www.google.com/s2/favicons?domain=${getDomain(
+                          item.href
+                        )}&sz=128`"
+                        class="card-cover-icon"
+                        @error="handleFaviconError"
+                      />
+                    </div>
+                    <div class="card-content">
+                      <div class="card-source">
+                        <img
+                          :src="`https://www.google.com/s2/favicons?domain=${getDomain(
+                            item.href
+                          )}&sz=32`"
+                          class="favicon"
+                          @error="handleFaviconError"
+                        />
+                        <span class="domain-text">{{
+                          getDomain(item.href)
+                        }}</span>
+                      </div>
+                      <div class="card-title" :title="item.title">
+                        {{ item.title }}
+                      </div>
+                    </div>
+                  </a>
+                </div>
+              </div>
             </template>
           </template>
           <template v-else>
@@ -558,7 +600,7 @@
     <input
       ref="fileInput"
       type="file"
-      accept="image/*"
+      accept="image/*,.pdf,.docx,.txt,.md,.markdown"
       style="display: none"
       @change="handleFileChange"
     />
@@ -800,6 +842,22 @@ const renderer = {
     return `<pre><code class="hljs language-${language}">${
       hljs.highlight(code, { language }).value
     }</code></pre>`;
+  },
+  link(href, title, text) {
+    // 兼容 marked 不同版本的参数传递方式
+    let url = href;
+    let tit = title;
+    let txt = text;
+
+    if (typeof href === "object" && href !== null) {
+      url = href.href;
+      tit = href.title;
+      txt = href.text;
+    }
+
+    return `<a href="${url}" title="${
+      tit || ""
+    }" target="_blank" rel="noopener noreferrer">${txt}</a>`;
   },
 };
 
@@ -1519,13 +1577,91 @@ const handleUpload = () => {
 
 const handleFileChange = async (e) => {
   const file = e.target.files?.[0];
-  if (file) {
+  if (!file) return;
+
+  // 检查文件类型
+  if (file.type.startsWith("image/")) {
     const imagePath = await chatStore.uploadImage(file);
     if (imagePath) {
       await chatStore.sendMessage("", imagePath, router);
     }
-    e.target.value = "";
+  } else {
+    // 处理文档上传
+    try {
+      // 显示加载状态
+      chatStore.isTyping = true;
+
+      // 添加用户消息占位
+      messages.value.push({
+        id: `temp-doc-${Date.now()}`,
+        role: "user",
+        content: `📄 上传文档：${file.name}`,
+        timestamp: new Date().toISOString(),
+      });
+
+      // 滚动到底部
+      shouldScrollToBottom.value = true;
+
+      const result = await chatStore.uploadDocument(file);
+
+      if (result.success) {
+        // 构建总结消息
+        let content = `### 📄 文档总结：${file.name}\n\n${result.summary}\n\n#### 💡 关键要点\n`;
+        if (Array.isArray(result.key_points)) {
+          result.key_points.forEach((p) => (content += `- ${p}\n`));
+        }
+
+        content += `\n\n*(处理耗时: ${result.processing_time.toFixed(1)}秒)*`;
+
+        // 添加 AI 回复消息
+        // 注意：这里只是前端显示，如果需要持久化到对话历史，
+        // 建议后端 upload_document 接口同时也写入 messages 表，
+        // 或者前端调用 sendMessage 发送总结内容（但这会再次触发 AI 生成）
+        // 目前作为独立功能展示
+        messages.value.push({
+          id: `doc-summary-${result.document_id}`,
+          role: "assistant",
+          content: content,
+          timestamp: new Date().toISOString(),
+          status: "done",
+        });
+
+        // 再次滚动
+        shouldScrollToBottom.value = true;
+
+        // 关键修复：如果这是新会话，更新路由，确保刷新后不丢失
+        if (
+          result.session_id &&
+          (!route.params.sessionId ||
+            route.params.sessionId !== result.session_id)
+        ) {
+          // 更新 store 状态
+          chatStore.currentSessionId = result.session_id;
+          // 更新 URL，确保刷新后能加载回话
+          // 使用 replace 避免在历史记录中留下空白的新对话页面
+          await router.replace(`/chat/${result.session_id}`);
+        }
+      } else {
+        messages.value.push({
+          id: `error-${Date.now()}`,
+          role: "assistant",
+          content: `❌ 文档处理失败: ${result.error || "未知错误"}`,
+          status: "done",
+        });
+      }
+    } catch (error) {
+      console.error("Upload error:", error);
+      messages.value.push({
+        id: `error-${Date.now()}`,
+        role: "assistant",
+        content: `❌ 上传失败: ${error.message || "网络错误"}`,
+        status: "done",
+      });
+    } finally {
+      chatStore.isTyping = false;
+    }
   }
+  e.target.value = "";
 };
 
 const handleVoice = () => {
@@ -1591,6 +1727,76 @@ onBeforeUnmount(() => {
   }
   document.removeEventListener("selectionchange", handleSelection);
 });
+
+// 解析引用内容
+const extractReferences = (content) => {
+  if (!content) return { main: "", refs: [] };
+
+  // 匹配 "参考来源：" 或 "References:" 及其后的内容
+  // 使用更严格的正则，确保是在行首或双换行后
+  const refRegex =
+    /(?:^|\n\n)(?:参考来源|References|Sources)[:：]\s*([\s\S]*)$/i;
+  const match = content.match(refRegex);
+
+  if (!match) return { main: content, refs: [] };
+
+  const refBlock = match[1];
+  const main = content.substring(0, match.index).trim();
+
+  // 提取链接：1. [Title](URL)
+  const linkRegex = /(?:^|\n)\s*\d+\.\s*\[(.*?)\]\((.*?)\)/g;
+  const refs = [];
+  let linkMatch;
+
+  while ((linkMatch = linkRegex.exec(refBlock)) !== null) {
+    refs.push({
+      title: linkMatch[1],
+      href: linkMatch[2],
+      body: "", // 文本解析没有摘要
+    });
+  }
+
+  // 如果没有提取到有效链接，说明可能不是标准的引用块，不截断
+  if (refs.length === 0) return { main: content, refs: [] };
+
+  return { main, refs };
+};
+
+const getDisplayContent = (message) => {
+  // 如果有结构化的 search_results，我们仍然尝试移除文本中的引用部分，避免重复
+  // 如果没有 search_results，我们也移除引用部分，因为会渲染成卡片
+  const { main } = extractReferences(message.content);
+  return main;
+};
+
+const getRelatedReadings = (message) => {
+  // 优先使用后端返回的结构化数据（包含摘要）
+  if (message.search_results && message.search_results.length > 0) {
+    return message.search_results;
+  }
+  // 否则尝试从文本中解析
+  const { refs } = extractReferences(message.content);
+  return refs;
+};
+
+const hasRelatedReadings = (message) => {
+  if (message.search_results && message.search_results.length > 0) return true;
+  const { refs } = extractReferences(message.content);
+  return refs.length > 0;
+};
+
+const getDomain = (url) => {
+  try {
+    const domain = new URL(url).hostname;
+    return domain.replace("www.", "");
+  } catch (e) {
+    return "web";
+  }
+};
+
+const handleFaviconError = (e) => {
+  e.target.style.opacity = "0";
+};
 
 const feedbackMessage = async (message, type) => {
   try {
@@ -1693,7 +1899,7 @@ const feedbackMessage = async (message, type) => {
   width: 100%;
 }
 .chat-view.empty .input-wrapper {
-  max-width: 680px;
+  max-width: 800px;
   width: 90%;
   box-shadow: none;
   background: var(--bg-secondary);
@@ -1711,7 +1917,7 @@ const feedbackMessage = async (message, type) => {
 }
 .chat-inner {
   width: 100%;
-  max-width: 680px;
+  max-width: 800px;
   padding: 16px 20px;
   position: relative;
 }
@@ -2087,7 +2293,7 @@ const feedbackMessage = async (message, type) => {
   flex-shrink: 0;
 }
 .input-wrapper {
-  max-width: 680px;
+  max-width: 800px;
   margin: 0 auto;
   display: flex;
   gap: 8px;
@@ -2678,41 +2884,123 @@ const feedbackMessage = async (message, type) => {
   background: var(--bg-hover);
 }
 
-@media (max-width: 768px) {
-  .chat-inner {
-    padding: 16px 12px;
-  }
+/* 相关阅读卡片样式 */
+.related-reading {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-light);
+  animation: fadeIn 0.5s ease-out;
+  width: 100%;
+  overflow: hidden; /* 防止溢出 */
+}
 
-  .user-bubble {
-    max-width: 85%;
-  }
+.related-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 12px;
+}
 
-  .message-image {
-    max-width: 100%;
-    height: auto;
-  }
+.related-cards {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  width: 100%;
+  /* 隐藏滚动条但保持功能 */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+}
 
-  .input-container {
-    padding: 8px 10px 10px;
-  }
+.related-cards::-webkit-scrollbar {
+  display: none; /* Chrome/Safari/Opera */
+}
 
-  .welcome-title {
-    font-size: 20px;
-  }
+.related-card {
+  flex: 1; /* 均分宽度 */
+  min-width: 0; /* 防止内容撑开 */
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  text-decoration: none;
+  transition: transform 0.2s, box-shadow 0.2s;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* 确保图片不溢出圆角 */
+}
 
-  .welcome-icon {
-    font-size: 40px;
-  }
+.related-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--border-medium);
+}
 
-  /* 移动端代码块优化 */
-  .md-content :deep(pre) {
-    border-radius: 8px;
-    margin: 0.8em 0;
-  }
+.card-image-area {
+  height: 110px;
+  background: var(--bg-tertiary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-bottom: 1px solid var(--border-light);
+  position: relative;
+  overflow: hidden;
+}
 
-  .md-content :deep(pre code) {
-    padding: 12px 14px;
-    font-size: 13px;
-  }
+.card-cover-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  object-fit: contain;
+  opacity: 0.9;
+  transition: transform 0.3s ease;
+}
+
+.related-card:hover .card-cover-icon {
+  transform: scale(1.1);
+}
+
+.card-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  flex: 1;
+}
+
+.card-source {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.favicon {
+  width: 14px;
+  height: 14px;
+  border-radius: 2px;
+}
+
+.domain-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.card-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.card-snippet {
+  display: none; /* 隐藏摘要以节省空间 */
 }
 </style>
