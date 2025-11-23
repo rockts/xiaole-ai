@@ -110,73 +110,6 @@
           </div>
         </transition>
       </div>
-
-      <div class="user-menu">
-        <button class="user-avatar" @click="toggleUserMenu">
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-            <circle cx="12" cy="7" r="4" />
-          </svg>
-        </button>
-
-        <transition name="dropdown">
-          <div v-if="showUserMenu" class="dropdown-menu">
-            <div class="dropdown-item">
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                <circle cx="12" cy="7" r="4" />
-              </svg>
-              <span>个人资料</span>
-            </div>
-            <div class="dropdown-item">
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <circle cx="12" cy="12" r="3" />
-                <path
-                  d="M12 1v6m0 6v6M3.93 3.93l4.24 4.24m8.48 8.48l4.24 4.24M1 12h6m6 0h6M3.93 20.07l4.24-4.24m8.48-8.48l4.24-4.24"
-                />
-              </svg>
-              <span>设置</span>
-            </div>
-            <div class="dropdown-divider"></div>
-            <div class="dropdown-item danger">
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                <polyline points="16 17 21 12 16 7" />
-                <line x1="21" y1="12" x2="9" y2="12" />
-              </svg>
-              <span>退出登录</span>
-            </div>
-          </div>
-        </transition>
-      </div>
     </div>
   </div>
 </template>
@@ -194,7 +127,6 @@ const chatStore = useChatStore();
 const emit = defineEmits(["toggle-sidebar"]);
 
 const isDark = ref(false);
-const showUserMenu = ref(false);
 const isEditingTitle = ref(false);
 const editingTitle = ref("");
 const titleInput = ref(null);
@@ -211,7 +143,6 @@ const activeRemindersCount = computed(() => reminders.value.length);
 const toggleReminders = () => {
   showReminders.value = !showReminders.value;
   if (showReminders.value) {
-    showUserMenu.value = false; // 关闭其他菜单
     // 每次打开刷新一次，虽然有 websocket 自动更新
     loadReminders();
   }
@@ -376,17 +307,7 @@ const toggleTheme = () => {
   localStorage.setItem("theme", isDark.value ? "dark" : "light");
 };
 
-const toggleUserMenu = () => {
-  showUserMenu.value = !showUserMenu.value;
-  if (showUserMenu.value) {
-    showReminders.value = false;
-  }
-};
-
 const handleOutsideClick = (e) => {
-  if (!e.target.closest(".user-menu")) {
-    showUserMenu.value = false;
-  }
   if (!e.target.closest(".reminder-container")) {
     showReminders.value = false;
   }
@@ -551,10 +472,6 @@ onBeforeUnmount(() => {
   color: var(--text-primary);
 }
 
-.user-menu {
-  position: relative;
-}
-
 .reminder-container {
   position: relative;
 }
@@ -591,92 +508,6 @@ onBeforeUnmount(() => {
 @media (max-width: 768px) {
   .reminder-dropdown {
     right: -60px;
-  }
-}
-
-.user-avatar {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  padding: 0;
-  background: var(--brand-gradient);
-  border: none;
-  border-radius: var(--radius-full);
-  color: var(--text-inverse);
-  cursor: pointer;
-  transition: all var(--duration-fast) var(--ease-out);
-}
-
-.user-avatar:hover {
-  opacity: 0.9;
-}
-
-.dropdown-menu {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  min-width: 200px;
-  background: var(--bg-primary);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg);
-  padding: var(--space-xs);
-  z-index: 1000;
-}
-
-.dropdown-item {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  padding: 10px var(--space-md);
-  color: var(--text-primary);
-  font-size: 13px;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  transition: background var(--duration-fast) var(--ease-out);
-}
-
-.dropdown-item:hover {
-  background: var(--bg-hover);
-}
-
-.dropdown-item.danger {
-  color: var(--error);
-}
-
-.dropdown-divider {
-  height: 1px;
-  background: var(--border-light);
-  margin: var(--space-xs) 0;
-}
-
-.dropdown-enter-active {
-  animation: dropdownIn 0.15s var(--ease-out);
-}
-
-.dropdown-leave-active {
-  animation: dropdownOut 0.1s var(--ease-in);
-}
-
-@keyframes dropdownIn {
-  from {
-    opacity: 0;
-    transform: translateY(-8px) scale(0.96);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-@keyframes dropdownOut {
-  from {
-    opacity: 1;
-  }
-  to {
-    opacity: 0;
   }
 }
 </style>

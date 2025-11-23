@@ -10,6 +10,9 @@
     <div class="sidebar-content">
       <!-- 顶部：标题 + 收起按钮 -->
       <div class="sidebar-logo-title">
+        <div class="logo">
+          <img :src="logoSrc" alt="Logo" />
+        </div>
         <div class="title">小乐 AI 管家</div>
         <button class="collapse-btn" @click="toggleSidebar" title="收起侧边栏">
           <svg
@@ -282,21 +285,27 @@
     </div>
 
     <!-- 底部：用户资料 -->
-    <div class="sidebar-footer user-profile" @click="openSettingsModal">
+    <div class="sidebar-footer user-profile" @click="toggleUserMenu" ref="userMenuRef">
       <div class="avatar-wrapper">
-        <img
-          v-if="!showFallbackLogo"
-          :src="logoSrc"
-          alt="用户头像"
-          @error="onLogoError"
-        />
-        <div v-else class="logo-fallback">乐</div>
+        <div class="user-avatar-icon">
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+            <circle cx="12" cy="7" r="4" />
+          </svg>
+        </div>
       </div>
       <div class="user-info">
         <div class="username">{{ username }}</div>
         <div class="user-status">在线</div>
       </div>
-      <button class="settings-icon-btn" title="设置">
+      <button class="settings-icon-btn" title="用户菜单">
         <svg
           width="16"
           height="16"
@@ -305,12 +314,49 @@
           stroke="currentColor"
           stroke-width="2"
         >
-          <circle cx="12" cy="12" r="3"></circle>
-          <path
-            d="M12 1v6m0 6v6M3.93 3.93l4.24 4.24m8.48 8.48l4.24 4.24M1 12h6m6 0h6M3.93 20.07l4.24-4.24m8.48-8.48l4.24-4.24"
-          ></path>
+          <circle cx="12" cy="12" r="1" />
+          <circle cx="12" cy="5" r="1" />
+          <circle cx="12" cy="19" r="1" />
         </svg>
       </button>
+
+      <!-- 用户菜单弹出层 -->
+      <transition name="dropdown">
+        <div v-if="showUserMenu" class="user-dropdown-menu" @click.stop>
+          <div class="dropdown-item" @click="openSettingsModal">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <circle cx="12" cy="12" r="3" />
+              <path
+                d="M12 1v6m0 6v6M3.93 3.93l4.24 4.24m8.48 8.48l4.24 4.24M1 12h6m6 0h6M3.93 20.07l4.24-4.24m8.48-8.48l4.24-4.24"
+              />
+            </svg>
+            <span>设置</span>
+          </div>
+          <div class="dropdown-divider"></div>
+          <div class="dropdown-item danger">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <polyline points="16 17 21 12 16 7" />
+              <line x1="21" y1="12" x2="9" y2="12" />
+            </svg>
+            <span>退出登录</span>
+          </div>
+        </div>
+      </transition>
     </div>
 
     <!-- 设置弹窗 -->
@@ -362,10 +408,6 @@ const savedCollapsed = localStorage.getItem("sidebar-collapsed");
 const isCollapsed = ref(
   savedCollapsed !== null ? savedCollapsed === "true" : isMobile.value
 );
-const showFallbackLogo = ref(false);
-const onLogoError = () => {
-  showFallbackLogo.value = true;
-};
 
 const navItems = [
   {
@@ -415,11 +457,17 @@ const loadSession = (id) => {
 };
 
 const showSettingsModal = ref(false);
+const showUserMenu = ref(false);
 const username = ref("游戏小乐乐"); // 默认值，后续从localStorage加载
 
 const openSettingsModal = () => {
   showSettingsModal.value = true;
+  showUserMenu.value = false;
   handleMobileNav();
+};
+
+const toggleUserMenu = () => {
+  showUserMenu.value = !showUserMenu.value;
 };
 
 // 加载用户名
@@ -719,6 +767,12 @@ onMounted(() => {
     if (!isMenuBtn && !isMenu && activeMenuSessionId.value) {
       console.log("Closing menu due to outside click");
       activeMenuSessionId.value = null;
+    }
+
+    // 用户菜单关闭逻辑
+    const isUserProfile = e.target.closest(".user-profile");
+    if (!isUserProfile && showUserMenu.value) {
+      showUserMenu.value = false;
     }
   };
   document.addEventListener("click", clickOutsideHandler);
@@ -1386,6 +1440,7 @@ watch(
 
 /* 用户资料底部栏 */
 .user-profile {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -1407,10 +1462,56 @@ watch(
   border: 2px solid var(--bg-secondary);
 }
 
-.avatar-wrapper img {
+.user-avatar-icon {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--brand-gradient);
+  color: white;
+}
+
+.user-dropdown-menu {
+  position: absolute;
+  bottom: 100%;
+  left: 8px;
+  right: 8px;
+  margin-bottom: 8px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  padding: 4px;
+  z-index: 1000;
+  animation: slideUp 0.15s ease-out;
+  cursor: default;
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  color: var(--text-primary);
+  font-size: 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background var(--duration-fast);
+}
+
+.dropdown-item:hover {
+  background: var(--bg-hover);
+}
+
+.dropdown-item.danger {
+  color: var(--error);
+}
+
+.dropdown-divider {
+  height: 1px;
+  background: var(--border-light);
+  margin: 4px 0;
 }
 
 .user-info {
