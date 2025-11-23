@@ -10,8 +10,29 @@
     <div class="sidebar-content">
       <!-- 顶部：标题 + 收起按钮 -->
       <div class="sidebar-logo-title">
-        <div class="logo">
-          <img :src="logoSrc" alt="Logo" />
+        <div
+          class="logo-wrapper"
+          :class="{ 'show-toggle': isCollapsed }"
+          @click="handleLogoClick"
+        >
+          <div class="logo">
+            <img :src="logoSrc" alt="Logo" />
+          </div>
+          <div class="toggle-icon">
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <polyline points="13 17 18 12 13 7"></polyline>
+              <polyline points="6 17 11 12 6 7"></polyline>
+            </svg>
+          </div>
         </div>
         <div class="title">小乐 AI 管家</div>
         <button class="collapse-btn" @click="toggleSidebar" title="收起侧边栏">
@@ -321,42 +342,52 @@
       </button>
 
       <!-- 用户菜单弹出层 -->
-      <transition name="dropdown">
-        <div v-if="showUserMenu" class="user-dropdown-menu" @click.stop>
-          <div class="dropdown-item" @click="openSettingsModal">
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <circle cx="12" cy="12" r="3" />
-              <path
-                d="M12 1v6m0 6v6M3.93 3.93l4.24 4.24m8.48 8.48l4.24 4.24M1 12h6m6 0h6M3.93 20.07l4.24-4.24m8.48-8.48l4.24-4.24"
-              />
-            </svg>
-            <span>设置</span>
+      <teleport to="body">
+        <transition name="dropdown">
+          <div
+            v-if="showUserMenu"
+            class="user-dropdown-menu"
+            :style="{
+              left: userMenuPosition.left + 'px',
+              bottom: userMenuPosition.bottom + 'px',
+            }"
+            @click.stop
+          >
+            <div class="dropdown-item" @click="openSettingsModal">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <circle cx="12" cy="12" r="3" />
+                <path
+                  d="M12 1v6m0 6v6M3.93 3.93l4.24 4.24m8.48 8.48l4.24 4.24M1 12h6m6 0h6M3.93 20.07l4.24-4.24m8.48-8.48l4.24-4.24"
+                />
+              </svg>
+              <span>设置</span>
+            </div>
+            <div class="dropdown-divider"></div>
+            <div class="dropdown-item danger">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                <polyline points="16 17 21 12 16 7" />
+                <line x1="21" y1="12" x2="9" y2="12" />
+              </svg>
+              <span>退出登录</span>
+            </div>
           </div>
-          <div class="dropdown-divider"></div>
-          <div class="dropdown-item danger">
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-              <polyline points="16 17 21 12 16 7" />
-              <line x1="21" y1="12" x2="9" y2="12" />
-            </svg>
-            <span>退出登录</span>
-          </div>
-        </div>
-      </transition>
+        </transition>
+      </teleport>
     </div>
 
     <!-- 设置弹窗 -->
@@ -458,6 +489,8 @@ const loadSession = (id) => {
 
 const showSettingsModal = ref(false);
 const showUserMenu = ref(false);
+const userMenuPosition = ref({ left: 0, bottom: 0 });
+const userMenuRef = ref(null);
 const username = ref("游戏小乐乐"); // 默认值，后续从localStorage加载
 
 const openSettingsModal = () => {
@@ -466,8 +499,28 @@ const openSettingsModal = () => {
   handleMobileNav();
 };
 
+const updateUserMenuPosition = () => {
+  if (!userMenuRef.value) return;
+  const rect = userMenuRef.value.getBoundingClientRect();
+  userMenuPosition.value = {
+    left: rect.left + 8,
+    bottom: window.innerHeight - rect.top + 8,
+  };
+};
+
 const toggleUserMenu = () => {
-  showUserMenu.value = !showUserMenu.value;
+  if (!showUserMenu.value) {
+    updateUserMenuPosition();
+    showUserMenu.value = true;
+  } else {
+    showUserMenu.value = false;
+  }
+};
+
+const handleLogoClick = () => {
+  if (isCollapsed.value) {
+    toggleSidebar();
+  }
 };
 
 // 加载用户名
@@ -1473,11 +1526,8 @@ watch(
 }
 
 .user-dropdown-menu {
-  position: absolute;
-  bottom: 100%;
-  left: 8px;
-  right: 8px;
-  margin-bottom: 8px;
+  position: fixed;
+  min-width: 200px;
   background: var(--bg-primary);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-md);
