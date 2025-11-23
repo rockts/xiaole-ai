@@ -1250,22 +1250,40 @@ class XiaoLeAgent:
                 from db_setup import Memory
                 recent_docs = self.memory.session.query(Memory).filter(
                     Memory.tag.like('document:%')
-                ).order_by(Memory.created_at.desc()).limit(2).all()
-                # 只提取前100个字符作为上下文提示
-                document_memories = [f"已上传文档: {mem.content[:100]}..." for mem in recent_docs]
+                ).order_by(Memory.created_at.desc()).limit(3).all()
+                # 提取文件名和简要内容
+                document_memories = []
+                for mem in recent_docs:
+                    # 从tag中提取文件名 document:filename
+                    if ':' in mem.tag:
+                        filename = mem.tag.split(':', 1)[1]
+                    else:
+                        filename = "unknown"
+                    # 提取前150个字符
+                    preview = mem.content[:150].replace('\n', ' ')
+                    document_memories.append(
+                        f"已上传文档[{filename}]: {preview}..."
+                    )
             except Exception as e:
                 logger.warning(f"获取文档记忆失败: {e}")
 
             context_parts = []
             if location_memories:
-                context_parts.append("用户背景信息（从记忆库提取）：\n" + "\n".join(location_memories))
-            
+                context_parts.append(
+                    "用户背景信息（从记忆库提取）：\n" + "\n".join(location_memories)
+                )
+
             if document_memories:
-                context_parts.append("最近上传的文档上下文：\n" + "\n".join(document_memories))
-                
+                context_parts.append(
+                    "最近上传的文档上下文：\n" + "\n".join(document_memories)
+                )
+
             if context_parts:
                 user_context = "\n\n" + "\n\n".join(context_parts)
-                logger.info(f"🔍 意图分析 - 注入上下文: {len(location_memories)}条记忆, {len(document_memories)}个文档")
+                logger.info(
+                    f"🔍 意图分析 - 注入上下文: {len(location_memories)}条记忆, "
+                    f"{len(document_memories)}个文档"
+                )
         except Exception as e:
             logger.warning(f"获取用户位置信息失败: {e}")
 
@@ -1298,7 +1316,11 @@ class XiaoLeAgent:
    - "创建/新建/写文件" -> operation="write"
    - "读取/查看/显示文件" -> operation="read"
    - "列出/查看目录/有哪些文件" -> operation="list"
-   - **注意**：如果用户问的是"最近上传的文档上下文"中已有的文档内容（如"总结一下这个文档"、"文档里说了什么"），**不需要**调用file工具，也不需要search工具，直接返回 needs_tool=false。
+   - **文档问答规则**：
+     - 如果用户询问"最近上传的文档上下文"中已有的文档：
+       - 询问**总结/概要** -> 不需要工具 (needs_tool=false)
+       - 询问**具体细节/特定数据** -> **必须**调用file工具读取全文 (operation="read", path="文件名")
+     - 如果用户询问未知的本地文件 -> 调用file工具查找/读取
 9. 普通对话 -> needs_tool=false
 
 **search工具优先级最高** - 以下情况必须使用:
