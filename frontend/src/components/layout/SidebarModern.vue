@@ -29,8 +29,8 @@
               stroke-linecap="round"
               stroke-linejoin="round"
             >
-              <polyline points="13 17 18 12 13 7"></polyline>
-              <polyline points="6 17 11 12 6 7"></polyline>
+              <rect x="3" y="3" width="18" height="18" rx="4" ry="4"></rect>
+              <line x1="9" y1="3" x2="9" y2="21"></line>
             </svg>
           </div>
         </div>
