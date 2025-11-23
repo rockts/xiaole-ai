@@ -896,7 +896,7 @@ watch(
 .sidebar {
   display: flex;
   flex-direction: column;
-  width: 260px;
+  width: 245px;
   height: 100vh;
   background: var(--bg-primary);
   border-right: 1px solid var(--border-light);
@@ -915,14 +915,14 @@ watch(
     top: 0;
     left: 0;
     bottom: 0;
-    width: 260px !important; /* 移动端展开时宽度固定 */
+    width: 245px !important; /* 移动端展开时宽度固定 */
     transform: translateX(0);
     box-shadow: var(--shadow-lg);
     z-index: 1000;
   }
 
   .sidebar.collapsed {
-    width: 260px !important;
+    width: 245px !important;
     transform: translateX(-100%);
   }
 
