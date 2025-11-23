@@ -326,7 +326,7 @@ onMounted(() => {
   loadReminders();
   timerInterval = setInterval(updateTimeRemaining, 1000);
   window.addEventListener("reminder-confirmed", loadReminders);
-  window.addEventListener('refresh-reminders', loadReminders);
+  window.addEventListener("refresh-reminders", loadReminders);
 
   wsUnsubscribe = on((data) => {
     if (data.type === "reminder_created" || data.type === "reminder_updated") {
@@ -356,7 +356,7 @@ watch(
 onBeforeUnmount(() => {
   document.removeEventListener("click", handleOutsideClick);
   window.removeEventListener("reminder-confirmed", loadReminders);
-  window.removeEventListener('refresh-reminders', loadReminders);
+  window.removeEventListener("refresh-reminders", loadReminders);
   if (timerInterval) clearInterval(timerInterval);
   if (wsUnsubscribe) wsUnsubscribe();
 });
@@ -398,6 +398,13 @@ onBeforeUnmount(() => {
 
   .mobile-menu-btn {
     left: var(--space-md);
+  }
+
+  .title-input {
+    min-width: 120px;
+    max-width: 180px;
+    font-size: 14px;
+    padding: 4px 8px;
   }
 }
 

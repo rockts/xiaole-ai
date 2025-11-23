@@ -2472,3 +2472,124 @@ button:disabled {
     left: 50% !important;
     transform: translate(-50%, -50%) !important;
 }
+
+/* 移动端适配优化 */
+@media (max-width: 768px) {
+    /* 侧边栏改为浮动遮罩模式 */
+    .sidebar {
+        position: fixed !important;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        height: 100vh !important;
+        z-index: 2000 !important;
+        box-shadow: 2px 0 12px rgba(0, 0, 0, 0.15);
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    }
+
+    /* 确保主内容区域占满全屏 */
+    .main-content {
+        width: 100% !important;
+        margin-left: 0 !important;
+        flex: 1 1 auto;
+    }
+
+    /* 顶部栏调整 */
+    .top-bar {
+        padding: 0 12px !important;
+        height: 56px !important;
+    }
+
+    .page-title {
+        font-size: 16px !important;
+        max-width: 50vw !important;
+    }
+
+    /* 聊天区域调整 */
+    .chat-inner {
+        padding: 16px 12px 100px !important; /* 减小内边距，底部留出输入框空间 */
+    }
+
+    /* 消息气泡优化 */
+    .user-bubble {
+        max-width: 88% !important; /* 增加气泡最大宽度 */
+        padding: 10px 14px !important;
+        font-size: 15px !important;
+    }
+
+    .message.assistant .md-content {
+        font-size: 15px !important;
+    }
+
+    .message-content {
+        padding: 12px 14px !important;
+    }
+
+    /* 输入框区域固定到底部，全宽 */
+    .input-container {
+        left: 0 !important;
+        right: 0 !important;
+        width: 100% !important;
+        padding: 10px 12px calc(16px + env(safe-area-inset-bottom)) !important;
+        background: var(--container-bg); /* 确保背景不透明 */
+        border-top: 1px solid var(--border-color);
+    }
+
+    /* 覆盖兄弟选择器规则 */
+    .sidebar.collapsed + .main-content .input-container {
+        left: 0 !important;
+    }
+
+    .input-wrapper {
+        padding: 4px 4px 4px 12px !important;
+        border-radius: 20px !important;
+    }
+
+    #messageInput {
+        font-size: 15px !important;
+        max-height: 100px !important; /* 限制最大高度 */
+    }
+
+    /* 调整输入框按钮大小 */
+    .input-actions button {
+        width: 32px !important;
+        height: 32px !important;
+        padding: 6px !important;
+    }
+
+    /* 隐藏或调整不重要的元素 */
+    .session-time {
+        display: none; /* 列表里隐藏时间以节省空间 */
+    }
+
+    /* 调整代码块字体 */
+    .message-content code {
+        font-size: 13px !important;
+    }
+    
+    /* 调整设置面板在移动端的显示 */
+    .settings-modal {
+        width: 95% !important;
+        max-height: 90vh !important;
+    }
+    
+    /* 移动端遮罩层层级 */
+    .sidebar-overlay {
+        z-index: 1900 !important; /* 低于侧边栏但高于其他内容 */
+    }
+}
+
+/* 移动端消息工具栏始终显示 */
+.message-toolbar {
+    opacity: 1 !important;
+    margin-top: 8px;
+    justify-content: flex-end; /* 确保靠右 */
+}
+
+/* 调整回到底部按钮位置 */
+.scroll-to-bottom {
+    right: 20px !important;
+    bottom: 90px !important;
+    width: 36px !important;
+    height: 36px !important;
+}

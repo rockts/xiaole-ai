@@ -336,6 +336,34 @@ onMounted(() => {
         stopAutoCloseTimer();
         currentReminder.value = null;
       }
+    } else if (data.type === "reminder_updated") {
+      // 如果当前显示的提醒被更新为禁用（例如在其他标签页确认了），关闭弹窗
+      if (
+        currentReminder.value &&
+        currentReminder.value.reminder_id === data.data.reminder_id &&
+        data.data.updates &&
+        data.data.updates.enabled === false
+      ) {
+        console.log(
+          `Reminder ${data.data.reminder_id} disabled remotely, closing popup`
+        );
+        stopPlayback();
+        stopAutoCloseTimer();
+        currentReminder.value = null;
+      }
+    } else if (data.type === "reminder_confirmed") {
+      // 如果提醒已被确认（无论是否重复），关闭弹窗
+      if (
+        currentReminder.value &&
+        currentReminder.value.reminder_id === data.data.reminder_id
+      ) {
+        console.log(
+          `Reminder ${data.data.reminder_id} confirmed remotely, closing popup`
+        );
+        stopPlayback();
+        stopAutoCloseTimer();
+        currentReminder.value = null;
+      }
     }
   });
 });

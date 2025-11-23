@@ -90,6 +90,35 @@
 
       <!-- 最近对话列表 -->
       <div class="sessions-section">
+        <!-- 待办任务列表 (显示在历史对话上方) -->
+        <div class="tasks-section" v-if="incompleteTasks.length > 0">
+          <div class="section-header">
+            <span>待办任务</span>
+          </div>
+          <div class="tasks-list">
+            <div
+              v-for="task in incompleteTasks"
+              :key="task.id"
+              class="task-item"
+              @click="handleTaskClick(task)"
+            >
+              <div class="task-status-icon">
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <circle cx="12" cy="12" r="10"></circle>
+                </svg>
+              </div>
+              <div class="task-content">{{ task.title }}</div>
+            </div>
+          </div>
+        </div>
+
         <div class="section-header">
           <span>历史对话</span>
         </div>
@@ -452,6 +481,29 @@ const route = useRoute();
 const chatStore = useChatStore();
 const { sessions, loading } = storeToRefs(chatStore);
 
+// 任务数据
+const tasks = ref([]);
+const incompleteTasks = computed(() =>
+  tasks.value.filter((t) => t.status !== "completed").slice(0, 5)
+); // 只显示前5个未完成任务
+
+const fetchTasks = async () => {
+  try {
+    const res = await fetch("/api/tasks");
+    if (res.ok) {
+      const data = await res.json();
+      tasks.value = data.tasks || [];
+    }
+  } catch (e) {
+    console.error("Failed to fetch tasks", e);
+  }
+};
+
+const handleTaskClick = (task) => {
+  router.push(`/task/${task.id}`);
+  handleMobileNav();
+};
+
 // 移动端检测
 const isMobile = ref(window.innerWidth <= 768);
 
@@ -460,7 +512,7 @@ const logoSrc = computed(() => logoImage);
 // 从 localStorage 读取收起状态，移动端默认收起
 const savedCollapsed = localStorage.getItem("sidebar-collapsed");
 const isCollapsed = ref(
-  savedCollapsed !== null ? savedCollapsed === "true" : isMobile.value
+  isMobile.value ? true : (savedCollapsed !== null ? savedCollapsed === "true" : false)
 );
 
 const navItems = [
@@ -832,6 +884,7 @@ let clickOutsideHandler = null;
 
 onMounted(() => {
   chatStore.loadSessions();
+  fetchTasks();
   loadUserProfile();
 
   // 点击外部关闭菜单
@@ -1136,6 +1189,57 @@ watch(
 }
 .nav-label {
   font-size: 14px;
+}
+
+.tasks-section {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.tasks-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-right: 8px;
+}
+
+.task-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background var(--duration-fast);
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.task-item:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.task-status-icon {
+  display: flex;
+  align-items: center;
+  color: var(--text-tertiary);
+}
+
+.task-content {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar.collapsed .tasks-section {
+  display: none;
 }
 
 .sessions-section {
@@ -1688,6 +1792,7 @@ watch(
   z-index: 999;
   animation: fadeIn 0.2s ease-out;
   backdrop-filter: blur(2px);
+  display: block !important; /* 确保显示，覆盖 app.css 中的 display: none */
 }
 </style>
 

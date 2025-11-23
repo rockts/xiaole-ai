@@ -1511,6 +1511,31 @@ def create_task_api(request: dict):
         }
 
 
+@app.get("/api/tasks")
+def get_tasks_list_api(
+    user_id: str = "default_user",
+    status: str = None,
+    limit: int = 50
+):
+    """获取当前用户的任务列表"""
+    try:
+        tasks = xiaole.task_manager.get_tasks_by_user(
+            user_id=user_id,
+            status=status,
+            limit=limit
+        )
+
+        return {
+            "success": True,
+            "tasks": [dict(t) for t in tasks]
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
 @app.get("/api/tasks/{task_id}")
 def get_task_api(task_id: int):
     """获取任务详情"""
@@ -1526,26 +1551,6 @@ def get_task_api(task_id: int):
             "success": True,
             "task": dict(task),
             "steps": steps
-        }
-    except Exception as e:
-        return {
-            "success": False,
-            "error": str(e)
-        }
-
-
-@app.get("/api/sessions/{session_id}/tasks")
-def get_session_tasks(session_id: str, status: str = None):
-    """获取会话的所有任务"""
-    try:
-        tasks = xiaole.task_manager.get_tasks_by_session(
-            session_id=session_id,
-            status=status
-        )
-
-        return {
-            "success": True,
-            "tasks": [dict(t) for t in tasks]
         }
     except Exception as e:
         return {

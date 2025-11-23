@@ -1243,7 +1243,7 @@ class XiaoLeAgent:
         try:
             # 从facts标签中查找城市、地点相关信息
             location_memories = self.memory.recall(tag="facts", limit=20)
-            
+
             # 新增：获取最近的文档记忆，让意图分析器知道用户最近上传了什么
             document_memories = []
             try:
@@ -1273,8 +1273,9 @@ class XiaoLeAgent:
                     "用户背景信息（从记忆库提取）：\n" + "\n".join(location_memories)
                 )
 
-            # TODO: [Optimization] Document preview is too short for detailed QA.
-            # Consider implementing RAG or forcing file_tool usage.
+            # TODO: [Optimization] Current document preview (150 chars) is too short for detailed QA.
+            # Consider implementing RAG or forcing file_tool usage for specific document queries
+            # even if the summary doesn't contain the answer.
             # See docs/issues/20251124_DOCUMENT_RETRIEVAL_FAIL.md
             if document_memories:
                 context_parts.append(
@@ -1707,9 +1708,7 @@ class XiaoLeAgent:
     )
     @handle_api_errors
     @log_execution
-    def _call_deepseek_with_history(
-        self, system_prompt, messages, response_style="balanced"
-    ):
+    def _call_deepseek_with_history(self, system_prompt, messages, response_style="balanced"):
         """
         v0.6.0: DeepSeek API 多轮对话（支持响应风格）
         """
@@ -1844,6 +1843,8 @@ class XiaoLeAgent:
             包含is_task和task_info的字典
         """
         prompt = f"""
+
+
 请分析用户的输入是否为一个需要多步骤执行的复杂任务，或者是一个需要跟踪的待办事项。
 
 任务的特征:
@@ -1851,7 +1852,7 @@ class XiaoLeAgent:
 2. 涉及多个工具或操作
 3. 步骤之间有依赖关系
 4. 需要一定时间完成
-5. **涉及购物、办事、出行等需要规划或记录的事项**
+5. ** 涉及购物、办事、出行等需要规划或记录的事项**
 
 用户输入: {user_input}
 
@@ -1865,12 +1866,12 @@ class XiaoLeAgent:
 }}
 
 例子:
-- "帮我准备周末的野餐" -> is_task: true (需要查天气、列物品、设提醒)
-- "今天天气怎么样" -> is_task: false (单个查询)
-- "提醒我明天9点开会" -> is_task: false (单个提醒)
-- "帮我规划下周的学习计划" -> is_task: true (需要多步分析和安排)
-- "去买杯冰美式" -> is_task: true (购物任务，可能需要导航或记录)
-- "带份早餐" -> is_task: true (办事任务)
+- "帮我准备周末的野餐" -> is_task: true(需要查天气、列物品、设提醒)
+- "今天天气怎么样" -> is_task: false(单个查询)
+- "提醒我明天9点开会" -> is_task: false(单个提醒)
+- "帮我规划下周的学习计划" -> is_task: true(需要多步分析和安排)
+- "去买杯冰美式" -> is_task: true(购物任务，可能需要导航或记录)
+- "带份早餐" -> is_task: true(办事任务)
 """
 
         try:
@@ -1945,7 +1946,7 @@ class XiaoLeAgent:
 要求:
 1. 每个步骤要具体、可执行
 2. 步骤之间要有逻辑顺序
-3. **必须将所有变量（如"当前城市"、"明天"）替换为具体的值**
+3. ** 必须将所有变量（如"当前城市"、"明天"）替换为具体的值**
    - 如果知道用户在"天水"，weather工具的city参数必须填"天水"，绝不能填"当前城市"
    - 如果不知道城市，请默认使用"北京"或在步骤中要求用户提供
 4. 需要调用工具的要标明工具名称和参数
@@ -2080,9 +2081,9 @@ class XiaoLeAgent:
 用户输入: "{prompt}"
 
 请判断用户是:
-1. 确认/同意 (如"好的", "没问题", "确认", "是的") -> 返回 'confirmed'
-2. 拒绝/取消 (如"不要", "取消", "不行", "算了") -> 返回 'rejected'
-3. 无关内容 (如问天气, 聊其他话题) -> 返回 'unrelated'
+1. 确认/同意(如"好的", "没问题", "确认", "是的") -> 返回 'confirmed'
+2. 拒绝/取消(如"不要", "取消", "不行", "算了") -> 返回 'rejected'
+3. 无关内容(如问天气, 聊其他话题) -> 返回 'unrelated'
 
 只返回一个单词: confirmed / rejected / unrelated
 """

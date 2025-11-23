@@ -215,7 +215,7 @@ class FileTool(Tool):
             # 尝试查找 uploads 目录下的同名文件（忽略前缀）
             filename = path.name
             uploads_dir = self.PROJECT_ROOT / "backend" / "uploads"
-            
+
             if uploads_dir.exists():
                 # 查找以 _filename 结尾的文件
                 found_files = list(uploads_dir.glob(f"*_{filename}"))

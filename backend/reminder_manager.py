@@ -265,7 +265,8 @@ class ReminderManager:
                                 }
                             })
                         except Exception as ws_error:
-                            logger.error(f"WebSocket broadcast failed: {ws_error}")
+                            logger.error(
+                                f"WebSocket broadcast failed: {ws_error}")
 
                     return updated_reminder
                 else:
@@ -647,6 +648,19 @@ class ReminderManager:
                 logger.info(
                     f"Confirmed reminder {reminder_id} (written to history)"
                 )
+
+                # 广播确认事件，通知前端关闭弹窗（解决多端/多标签页同步问题）
+                if self.websocket_broadcast:
+                    try:
+                        await self.websocket_broadcast({
+                            "type": "reminder_confirmed",
+                            "data": {
+                                "reminder_id": reminder_id
+                            }
+                        })
+                    except Exception as ws_error:
+                        logger.error(f"WebSocket broadcast failed: {ws_error}")
+
                 return True
 
         except Exception as e:

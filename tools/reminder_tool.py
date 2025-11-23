@@ -285,11 +285,11 @@ class ReminderTool(Tool):
             import logging
             logger = logging.getLogger(__name__)
             logger.info("🔍 修改提醒未提供ID，尝试智能查找唯一活跃提醒...")
-            
+
             active_reminders = await mgr.get_user_reminders(
                 user_id, enabled_only=True
             )
-            
+
             if len(active_reminders) == 1:
                 reminder_id = active_reminders[0]['reminder_id']
                 logger.info(f"✅ 智能锁定唯一提醒 ID: {reminder_id}")
@@ -303,7 +303,8 @@ class ReminderTool(Tool):
                 lines = ["❌ 无法确定要修改哪个提醒，请提供ID："]
                 for r in active_reminders:
                     time_str = self._format_reminder_time(r)
-                    lines.append(f"- ID:{r['reminder_id']} | {time_str} | {r['content']}")
+                    lines.append(
+                        f"- ID:{r['reminder_id']} | {time_str} | {r['content']}")
                 return {
                     "success": False,
                     "data": "\n".join(lines)
@@ -356,11 +357,11 @@ class ReminderTool(Tool):
 
         if updated_reminder:
             msg_parts = [f"✅ 提醒已修改 (ID: {reminder_id})"]
-            
+
             # 显示当前最新状态
             current_content = updated_reminder.get('content', '未知内容')
             msg_parts.append(f"📝 当前内容：{current_content}")
-            
+
             # 格式化时间
             time_str = self._format_reminder_time(updated_reminder)
             msg_parts.append(f"⏰ 当前时间：{time_str}")

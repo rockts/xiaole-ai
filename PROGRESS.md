@@ -658,5 +658,3 @@ git commit -m "chore: 清理v0.3.0开发过程中的临时测试脚本
 ---
 
 下一步：v0.5.0 - Active Perception层
-
-````
