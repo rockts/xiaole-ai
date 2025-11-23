@@ -1146,8 +1146,14 @@ watch(
   max-height: calc(100vh - 200px);
   gap: 0;
   margin: 0;
-  padding: 0 8px 0;
+  padding: 0 0 0 8px;
   overflow: hidden;
+}
+
+.sessions-list {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 8px;
 }
 
 .section-header {
