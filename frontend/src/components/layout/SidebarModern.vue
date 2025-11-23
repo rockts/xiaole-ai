@@ -306,7 +306,11 @@
     </div>
 
     <!-- 底部：用户资料 -->
-    <div class="sidebar-footer user-profile" @click="toggleUserMenu" ref="userMenuRef">
+    <div
+      class="sidebar-footer user-profile"
+      @click="toggleUserMenu"
+      ref="userMenuRef"
+    >
       <div class="avatar-wrapper">
         <div class="user-avatar-icon">
           <svg
@@ -391,7 +395,10 @@
     </div>
 
     <!-- 设置弹窗 -->
-    <SettingsModal v-if="showSettingsModal" @close="showSettingsModal = false" />
+    <SettingsModal
+      v-if="showSettingsModal"
+      @close="showSettingsModal = false"
+    />
 
     <!-- 删除确认对话框 -->
     <div v-if="showDeleteConfirm" class="modal-overlay" @click="cancelDelete">
@@ -1495,6 +1502,7 @@ watch(
 .user-profile {
   position: relative;
   display: flex;
+  flex-direction: row;
   align-items: center;
   gap: 12px;
   padding: 12px;
