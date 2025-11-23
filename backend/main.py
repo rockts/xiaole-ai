@@ -14,7 +14,7 @@ from agent import XiaoLeAgent
 from memory import MemoryManager
 from conflict_detector import ConflictDetector
 from proactive_qa import ProactiveQA  # v0.3.0 主动问答
-from reminder_manager import get_reminder_manager  # v0.5.0 主动提醒
+from reminder_manager import get_reminder_manager, get_db_connection  # v0.5.0 主动提醒
 from scheduler import get_scheduler  # v0.5.0 定时调度
 from baidu_voice_tool import baidu_voice_tool  # v0.8.0 百度语音识别
 from document_summarizer import DocumentSummarizer  # v0.8.0 Phase 3 文档总结
@@ -918,18 +918,12 @@ async def snooze_reminder(reminder_id: int, minutes: int = 5):
     """延迟提醒（稍后提醒）- 不写入历史，只延迟触发时间"""
     from datetime import datetime, timedelta
     import json
-    import psycopg2
     from psycopg2.extras import RealDictCursor
 
+    print(f"🔔 收到稍后提醒请求: ID={reminder_id}, minutes={minutes}")
+
     # 获取数据库连接
-    conn = psycopg2.connect(
-        host=os.getenv('DB_HOST', '192.168.88.188'),
-        port=os.getenv('DB_PORT', '5432'),
-        database=os.getenv('DB_NAME', 'xiaole_ai'),
-        user=os.getenv('DB_USER', 'xiaole_user'),
-        password=os.getenv('DB_PASS', 'Xiaole2025User'),
-        client_encoding='UTF8'
-    )
+    conn = get_db_connection()
 
     try:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
@@ -945,18 +939,52 @@ async def snooze_reminder(reminder_id: int, minutes: int = 5):
 
             # 计算新的触发时间（当前时间 + minutes分钟）
             new_trigger_time = datetime.now() + timedelta(minutes=minutes)
+            new_time_str = new_trigger_time.strftime('%Y-%m-%d %H:%M:%S')
+
+            print(
+                f"💤 Snoozing reminder {reminder_id} for {minutes} mins until {new_time_str}")
 
             # 更新trigger_condition
-            trigger_condition = json.loads(reminder['trigger_condition'])
-            new_time_str = new_trigger_time.strftime('%Y-%m-%d %H:%M:%S')
+            # 务必创建副本，确保修改生效
+            raw_condition = reminder['trigger_condition']
+            if isinstance(raw_condition, str):
+                trigger_condition = json.loads(raw_condition)
+            elif isinstance(raw_condition, dict):
+                trigger_condition = raw_condition.copy()
+            else:
+                trigger_condition = {}
+
             trigger_condition['datetime'] = new_time_str
 
-            success = await reminder_manager.update_reminder(
-                reminder_id,
-                trigger_condition=json.dumps(trigger_condition),
-                last_triggered=None,  # 清除last_triggered，允许重新触发
-                enabled=True  # 确保提醒是启用状态
-            )
+            # 强制更新数据库（直接执行SQL，绕过reminder_manager以排除逻辑干扰）
+            # 1. 序列化 trigger_condition
+            trigger_condition_json = json.dumps(trigger_condition)
+
+            print(f"📝 Executing SQL Update for reminder {reminder_id}")
+            print(f"   New Condition: {trigger_condition_json}")
+
+            cur.execute("""
+                UPDATE reminders
+                SET trigger_condition = %s,
+                    last_triggered = NULL,
+                    enabled = true,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE reminder_id = %s
+            """, (trigger_condition_json, reminder_id))
+
+            conn.commit()
+
+            # 检查更新是否生效
+            if cur.rowcount > 0:
+                print(
+                    f"✅ Database update successful. Rows affected: {cur.rowcount}")
+                success = True
+                # 手动清除缓存
+                if reminder_manager:
+                    reminder_manager._clear_user_cache(reminder['user_id'])
+            else:
+                print(f"❌ Database update failed. No rows affected.")
+                success = False
 
             return {
                 "success": success,
@@ -966,6 +994,9 @@ async def snooze_reminder(reminder_id: int, minutes: int = 5):
                     if success else "Snooze failed"
                 )
             }
+    except Exception as e:
+        print(f"❌ Snooze error: {e}")
+        return {"success": False, "error": str(e)}
     finally:
         conn.close()
 

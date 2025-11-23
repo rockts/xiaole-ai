@@ -152,8 +152,7 @@ class TaskExecutor:
 
             self.task_manager.update_task_status(
                 task_id=task_id,
-                status=final_status,
-                current_step=completed_steps + 1
+                status=final_status
             )
 
             return {

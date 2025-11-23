@@ -77,7 +77,8 @@ class XiaoLeAgent:
             from tools import (
                 weather_tool, system_info_tool,
                 time_tool, calculator_tool, reminder_tool,
-                search_tool, file_tool, delete_memory_tool
+                search_tool, file_tool, delete_memory_tool,
+                task_tool
             )
 
             # 注册工具
@@ -89,6 +90,7 @@ class XiaoLeAgent:
             self.tool_registry.register(search_tool)  # v0.5.0 搜索工具
             self.tool_registry.register(file_tool)  # v0.5.0 文件工具
             self.tool_registry.register(delete_memory_tool)  # v0.8.1 删除记忆
+            self.tool_registry.register(task_tool)  # v0.8.2 任务工具
 
             logger.info(
                 f"✅ 工具注册完成，共 "
@@ -537,7 +539,8 @@ class XiaoLeAgent:
                     logger.warning(f"旧工具调用也失败: {e2}")
 
         # v0.8.0: 任务识别和执行
-        if not task_result:
+        # 如果已经成功执行了工具，且没有明确的任务关键词，则跳过复杂任务识别（避免重复执行）
+        if not task_result and (not tool_result or not tool_result.get('success')):
             try:
                 # 识别是否为复杂任务
                 task_check = self.identify_complex_task(prompt, user_id)
@@ -815,6 +818,11 @@ class XiaoLeAgent:
         if any(kw in prompt_lower for kw in weather_keywords):
             has_search_keyword = False
 
+        # 排除提醒和任务相关的查询，让它们进入深度分析
+        exclude_keywords = ['提醒', '闹钟', '日程', '待办', '任务', '计划', '安排']
+        if any(kw in prompt_lower for kw in exclude_keywords):
+            has_search_keyword = False
+
         # 检查是否包含实时信息关键词
         has_realtime_keyword = any(
             kw in prompt_lower for kw in realtime_keywords
@@ -852,6 +860,188 @@ class XiaoLeAgent:
         if any(kw in prompt_lower for kw in reminder_keywords):
             # 需要AI解析时间和内容，返回None让AI处理
             return None
+
+        # 5.5 查询/删除提醒 - 快速匹配
+        query_keywords = [
+            '查询', '查看', '我的', '有哪些', '列出'
+        ]
+        if any(kw in prompt_lower for kw in query_keywords):
+            if '提醒' in prompt_lower or '闹钟' in prompt_lower:
+                return {
+                    "needs_tool": True,
+                    "tool_name": "reminder",
+                    "parameters": {"operation": "list", "status": "active"}
+                }
+
+        # 删除提醒
+        if '删除' in prompt_lower and (
+            '提醒' in prompt_lower or '闹钟' in prompt_lower
+        ):
+            import re
+            # 提取提醒ID - 支持多种格式
+            # 1. "删除ID为70的提醒" -> 70
+            # 2. "删除提醒70" -> 70
+            # 3. "删除编号70的提醒" -> 70
+            id_match = (
+                re.search(r'id[为是：:]*(\d+)', prompt_lower) or
+                re.search(r'编号[为是：:]*(\d+)', prompt_lower) or
+                re.search(r'(?:提醒|闹钟)[^\d]*?(\d+)', prompt) or
+                re.search(r'(\d+)(?:号|个)?(?:提醒|闹钟)', prompt)
+            )
+            if id_match:
+                reminder_id = int(id_match.group(1))
+                logger.info(
+                    f"✅ 快速匹配删除提醒: ID={reminder_id}, "
+                    f"prompt='{prompt[:50]}'"
+                )
+                return {
+                    "needs_tool": True,
+                    "tool_name": "reminder",
+                    "parameters": {
+                        "operation": "delete",
+                        "reminder_id": reminder_id
+                    }
+                }
+            # 处理"删除这个/那个/所有提醒"等指代性表达
+            elif any(
+                ref in prompt_lower
+                for ref in ['这个', '那个', '刚才', '上面', '所有', '全部', '全删']
+            ):
+                # 特殊处理：查询当前提醒数量
+                # 如果只有1个，直接返回删除指令
+                # 如果有多个，让AI列出让用户选择
+                logger.info(f"🔍 指代性删除提醒: '{prompt[:50]}'")
+
+                # 同步查询当前提醒数量
+                try:
+                    import asyncio
+                    from reminder_manager import get_reminder_manager
+                    mgr = get_reminder_manager()
+
+                    # 创建事件循环来运行异步代码
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    reminders = loop.run_until_complete(
+                        mgr.get_user_reminders(
+                            user_id="default_user",
+                            enabled_only=True
+                        )
+                    )
+                    loop.close()
+
+                    if len(reminders) == 1:
+                        # 只有1个提醒，直接删除
+                        reminder_id = reminders[0]['reminder_id']
+                        logger.info(
+                            f"✅ 只有1个提醒，直接删除: ID={reminder_id}"
+                        )
+                        return {
+                            "needs_tool": True,
+                            "tool_name": "reminder",
+                            "parameters": {
+                                "operation": "delete",
+                                "reminder_id": reminder_id
+                            }
+                        }
+                    else:
+                        # 多个提醒，让AI列出让用户选择
+                        logger.info(
+                            f"⚠️ 有{len(reminders)}个提醒，转交AI处理"
+                        )
+                        return None
+                except Exception as e:
+                    logger.warning(f"⚠️ 查询提醒失败: {e}")
+                    return None  # 出错时让AI处理
+            else:
+                logger.warning(
+                    f"⚠️ 删除提醒但未找到ID: '{prompt}'"
+                )
+
+        # 5.6 查询/删除任务 - 快速匹配
+        if any(kw in prompt_lower for kw in query_keywords):
+            if '任务' in prompt_lower or '待办' in prompt_lower:
+                return {
+                    "needs_tool": True,
+                    "tool_name": "task",
+                    "parameters": {"operation": "list"}
+                }
+
+        # 删除任务
+        if '删除' in prompt_lower and (
+            '任务' in prompt_lower or '待办' in prompt_lower
+        ):
+            logger.info(f"🔍 检测到删除任务请求: '{prompt[:80]}'")
+            import re
+            # 提取任务ID - 支持多种格式
+            id_match = (
+                re.search(r'id[为是：:]*(\d+)', prompt_lower) or
+                re.search(r'编号[为是：:]*(\d+)', prompt_lower) or
+                re.search(r'(?:任务|待办)[^\d]*?(\d+)', prompt) or
+                re.search(r'(\d+)(?:号|个)?(?:任务|待办)', prompt)
+            )
+            logger.info(f"  ID匹配结果: {id_match}")
+            if id_match:
+                task_id = int(id_match.group(1))
+                logger.info(
+                    f"✅ 快速匹配删除任务: ID={task_id}, "
+                    f"prompt='{prompt[:50]}'"
+                )
+                return {
+                    "needs_tool": True,
+                    "tool_name": "task",
+                    "parameters": {
+                        "operation": "delete",
+                        "task_id": task_id
+                    }
+                }
+            # 处理"删除这个/那个任务"等指代性表达
+            elif any(
+                ref in prompt_lower
+                for ref in ['这个', '那个', '刚才', '上面', '所有', '全部', '全删']
+            ):
+                # 特殊处理：查询当前任务数量
+                # 如果只有1个，直接返回删除指令
+                # 如果有多个，让AI列出让用户选择
+                logger.info(f"🔍 指代性删除任务: '{prompt[:50]}'")
+
+                try:
+                    from task_manager import get_task_manager
+                    mgr = get_task_manager()
+
+                    # TaskManager是同步方法，直接调用
+                    # 查询所有任务（不限制状态），因为用户说"删除这个任务"通常指所有可见的
+                    tasks = mgr.get_tasks_by_user(
+                        user_id="default_user",
+                        status=None  # 查询所有状态的任务
+                    )
+
+                    if len(tasks) == 1:
+                        # 只有1个任务，直接删除
+                        task_id = tasks[0]['id']  # 注意：键名是'id'，不是'task_id'
+                        logger.info(
+                            f"✅ 只有1个任务，直接删除: ID={task_id}"
+                        )
+                        return {
+                            "needs_tool": True,
+                            "tool_name": "task",
+                            "parameters": {
+                                "operation": "delete",
+                                "task_id": task_id
+                            }
+                        }
+                    else:
+                        # 多个任务，让AI列出让用户选择
+                        logger.info(
+                            f"⚠️ 有{len(tasks)}个任务，转交AI处理"
+                        )
+                        return None
+                except Exception as e:
+                    logger.warning(f"⚠️ 查询任务失败: {e}")
+                    return None  # 出错时让AI处理
+            else:
+                logger.warning(
+                    f"⚠️ 删除任务但未找到ID: '{prompt}'"
+                )
 
         # 6. 天气 - 智能快速匹配（尝试从记忆中提取城市）
         if '天气' in prompt_lower:
@@ -1056,11 +1246,17 @@ class XiaoLeAgent:
 3. time - format(full/date/time)
 4. calculator - expression(数学表达式)
 5. reminder - operation(create/list/delete), content(创建必填),
-   time_desc(创建必填), reminder_id(删除必填)
-6. search - query(关键词), max_results(可选)
-7. file - operation(read/write/list/search), path(路径),
+   time_desc(创建必填), reminder_id(删除必填), status(active/all/completed)
+   **删除提醒时**:
+   - 如用户说"删除提醒72"/"删除ID为72的提醒" -> 直接使用该ID
+   - 如用户说"删除这个/那个提醒"且**最近对话提到**具体提醒 -> 从上下文提取ID并删除
+   - 如果当前只有1个提醒且用户说"删除这个/那个提醒" -> 直接删除那个提醒
+   - 如果有多个提醒且无法确定ID -> 先list查询，告知用户提醒列表，让用户明确要删除哪个
+6. task - operation(list/delete), task_id(删除必填), status(可选)
+7. search - query(关键词), max_results(可选), timelimit(可选: d/w/m/y)
+8. file - operation(read/write/list/search), path(路径),
    content(写入内容), pattern(搜索模式), recursive(可选)
-8. 普通对话 -> needs_tool=false
+9. 普通对话 -> needs_tool=false
 
 **search工具优先级最高** - 以下情况必须使用:
 - 用户明确要求"搜索"、"查一下"、"帮我找"
@@ -1069,7 +1265,8 @@ class XiaoLeAgent:
 - 询问"什么时候发布"、"上市时间"等
 - 你的知识可能过时的内容
 
-**查询提醒/任务** -> reminder工具 (operation="list")
+**查询/删除提醒** -> reminder工具
+**查询/删除任务/待办** -> task工具
 
 天气规则:
 - 用户指定城市 -> 使用该城市
@@ -1140,12 +1337,16 @@ class XiaoLeAgent:
             system_prompt = (
                 f"你是小乐AI管家，一个诚实、友好的个人助手。\n\n"
                 f"核心原则：\n"
-                f"1. 你是对话助手，没有连接智能设备（无手环/摄像头/传感器）\n"
-                f"2. 优先使用对话历史中的上下文信息\n"
-                f"3. 同时参考下方记忆库中的长期信息（用户的基本资料、喜好等）\n"
+                f"1. **你拥有完整的工具能力**：可以查询/创建/删除提醒、任务、搜索信息、查天气等\n"
+                f"   但没有连接智能设备（无手环/摄像头/传感器等物理设备）\n"
+                f"2. **数据优先级**（从高到低）：\n"
+                f"   ① 工具执行结果（最新实时数据，绝对准确）\n"
+                f"   ② 对话历史中的上下文信息\n"
+                f"   ③ 记忆库中的长期信息\n"
+                f"3. 当工具返回数据时，必须以工具数据为准，忽略任何过时的记忆或对话历史\n"
                 f"4. 记忆库按时间倒序排列，最新信息在前，优先使用最新信息\n"
                 f"5. 如果记忆库和对话历史都没有相关信息，诚实说'您还没告诉我'\n"
-                f"6. 绝不编造数据、假装有设备、或推测未知信息\n"
+                f"6. 绝不编造数据、假装有物理设备、或推测未知信息\n"
                 f"7. 【课程表回答规则】：\n"
                 f"   - 时段划分：上午=晨读+第1-4节，下午=第5-7节，晚上=课后辅导\n"
                 f"   - 只列出有课的时段，跳过\"无课\"的节次\n"
@@ -1158,10 +1359,12 @@ class XiaoLeAgent:
 
             # v0.4.0: 如果有工具执行结果，添加到系统提示词
             if tool_result:
+                logger.info(f"🔧 传递工具结果给AI: {tool_result}")
                 if tool_result.get('success'):
                     # 格式化工具结果
                     tool_data = tool_result.get(
                         'data') or tool_result.get('result') or tool_result
+                    logger.info(f"📦 提取的tool_data: {tool_data}")
                     if isinstance(tool_data, dict):
                         # 去除不需要显示的字段
                         display_data = {
@@ -1173,9 +1376,14 @@ class XiaoLeAgent:
                         tool_info_text = str(tool_data)
 
                     tool_info = (
-                        f"\n\n📊 工具执行结果：\n"
-                        f"{tool_info_text}\n"
-                        f"请根据这个工具结果，用自然友好的语言回答用户的问题。"
+                        f"\n\n📊 【实时工具执行结果 - 最高优先级数据】：\n"
+                        f"{tool_info_text}\n\n"
+                        f"🚨 强制规则：\n"
+                        f"1. 这是刚刚查询的最新实时数据，绝对准确\n"
+                        f"2. **必须完全基于此数据回答，严禁使用对话历史或记忆中的信息**\n"
+                        f"3. 如果工具结果显示有数据，就说有；显示空，就说空\n"
+                        f"4. 对话历史可能过时，完全忽略历史中关于该主题的所有内容\n"
+                        f"5. 用自然友好的语言，直接根据上面的工具结果回答用户"
                     )
                     system_prompt += tool_info
                 else:
@@ -1263,35 +1471,50 @@ class XiaoLeAgent:
             all_memories = []
             seen = set()
 
+            # 🔝 定义过滤函数：排除过时的提醒相关记忆
+            def is_outdated_reminder_memory(mem):
+                """检查是否是过时的提醒记忆（应该被过滤掉）"""
+                mem_lower = mem.lower()
+                outdated_patterns = [
+                    '删除了提醒', '提醒已删除', '提醒列表是空的',
+                    '没有任何未完成的提醒', '提醒列表为空',
+                    '已经删除了', '刚才删除了'
+                ]
+                return any(
+                    pattern in mem_lower for pattern in outdated_patterns
+                )
+
             # 🔝 最高优先级：图片记忆（课程表等重要信息）- 提到最前面！
             for mem in image_memories:
-                if mem not in seen:
+                if mem not in seen and not is_outdated_reminder_memory(mem):
                     all_memories.append(mem)
                     seen.add(mem)
 
             # 新增：课程表 (schedule) - 高优先级
             for mem in schedule_memories:
-                if mem not in seen:
+                if mem not in seen and not is_outdated_reminder_memory(mem):
                     all_memories.append(mem)
                     seen.add(mem)
 
             # 新增：家庭成员信息 - 高优先级
             for mem in family_memories:
-                if mem not in seen:
+                if mem not in seen and not is_outdated_reminder_memory(mem):
                     all_memories.append(mem)
                     seen.add(mem)
 
             # 第二优先级：facts 标签（关键事实，但限制数量）
             facts_count = 0
             for mem in facts_memories:
-                if mem not in seen and facts_count < 30:  # 最多30条facts
+                if (mem not in seen and facts_count < 30 and
+                        not is_outdated_reminder_memory(mem)):  # 最多30条facts
                     all_memories.append(mem)
                     seen.add(mem)
                     facts_count += 1
 
             # 第三优先级：对话摘要（了解之前的对话上下文）
             for mem in conversation_memories:
-                if mem not in seen and len(all_memories) < 30:
+                if (mem not in seen and len(all_memories) < 30 and
+                        not is_outdated_reminder_memory(mem)):
                     all_memories.append(mem)
                     seen.add(mem)
 
@@ -1302,13 +1525,15 @@ class XiaoLeAgent:
                     mem if isinstance(mem, str)
                     else mem.get('content', str(mem))
                 )
-                if mem_content not in seen and len(all_memories) < 30:
+                if (mem_content not in seen and len(all_memories) < 30 and
+                        not is_outdated_reminder_memory(mem_content)):
                     all_memories.append(mem_content)
                     seen.add(mem_content)
 
             # 第五优先级：最近记忆（补充上下文）
             for mem in recent_memories:
-                if mem not in seen and len(all_memories) < 30:
+                if (mem not in seen and len(all_memories) < 30 and
+                        not is_outdated_reminder_memory(mem)):
                     all_memories.append(mem)
                     seen.add(mem)
 
@@ -1325,6 +1550,27 @@ class XiaoLeAgent:
                     if course_indicators >= 3:  # 至少出现3次课程相关词
                         logger.info("    ⭐ [课程表内容]")
 
+            # ⚠️ 关键修改：如果有工具结果，减少记忆干扰
+            if tool_result and tool_result.get('success'):
+                # 只保留课程表等基础信息，过滤掉所有对话记忆
+                filtered_memories = []
+                for mem in all_memories:
+                    mem_lower = (
+                        mem.lower() if isinstance(mem, str)
+                        else str(mem).lower()
+                    )
+                    # 排除所有包含"提醒"、"删除"、"对话"的记忆
+                    exclude_words = ['提醒', '删除', '对话', '询问', '刚才']
+                    if not any(word in mem_lower for word in exclude_words):
+                        filtered_memories.append(mem)
+                        if len(filtered_memories) >= 5:  # 最多保留5条
+                            break
+                all_memories = filtered_memories
+                logger.info(
+                    f"⚠️ 有工具结果，精简记忆到 {len(all_memories)} 条，"
+                    "避免历史干扰"
+                )
+
             if all_memories:
                 context = "记忆库（按时间倒序，最新在前）：\n" + \
                           "\n".join(all_memories)
@@ -1332,7 +1578,16 @@ class XiaoLeAgent:
 
             # 构建消息列表（包含历史）
             messages = []
-            for msg in history:
+
+            # ⚠️ 关键修改：如果有工具结果，大幅减少历史对话数量
+            if tool_result and tool_result.get('success'):
+                # 只保留最近2条历史，避免被大量过时对话误导
+                history_to_use = history[-2:] if len(history) > 2 else history
+                logger.info(f"⚠️ 有工具结果，限制历史对话到最近 {len(history_to_use)} 条")
+            else:
+                history_to_use = history
+
+            for msg in history_to_use:
                 messages.append({
                     "role": msg["role"],
                     "content": msg["content"]
@@ -1366,6 +1621,12 @@ class XiaoLeAgent:
         v0.6.0: DeepSeek API 多轮对话（支持响应风格）
         """
         logger.info(f"调用 DeepSeek 多轮对话 - 消息数: {len(messages)}")
+
+        # 🔍 调试日志：打印实际发送给AI的内容
+        logger.info(f"📨 System Prompt 长度: {len(system_prompt)}")
+        logger.info(f"📨 System Prompt 包含工具结果: {'工具执行结果' in system_prompt}")
+        if messages:
+            logger.info(f"📨 最后一条用户消息: {messages[-1]['content'][:100]}")
 
         # v0.6.0: 获取风格参数
         llm_params = self._get_llm_parameters(response_style)
@@ -1490,13 +1751,14 @@ class XiaoLeAgent:
             包含is_task和task_info的字典
         """
         prompt = f"""
-请分析用户的输入是否为一个需要多步骤执行的复杂任务。
+请分析用户的输入是否为一个需要多步骤执行的复杂任务，或者是一个需要跟踪的待办事项。
 
-复杂任务的特征:
+任务的特征:
 1. 需要多个步骤才能完成
 2. 涉及多个工具或操作
 3. 步骤之间有依赖关系
 4. 需要一定时间完成
+5. **涉及购物、办事、出行等需要规划或记录的事项**
 
 用户输入: {user_input}
 
@@ -1514,6 +1776,8 @@ class XiaoLeAgent:
 - "今天天气怎么样" -> is_task: false (单个查询)
 - "提醒我明天9点开会" -> is_task: false (单个提醒)
 - "帮我规划下周的学习计划" -> is_task: true (需要多步分析和安排)
+- "去买杯冰美式" -> is_task: true (购物任务，可能需要导航或记录)
+- "带份早餐" -> is_task: true (办事任务)
 """
 
         try:

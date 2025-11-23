@@ -48,6 +48,14 @@ class ReminderTool(Tool):
                 param_type="number",
                 description="提醒ID（删除时必填）",
                 required=False
+            ),
+            ToolParameter(
+                name="status",
+                param_type="string",
+                description="查询状态：active(未完成/默认), all(所有), completed(已完成)",
+                required=False,
+                default="active",
+                enum=["active", "all", "completed"]
             )
         ]
 
@@ -56,7 +64,7 @@ class ReminderTool(Tool):
         执行提醒操作
 
         Args:
-            **kwargs: 包含 operation, content, time_desc, title, reminder_id, user_id
+            **kwargs: 包含 operation, content, time_desc, title, reminder_id, user_id, status
         """
         try:
             operation = kwargs.get("operation", "create")
@@ -66,7 +74,7 @@ class ReminderTool(Tool):
             reminder_mgr = get_reminder_manager()
 
             if operation == "list":
-                return await self._handle_list(reminder_mgr, user_id)
+                return await self._handle_list(reminder_mgr, user_id, kwargs)
             elif operation == "delete":
                 return await self._handle_delete(reminder_mgr, kwargs)
             else:
@@ -80,43 +88,125 @@ class ReminderTool(Tool):
                 "data": f"❌ 操作失败: {str(e)}"
             }
 
-    async def _handle_list(self, mgr, user_id: str) -> dict:
+    async def _handle_list(self, mgr, user_id: str, kwargs: dict) -> dict:
         """处理查询请求"""
-        reminders = await mgr.get_user_reminders(user_id, enabled_only=True)
+        import logging
+        logger = logging.getLogger(__name__)
+
+        status = kwargs.get("status", "active")
+
+        # 确定查询范围
+        enabled_only = True
+        if status == "all" or status == "completed":
+            enabled_only = False
+
+        logger.info(
+            f"🔍 查询提醒: user_id={user_id}, status={status}, "
+            f"enabled_only={enabled_only}"
+        )
+        reminders = await mgr.get_user_reminders(
+            user_id, enabled_only=enabled_only
+        )
+        logger.info(f"📋 查询结果: 找到 {len(reminders)} 条提醒")
+        if reminders:
+            details = [
+                {
+                    'id': r['reminder_id'],
+                    'content': r['content'],
+                    'enabled': r['enabled']
+                }
+                for r in reminders
+            ]
+            logger.info(f"📝 提醒详情: {details}")
+
+        # 如果只查 completed，在内存中过滤
+        if status == "completed":
+            reminders = [r for r in reminders if not r['enabled']]
+
         if not reminders:
+            # 如果查询 active 为空，尝试检查是否有 completed 的提醒，给用户更好的反馈
+            if status == "active":
+                all_reminders = await mgr.get_user_reminders(
+                    user_id, enabled_only=False
+                )
+                completed_reminders = [
+                    r for r in all_reminders if not r['enabled']
+                ]
+
+                if completed_reminders:
+                    # 按时间倒序
+                    completed_reminders.sort(
+                        key=lambda x: x['created_at'], reverse=True
+                    )
+                    recent = completed_reminders[:3]
+
+                    lines = [
+                        f"📭 你目前没有**未完成**的提醒，但有 "
+                        f"{len(completed_reminders)} 条已完成/已禁用的提醒："
+                    ]
+                    for r in recent:
+                        time_str = self._format_reminder_time(r)
+                        lines.append(
+                            f"- [已结束] {r['content']} (原定: {time_str})"
+                        )
+
+                    return {
+                        "success": True,
+                        "data": "\n".join(lines)
+                    }
+
             return {
                 "success": True,
-                "data": "📭 你目前没有未完成的提醒。"
+                "data": "⚠️ 【最新查询结果】\n📭 提醒列表为空。"
             }
 
         # 格式化提醒列表
-        lines = ["📋 **当前的提醒列表**："]
-        for r in reminders:
-            trigger_cond = r.get('trigger_condition', {})
-            if isinstance(trigger_cond, str):
-                import json
-                try:
-                    trigger_cond = json.loads(trigger_cond)
-                except Exception:
-                    pass
+        status_text = "未完成"
+        if status == "completed":
+            status_text = "已完成"
+        elif status == "all":
+            status_text = "所有"
 
-            time_str = "未知时间"
-            if r.get('reminder_type') == 'time':
-                dt_str = trigger_cond.get('datetime', '')
-                try:
-                    dt = datetime.fromisoformat(dt_str)
-                    time_str = self._format_time_display(dt)
-                except Exception:
-                    time_str = dt_str
+        lines = [
+            "⚠️ 【最新查询结果 - 请忽略历史记录】",
+            f"📋 **{status_text}提醒列表**（共{len(reminders)}条）："
+        ]
+
+        for r in reminders:
+            time_str = self._format_reminder_time(r)
+
+            state_icon = "⏰" if r['enabled'] else "✅"
+            state_text = "" if r['enabled'] else "[已结束] "
 
             lines.append(
-                f"- ID:{r['reminder_id']} | ⏰ {time_str} | {r['content']}"
+                f"- ID:{r['reminder_id']} | {state_icon} "
+                f"{state_text}{time_str} | {r['content']}"
             )
 
         return {
             "success": True,
             "data": "\n".join(lines)
         }
+
+    def _format_reminder_time(self, r: dict) -> str:
+        """格式化单条提醒的时间"""
+        trigger_cond = r.get('trigger_condition', {})
+        if isinstance(trigger_cond, str):
+            import json
+            try:
+                trigger_cond = json.loads(trigger_cond)
+            except Exception:
+                pass
+
+        time_str = "未知时间"
+        if r.get('reminder_type') == 'time':
+            dt_str = trigger_cond.get('datetime', '')
+            try:
+                dt = datetime.fromisoformat(dt_str)
+                time_str = self._format_time_display(dt)
+            except Exception:
+                time_str = dt_str
+        return time_str
 
     async def _handle_delete(self, mgr, kwargs) -> dict:
         """处理删除请求"""
@@ -147,7 +237,11 @@ class ReminderTool(Tool):
             }
 
         # 解析时间描述，转换为具体时间
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"🕐 开始解析时间: time_desc='{time_desc}'")
         trigger_time = self._parse_time(time_desc)
+        logger.info(f"🕐 解析结果: {trigger_time}")
 
         if not trigger_time:
             return {
@@ -200,20 +294,20 @@ class ReminderTool(Tool):
         now = datetime.now()
         time_desc = time_desc.strip()
 
-        # 1. 处理"X小时后"
-        match = re.search(r'(\d+)\s*小时后', time_desc)
+        # 1. 处理"X小时后" 或 "X小时"
+        match = re.search(r'(\d+)\s*[个]?\s*小时(后)?', time_desc)
         if match:
             hours = int(match.group(1))
             return now + timedelta(hours=hours)
 
-        # 2. 处理"X分钟后"
-        match = re.search(r'(\d+)\s*分钟后', time_desc)
+        # 2. 处理"X分钟后" 或 "X分钟"
+        match = re.search(r'(\d+)\s*[个]?\s*分钟(后)?', time_desc)
         if match:
             minutes = int(match.group(1))
             return now + timedelta(minutes=minutes)
 
-        # 2.5 处理"X秒后"
-        match = re.search(r'(\d+)\s*秒后', time_desc)
+        # 2.5 处理"X秒后" 或 "X秒"
+        match = re.search(r'(\d+)\s*秒(后)?', time_desc)
         if match:
             seconds = int(match.group(1))
             return now + timedelta(seconds=seconds)

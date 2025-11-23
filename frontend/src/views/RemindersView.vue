@@ -284,6 +284,7 @@ onMounted(() => {
   loadReminders();
   // 监听提醒确认事件，刷新列表
   window.addEventListener("reminder-confirmed", loadReminders);
+  window.addEventListener('refresh-reminders', loadReminders);
 
   // 启动倒计时更新
   timerInterval = setInterval(updateTimeRemaining, 1000);
@@ -302,6 +303,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener("reminder-confirmed", loadReminders);
+  window.removeEventListener('refresh-reminders', loadReminders);
   if (timerInterval) clearInterval(timerInterval);
   if (wsUnsubscribe) {
     wsUnsubscribe();

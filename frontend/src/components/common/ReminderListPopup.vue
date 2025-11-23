@@ -63,17 +63,15 @@
               title="删除"
             >
               <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 448 512"
                 width="14"
                 height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
+                fill="currentColor"
               >
-                <polyline points="3 6 5 6 21 6"></polyline>
                 <path
-                  d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
-                ></path>
+                  d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z"
+                />
               </svg>
             </button>
           </div>
@@ -260,15 +258,15 @@ const formatCondition = (reminder) => {
   font-size: 11px;
   padding: 2px 6px;
   border-radius: 10px;
-  background: rgba(33, 150, 243, 0.1);
-  color: #2196f3;
+  background: rgba(14, 165, 233, 0.1);
+  color: var(--info);
   white-space: nowrap;
   flex-shrink: 0;
 }
 
 .time-badge.urgent {
-  background: rgba(244, 67, 54, 0.1);
-  color: #f44336;
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--error);
 }
 
 .reminder-desc {
@@ -306,19 +304,32 @@ const formatCondition = (reminder) => {
   align-items: center;
   justify-content: center;
   border: none;
-  background: transparent;
+  background: transparent; /* 去掉背景 */
   border-radius: 4px;
   cursor: pointer;
-  color: var(--text-tertiary);
+  color: #999; /* 默认浅灰 */
   transition: all 0.2s;
+  padding: 0;
+  box-shadow: none; /* 去掉阴影 */
+}
+
+.action-btn svg {
+  width: 16px;
+  height: 16px;
+  display: block;
 }
 
 .action-btn:hover {
-  background: var(--bg-primary);
+  background: transparent;
+  transform: scale(1.1);
+}
+
+.action-btn.delete {
+  color: #999;
 }
 
 .action-btn.delete:hover {
-  color: var(--error);
-  background: rgba(244, 67, 54, 0.1);
+  color: #ef4444; /* 悬停变红 */
+  background: transparent;
 }
 </style>

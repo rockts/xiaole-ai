@@ -26,6 +26,12 @@ const router = createRouter({
             meta: { title: '记忆' }
         },
         {
+            path: '/behavior',
+            name: 'Behavior',
+            component: () => import('@/views/BehaviorView.vue'),
+            meta: { title: '行为分析' }
+        },
+        {
             path: '/reminders',
             name: 'Reminders',
             component: () => import('@/views/RemindersView.vue'),
@@ -54,12 +60,6 @@ const router = createRouter({
             name: 'DocumentDetail',
             component: () => import('@/views/DocumentDetailView.vue'),
             meta: { title: '文档详情' }
-        },
-        {
-            path: '/schedule',
-            name: 'Schedule',
-            component: () => import('@/views/ScheduleView.vue'),
-            meta: { title: '课程表' }
         },
         {
             path: '/tools',

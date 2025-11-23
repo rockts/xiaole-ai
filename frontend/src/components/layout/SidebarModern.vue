@@ -90,7 +90,7 @@
           :class="{ active: isActive(item.path) }"
           @click="handleMobileNav"
         >
-          <span class="icon" v-html="item.icon"></span>
+          <span class="nav-icon" v-html="item.icon"></span>
           <span class="nav-label">{{ item.label }}</span>
         </router-link>
       </nav>
@@ -315,20 +315,22 @@
     <!-- 底部：设置按钮 -->
     <div class="sidebar-footer">
       <button class="settings-btn" @click="goToSettings">
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-        >
-          <circle cx="12" cy="12" r="3"></circle>
-          <path
-            d="M12 1v6m0 6v6M3.93 3.93l4.24 4.24m8.48 8.48l4.24 4.24M1 12h6m6 0h6M3.93 20.07l4.24-4.24m8.48-8.48l4.24-4.24"
-          ></path>
-        </svg>
-        <span>设置</span>
+        <span class="nav-icon">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <circle cx="12" cy="12" r="3"></circle>
+            <path
+              d="M12 1v6m0 6v6M3.93 3.93l4.24 4.24m8.48 8.48l4.24 4.24M1 12h6m6 0h6M3.93 20.07l4.24-4.24m8.48-8.48l4.24-4.24"
+            ></path>
+          </svg>
+        </span>
+        <span class="nav-label">设置</span>
       </button>
     </div>
 
@@ -372,7 +374,11 @@ const isMobile = ref(window.innerWidth <= 768);
 
 // 使用新的 logo
 const logoSrc = computed(() => logoImage);
-const isCollapsed = ref(isMobile.value); // 移动端默认收起
+// 从 localStorage 读取收起状态，移动端默认收起
+const savedCollapsed = localStorage.getItem("sidebar-collapsed");
+const isCollapsed = ref(
+  savedCollapsed !== null ? savedCollapsed === "true" : isMobile.value
+);
 const showFallbackLogo = ref(false);
 const onLogoError = () => {
   showFallbackLogo.value = true;
@@ -385,6 +391,11 @@ const navItems = [
     icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" xmlns="http://www.w3.org/2000/svg"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"></path></svg>',
   },
   {
+    path: "/behavior",
+    label: "行为分析",
+    icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" xmlns="http://www.w3.org/2000/svg"><path d="M18 20V10"></path><path d="M12 20V4"></path><path d="M6 20v-6"></path></svg>',
+  },
+  {
     path: "/tasks",
     label: "任务",
     icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" xmlns="http://www.w3.org/2000/svg"><polyline points="9 11 12 14 22 4"></polyline><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>',
@@ -395,18 +406,12 @@ const navItems = [
     icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" xmlns="http://www.w3.org/2000/svg"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>',
   },
   {
-    path: "/schedule",
-    label: "课程表",
-    icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>',
-  },
-  {
     path: "/tools",
     label: "工具",
     icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" xmlns="http://www.w3.org/2000/svg"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>',
   },
 ];
 
-// ...existing code...
 const isActive = (path) => route.path.startsWith(path);
 const isCurrentSession = (session) =>
   route.params.sessionId == (session.id || session.session_id);
@@ -431,7 +436,6 @@ const goToSettings = () => {
 };
 
 // 悬停和菜单状态
-// ...existing code...
 const hoveredSessionId = ref(null);
 const activeMenuSessionId = ref(null);
 const editingSessionId = ref(null);
@@ -691,10 +695,14 @@ const deleteSession = async () => {
 
 const toggleSidebar = () => {
   isCollapsed.value = !isCollapsed.value;
+  // 保存到 localStorage
+  localStorage.setItem("sidebar-collapsed", isCollapsed.value.toString());
 };
 
 const toggle = () => {
   isCollapsed.value = !isCollapsed.value;
+  // 保存到 localStorage
+  localStorage.setItem("sidebar-collapsed", isCollapsed.value.toString());
 };
 defineExpose({ toggle });
 
@@ -802,7 +810,6 @@ watch(
   padding: 0;
   gap: 0;
   min-height: 0;
-  height: 100%;
   overflow: hidden;
 }
 
@@ -873,7 +880,6 @@ watch(
 .sidebar.collapsed .title,
 .sidebar.collapsed .nav-label,
 .sidebar.collapsed .sessions-section,
-.sidebar.collapsed .sidebar-footer span,
 .sidebar.collapsed .collapse-btn {
   display: none !important;
 }
@@ -891,9 +897,22 @@ watch(
   padding: 10px;
 }
 
+.sidebar.collapsed .sidebar-footer {
+  display: flex;
+}
+
 .sidebar.collapsed .settings-btn {
   justify-content: center;
-  padding: 12px;
+  padding: 10px;
+  display: flex !important;
+}
+
+.sidebar.collapsed .settings-btn .nav-icon {
+  display: flex !important;
+}
+
+.sidebar.collapsed .settings-btn .nav-label {
+  display: none !important;
 }
 
 .logo img {

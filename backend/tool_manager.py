@@ -224,13 +224,16 @@ class ToolRegistry:
 
         # 执行工具
         try:
-            # 将 user_id, session_id 和 task_id 添加到执行参数中
+            # 将 user_id 和 session_id 添加到执行参数中
             exec_params = {
                 **validated_params,
                 "user_id": user_id,
-                "session_id": session_id,
-                "task_id": task_id
+                "session_id": session_id
             }
+            # 只有当task_id不为None时才添加（避免覆盖工具自己的task_id参数）
+            if task_id is not None:
+                exec_params["task_id"] = task_id
+
             result = await tool.execute(**exec_params)
             execution_time = (datetime.now() - start_time).total_seconds()
 

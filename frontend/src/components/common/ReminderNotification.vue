@@ -22,12 +22,19 @@
         </div>
 
         <div class="auto-snooze-info" v-if="timeLeft > 0">
-          <span class="timer-count">{{ timeLeft }}</span> 秒后自动稍后提醒
+          <span class="timer-count">{{ timeLeft }}</span> 秒后自动稍后提醒 ({{
+            snoozeDuration
+          }}分钟)
         </div>
 
         <div class="reminder-actions">
           <div class="snooze-group">
-            <select v-model="snoozeDuration" class="snooze-select">
+            <select
+              v-model="snoozeDuration"
+              class="snooze-select"
+              @change="resetAutoCloseTimer"
+              @focus="resetAutoCloseTimer"
+            >
               <option :value="5">5分钟</option>
               <option :value="10">10分钟</option>
               <option :value="30">30分钟</option>
@@ -50,7 +57,11 @@ import api from "@/services/api";
 const { on } = useWebSocket();
 const currentReminder = ref(null);
 const timeLeft = ref(60); // 60秒倒计时
-const snoozeDuration = ref(5);
+// 从 localStorage 读取上次的选择，默认为 5
+const savedDuration = localStorage.getItem("lastSnoozeDuration");
+const snoozeDuration = ref(
+  savedDuration ? parseInt(savedDuration, 10) || 5 : 5
+);
 let autoCloseTimer = null;
 let currentAudio = null; // 存储当前播放的音频对象
 let loopTimer = null; // 循环播放定时器
@@ -78,6 +89,14 @@ const startAutoCloseTimer = () => {
       autoSnooze();
     }
   }, 1000);
+};
+
+// 停止倒计时（用户选择稍后时间时）
+const resetAutoCloseTimer = () => {
+  // 用户交互时重新开始倒计时
+  if (currentReminder.value) {
+    startAutoCloseTimer();
+  }
 };
 
 const stopAutoCloseTimer = () => {
@@ -231,8 +250,12 @@ const snoozeReminder = async () => {
 
   const id = reminder.reminder_id;
   try {
-    await api.snoozeReminder(id, snoozeDuration.value);
-    console.log(`Reminder ${id} snoozed for ${snoozeDuration.value} minutes`);
+    const duration = parseInt(snoozeDuration.value, 10) || 5;
+    // 保存用户的选择到 localStorage
+    localStorage.setItem("lastSnoozeDuration", duration);
+
+    await api.snoozeReminder(id, duration);
+    console.log(`Reminder ${id} snoozed for ${duration} minutes`);
   } catch (error) {
     console.error("Failed to snooze reminder:", error);
   }
@@ -250,9 +273,15 @@ const autoSnooze = async () => {
   const id = reminder.reminder_id;
 
   try {
-    // 默认5分钟
-    await api.snoozeReminder(id, 5);
-    console.log(`Reminder ${id} auto-snoozed for 5 minutes due to inactivity`);
+    // 使用用户选择的时间（或默认值）
+    const duration = parseInt(snoozeDuration.value, 10) || 5;
+    // 自动触发也保存这个偏好（或者不保存？保存比较好，保持一致性）
+    localStorage.setItem("lastSnoozeDuration", duration);
+
+    await api.snoozeReminder(id, duration);
+    console.log(
+      `Reminder ${id} auto-snoozed for ${duration} minutes due to inactivity`
+    );
   } catch (error) {
     console.error("Failed to auto-snooze reminder:", error);
   }
@@ -290,6 +319,11 @@ onMounted(() => {
     if (data.type === "reminder") {
       console.log("Received reminder:", data);
       currentReminder.value = data.data;
+      // 每次弹窗时，重新读取 localStorage 确保是最新的偏好
+      const saved = localStorage.getItem("lastSnoozeDuration");
+      if (saved) {
+        snoozeDuration.value = parseInt(saved, 10);
+      }
       playSound();
       startAutoCloseTimer();
     } else if (data.type === "reminder_deleted") {

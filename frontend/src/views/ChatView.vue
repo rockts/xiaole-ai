@@ -1478,6 +1478,24 @@ const sendMessage = async () => {
 
   // 发送到后端
   await chatStore.sendMessage(content, null, router);
+
+  // 检测是否需要刷新提醒或任务列表
+  // 检查用户输入和AI响应
+  const lowerContent = content.toLowerCase();
+  const needsReminderRefresh = /提醒|闹钟|reminder/.test(content);
+  const needsTaskRefresh = /任务|待办|todo|task/.test(content);
+
+  // 增加延迟到3秒，确保AI响应和工具执行都已完成
+  setTimeout(() => {
+    if (needsReminderRefresh) {
+      console.log("🔄 触发提醒列表刷新");
+      window.dispatchEvent(new CustomEvent("refresh-reminders"));
+    }
+    if (needsTaskRefresh) {
+      console.log("🔄 触发任务列表刷新");
+      window.dispatchEvent(new CustomEvent("refresh-tasks"));
+    }
+  }, 3000);
 };
 
 const stopGeneration = () => {

@@ -3,11 +3,9 @@ v0.8.0 Phase 3: 文档总结模块
 支持PDF、DOCX、TXT、Markdown文件的上传、解析和智能总结
 """
 
-import os
-import time
 import json
 import logging
-from typing import Dict, List, Optional, Tuple
+from typing import List, Optional, Tuple
 from pathlib import Path
 
 # 文件解析库
@@ -19,6 +17,14 @@ import pdfplumber
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
+# OCR工具
+from baidu_ocr_tool import baidu_ocr_tool
+try:
+    from pdf2image import convert_from_path
+    HAS_PDF2IMAGE = True
+except ImportError:
+    HAS_PDF2IMAGE = False
+
 logger = logging.getLogger(__name__)
 
 
@@ -26,9 +32,10 @@ class DocumentSummarizer:
     """文档总结器：上传、解析、总结文档"""
 
     # 支持的文件类型
+    # 注意：python-docx 不支持旧版 .doc 格式
     SUPPORTED_TYPES = {
         'pdf': ['.pdf'],
-        'docx': ['.docx', '.doc'],
+        'docx': ['.docx'],
         'txt': ['.txt'],
         'md': ['.md', '.markdown']
     }
@@ -123,7 +130,62 @@ class DocumentSummarizer:
 
         except Exception as e:
             logger.error(f"PDF文本提取失败: {e}")
-            raise ValueError(f"无法提取PDF文本: {str(e)}")
+
+        # 如果常规提取失败或为空，尝试OCR
+        if not text.strip():
+            logger.info("常规提取为空，尝试OCR识别...")
+
+            if not HAS_PDF2IMAGE:
+                raise ValueError("无法进行OCR识别：缺少 pdf2image 库")
+
+            if not baidu_ocr_tool.is_enabled():
+                raise ValueError("无法进行OCR识别：百度OCR服务未配置")
+
+            try:
+                # 将PDF转为图片
+                import io
+                images = convert_from_path(file_path)
+                ocr_text = []
+
+                for i, image in enumerate(images):
+                    logger.info(f"正在OCR识别第 {i+1}/{len(images)} 页...")
+                    # 将PIL Image转为bytes
+                    img_byte_arr = io.BytesIO()
+                    image.save(img_byte_arr, format='JPEG')
+                    img_bytes = img_byte_arr.getvalue()
+
+                    # 策略：优先尝试手写识别，如果失败或为空，回退到通用高精度识别
+                    result = baidu_ocr_tool.recognize_handwriting(img_bytes)
+
+                    # 检查是否需要回退 (失败 或 结果为空)
+                    if not result['success'] or not result.get('text', '').strip():
+                        logger.info(f"第 {i+1} 页手写识别效果不佳，切换到通用高精度识别...")
+                        result = baidu_ocr_tool.recognize_general(img_bytes)
+
+                    if result['success']:
+                        text_content = result.get('text', '')
+                        if text_content.strip():
+                            ocr_text.append(text_content)
+                            logger.info(
+                                f"第 {i+1} 页识别成功 ({len(text_content)} 字符)")
+                    else:
+                        logger.warning(f"第 {i+1} 页识别失败: {result.get('error')}")
+
+                full_text = "\n\n".join(ocr_text)
+                if full_text.strip():
+                    logger.info(f"OCR成功提取 {len(full_text)} 字符")
+                    return full_text
+                else:
+                    raise ValueError("OCR识别结果为空")
+
+            except Exception as e:
+                error_msg = str(e)
+                if "Unable to get page count" in error_msg or "poppler" in error_msg.lower():
+                    raise ValueError(
+                        "OCR识别需要安装 poppler 工具 (brew install poppler)")
+                raise ValueError(f"OCR识别失败: {error_msg}")
+
+        return text.strip()
 
     def extract_text_from_docx(self, file_path: str) -> str:
         """
@@ -218,13 +280,18 @@ class DocumentSummarizer:
             提取的文本内容
         """
         if file_type == 'pdf':
-            return self.extract_text_from_pdf(file_path)
+            text = self.extract_text_from_pdf(file_path)
         elif file_type == 'docx':
-            return self.extract_text_from_docx(file_path)
+            text = self.extract_text_from_docx(file_path)
         elif file_type in ['txt', 'md']:
-            return self.extract_text_from_txt(file_path)
+            text = self.extract_text_from_txt(file_path)
         else:
             raise ValueError(f"不支持的文件类型: {file_type}")
+
+        if not text or not text.strip():
+            raise ValueError("无法提取文本内容（可能是扫描件或纯图片文档）")
+
+        return text
 
     def split_text(self, text: str, chunk_size: int = None) -> List[str]:
         """
@@ -338,7 +405,7 @@ class DocumentSummarizer:
             if json_match:
                 points = json.loads(json_match.group())
                 return points
-        except:
+        except Exception:
             pass
 
         # 解析失败，按行分割
@@ -479,7 +546,7 @@ class DocumentSummarizer:
                 if doc['key_points']:
                     try:
                         doc['key_points'] = json.loads(doc['key_points'])
-                    except:
+                    except Exception:
                         doc['key_points'] = []
                 return dict(doc)
 

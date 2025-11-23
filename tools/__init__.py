@@ -9,12 +9,16 @@ from .reminder_tool import ReminderTool
 from .search_tool import search_tool
 from .file_tool import file_tool
 from .delete_memory_tool import DeleteMemoryTool
+from .task_tool import TaskTool
 
 # 创建提醒工具实例
 reminder_tool = ReminderTool()
 
 # 创建删除记忆工具实例
 delete_memory_tool = DeleteMemoryTool()
+
+# 创建任务工具实例
+task_tool = TaskTool()
 
 # 导出所有工具
 __all__ = [
@@ -25,5 +29,6 @@ __all__ = [
     'reminder_tool',
     'search_tool',
     'file_tool',
-    'delete_memory_tool'
+    'delete_memory_tool',
+    'task_tool'
 ]

@@ -508,3 +508,26 @@ class TaskManager:
                 'completed': 0,
                 'failed': 0
             }
+
+
+# 全局单例
+_task_manager = None
+
+
+def get_task_manager() -> TaskManager:
+    """获取任务管理器单例"""
+    global _task_manager
+    if _task_manager is None:
+        import os
+        from dotenv import load_dotenv
+        load_dotenv()
+
+        db_config = {
+            'host': os.getenv('DB_HOST', '192.168.88.188'),
+            'port': int(os.getenv('DB_PORT', 5432)),
+            'database': os.getenv('DB_NAME', 'xiaole_ai'),
+            'user': os.getenv('DB_USER', 'xiaole_user'),
+            'password': os.getenv('DB_PASS', 'Xiaole2025User')
+        }
+        _task_manager = TaskManager(db_config)
+    return _task_manager

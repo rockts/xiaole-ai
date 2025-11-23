@@ -1,7 +1,11 @@
 import axios from 'axios'
 
+// API基础URL配置
+// 优先使用环境变量，否则使用空字符串（通过vite代理访问）
+const API_BASE_URL = import.meta.env.VITE_API_BASE || ''
+
 const api = axios.create({
-    baseURL: import.meta.env.VITE_API_BASE || '',
+    baseURL: API_BASE_URL,
     timeout: 30000,
     headers: {
         'Content-Type': 'application/json'
@@ -187,15 +191,6 @@ export default {
 
     deleteDocument(docId) {
         return api.delete(`/api/documents/${docId}`)
-    },
-
-    // 课程表相关
-    getSchedule(userId = 'default_user') {
-        return api.get('/api/schedule', { params: { user_id: userId } })
-    },
-
-    updateSchedule(data) {
-        return api.post('/api/schedule', data)
     },
 
     // 工具相关

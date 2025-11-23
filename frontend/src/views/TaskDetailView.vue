@@ -33,6 +33,32 @@
           </div>
         </div>
 
+        <!-- 关联提醒板块 -->
+        <div v-if="reminders.length > 0" class="reminders-section">
+          <h4>🔔 关联提醒 ({{ reminders.length }})</h4>
+          <div class="reminders-list">
+            <div
+              v-for="reminder in reminders"
+              :key="reminder.reminder_id"
+              class="reminder-item"
+              :class="{ disabled: !reminder.enabled }"
+            >
+              <div class="reminder-header">
+                <span class="reminder-time">{{
+                  formatReminderTime(reminder)
+                }}</span>
+                <span
+                  class="reminder-status"
+                  :class="{ active: reminder.enabled }"
+                >
+                  {{ reminder.enabled ? "启用" : "已禁用" }}
+                </span>
+              </div>
+              <div class="reminder-content">{{ reminder.content }}</div>
+            </div>
+          </div>
+        </div>
+
         <div class="steps-section">
           <h4>执行步骤 ({{ steps.length }})</h4>
           <div class="steps-list">
@@ -50,38 +76,67 @@
                 }}</span>
               </div>
 
-              <div v-if="step.action_params" class="step-params">
-                <strong>参数:</strong>
-                <pre>{{ formatJson(step.action_params) }}</pre>
+              <!-- 优化后的友好显示 -->
+              <div class="step-friendly-content">
+                <div class="friendly-row">
+                  <span class="icon">🔧</span>
+                  <span class="text">{{
+                    getFriendlyActionDescription(step)
+                  }}</span>
+                </div>
+                <div v-if="step.result" class="friendly-row result">
+                  <span class="icon">📝</span>
+                  <span class="text">{{
+                    getFriendlyResultDescription(step)
+                  }}</span>
+                </div>
               </div>
 
-              <div v-if="step.result" class="step-result">
-                <strong>结果:</strong>
-                <div v-if="isJson(step.result)">
-                  <div
-                    v-if="getJson(step.result).success === false"
-                    class="error-text"
-                  >
-                    ❌ {{ getJson(step.result).error || "执行失败" }}
-                  </div>
-                  <div v-else-if="getJson(step.result).data">
-                    <pre class="result-text">{{
-                      getJson(step.result).data
-                    }}</pre>
-                  </div>
-                  <div v-else-if="getJson(step.result).message">
-                    <div class="info-text">
-                      {{ getJson(step.result).message }}
+              <!-- 技术详情（默认折叠） -->
+              <details class="tech-details">
+                <summary>显示技术详情</summary>
+
+                <!-- 原始参数显示 -->
+                <div v-if="step.action_params" class="step-params">
+                  <div class="params-title">参数:</div>
+                  <div class="params-content">
+                    <div
+                      v-for="(val, key) in parseParams(step.action_params)"
+                      :key="key"
+                      class="param-row"
+                    >
+                      <span class="param-key">{{ key }}:</span>
+                      <span class="param-val">{{ val }}</span>
                     </div>
                   </div>
-                  <div v-else>
-                    <pre>{{ formatJson(step.result) }}</pre>
+                </div>
+
+                <!-- 原始结果显示 -->
+                <div v-if="step.result" class="step-result">
+                  <div class="result-title">执行结果:</div>
+                  <div class="result-content">
+                    <div v-if="isJson(step.result)">
+                      <div
+                        v-if="getJson(step.result).success === false"
+                        class="error-text"
+                      >
+                        ❌ {{ getJson(step.result).error || "执行失败" }}
+                      </div>
+                      <div v-else-if="getJson(step.result).data">
+                        <div class="success-text">
+                          {{ getJson(step.result).data }}
+                        </div>
+                      </div>
+                      <div v-else>
+                        <pre>{{ formatJson(step.result) }}</pre>
+                      </div>
+                    </div>
+                    <div v-else>
+                      <div class="text-result">{{ step.result }}</div>
+                    </div>
                   </div>
                 </div>
-                <div v-else>
-                  <pre>{{ step.result }}</pre>
-                </div>
-              </div>
+              </details>
 
               <div v-if="step.error_message" class="step-error">
                 <strong>错误:</strong> {{ step.error_message }}
@@ -104,6 +159,7 @@ const route = useRoute();
 const router = useRouter();
 const task = ref(null);
 const steps = ref([]);
+const reminders = ref([]); // 新增：关联提醒列表
 const loading = ref(false);
 
 const goBack = () => {
@@ -127,6 +183,17 @@ const getJson = (str) => {
   }
 };
 
+const parseParams = (jsonStr) => {
+  try {
+    if (typeof jsonStr === "string") {
+      return JSON.parse(jsonStr);
+    }
+    return jsonStr;
+  } catch (e) {
+    return {};
+  }
+};
+
 const formatJson = (jsonStr) => {
   try {
     if (typeof jsonStr === "string") {
@@ -138,13 +205,126 @@ const formatJson = (jsonStr) => {
   }
 };
 
+const getFriendlyActionDescription = (step) => {
+  try {
+    const params = parseParams(step.action_params);
+    if (step.action_type === "tool_call") {
+      const toolName = params.tool_name;
+      const toolParams = params.params || {};
+
+      switch (toolName) {
+        case "reminder":
+          return `设置提醒：${toolParams.content} (时间: ${toolParams.time_desc})`;
+        case "weather":
+          return `查询天气：${toolParams.city || "当前城市"} (${
+            toolParams.query_type === "now" ? "实时" : "预报"
+          })`;
+        case "search":
+          return `搜索：${toolParams.query}`;
+        case "calculator":
+          return `计算：${toolParams.expression}`;
+        case "time":
+          return `查询当前时间`;
+        case "system_info":
+          return `查询系统信息`;
+        case "file":
+          return `文件操作：${toolParams.operation} ${toolParams.path || ""}`;
+        default:
+          return `调用工具：${toolName}`;
+      }
+    } else if (step.action_type === "user_confirm") {
+      return `等待确认：${step.description}`;
+    } else if (step.action_type === "wait") {
+      return `等待：${params.duration} 秒`;
+    }
+    return step.description;
+  } catch (e) {
+    return step.description;
+  }
+};
+
+const getFriendlyResultDescription = (step) => {
+  if (!step.result) return null;
+  try {
+    const result = getJson(step.result);
+    if (result.success === false) {
+      return `❌ 失败: ${result.error || "未知错误"}`;
+    }
+
+    if (step.action_type === "tool_call") {
+      const params = parseParams(step.action_params);
+      const toolName = params.tool_name;
+
+      if (toolName === "weather") {
+        const data = result.data || result;
+        if (data.now)
+          return `✅ ${data.city} ${data.now.text} ${data.now.temp}°C`;
+        return `✅ 天气数据已获取`;
+      } else if (toolName === "reminder") {
+        return `✅ 提醒已创建`;
+      } else if (toolName === "search") {
+        const items = result.data || result;
+        return `✅ 找到 ${Array.isArray(items) ? items.length : 0} 条结果`;
+      } else if (toolName === "calculator") {
+        return `✅ 结果: ${result.data || result.result}`;
+      }
+    }
+
+    return `✅ 执行完成`;
+  } catch (e) {
+    return step.result;
+  }
+};
+
+const formatReminderTime = (reminder) => {
+  try {
+    let condition = reminder.trigger_condition;
+    if (typeof condition === "string") {
+      condition = JSON.parse(condition);
+    }
+    if (reminder.reminder_type === "time" && condition.datetime) {
+      const dt = new Date(condition.datetime);
+      return dt.toLocaleString("zh-CN", {
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    }
+    return "未知时间";
+  } catch (e) {
+    return "时间解析错误";
+  }
+};
+
 const loadTask = async () => {
   try {
     loading.value = true;
-    const data = await api.getTask(route.params.id);
+    const taskId = route.params.id;
+    const data = await api.getTask(taskId);
+
     if (data.success && data.task) {
       task.value = data.task;
       steps.value = data.steps || [];
+
+      // 加载关联提醒
+      // 注意：这里我们假设后端有一个接口可以按 task_id 过滤提醒
+      // 如果没有，我们可能需要获取所有提醒然后在前端过滤（不推荐但可行）
+      // 或者我们修改后端 API 支持 task_id 过滤
+      // 暂时先尝试获取所有提醒并过滤
+      try {
+        const allReminders = await api.getReminders(
+          task.value.user_id,
+          false // 获取所有状态的提醒
+        );
+        if (allReminders && Array.isArray(allReminders)) {
+          reminders.value = allReminders.filter(
+            (r) => r.task_id === parseInt(taskId)
+          );
+        }
+      } catch (remError) {
+        console.error("Failed to load reminders:", remError);
+      }
     }
   } catch (error) {
     console.error("Failed to load task:", error);
@@ -154,7 +334,7 @@ const loadTask = async () => {
 };
 
 const deleteTask = async () => {
-  if (!confirm("确定要删除这个任务吗？")) return;
+  if (!confirm("确定要删除这个任务吗？关联的提醒也会被删除。")) return;
 
   try {
     const result = await api.deleteTask(route.params.id);
@@ -291,6 +471,70 @@ onMounted(() => {
   color: #c53030;
 }
 
+/* 提醒板块样式 */
+.reminders-section {
+  margin-bottom: 20px;
+  background: #fffaf0; /* 浅橙色背景 */
+  border: 1px solid #fbd38d;
+  border-radius: 8px;
+  padding: 15px;
+}
+
+.reminders-section h4 {
+  margin: 0 0 10px;
+  color: #c05621;
+  font-size: 15px;
+}
+
+.reminders-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.reminder-item {
+  background: white;
+  border-radius: 6px;
+  padding: 10px;
+  border-left: 3px solid #ed8936;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.reminder-item.disabled {
+  border-left-color: #cbd5e0;
+  opacity: 0.7;
+}
+
+.reminder-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 5px;
+  font-size: 12px;
+}
+
+.reminder-time {
+  font-weight: bold;
+  color: #2d3748;
+}
+
+.reminder-status {
+  padding: 1px 6px;
+  border-radius: 10px;
+  background: #edf2f7;
+  color: #718096;
+}
+
+.reminder-status.active {
+  background: #c6f6d5;
+  color: #2f855a;
+}
+
+.reminder-content {
+  font-size: 14px;
+  color: #4a5568;
+}
+
+/* 步骤样式优化 */
 .steps-section h4 {
   margin: 20px 0 10px;
   color: var(--text-primary);
@@ -336,16 +580,108 @@ onMounted(() => {
   font-weight: 500;
 }
 
+/* 友好显示样式 */
+.step-friendly-content {
+  margin-top: 10px;
+  background: var(--bg-secondary);
+  border-radius: 6px;
+  padding: 10px;
+}
+
+.friendly-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+
+.friendly-row.result {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--border-color);
+  color: #2f855a;
+}
+
+.friendly-row .icon {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+/* 技术详情折叠样式 */
+.tech-details {
+  margin-top: 10px;
+  font-size: 12px;
+}
+
+.tech-details summary {
+  cursor: pointer;
+  color: var(--text-secondary);
+  user-select: none;
+  margin-bottom: 5px;
+}
+
+.tech-details summary:hover {
+  color: var(--text-primary);
+}
+
+/* 参数和结果样式优化 */
 .step-params,
 .step-result {
   margin-top: 10px;
   font-size: 13px;
+  background: var(--bg-secondary);
+  padding: 10px;
+  border-radius: 6px;
+}
+
+.params-title,
+.result-title {
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 5px;
+  font-size: 12px;
+}
+
+.param-row {
+  display: flex;
+  margin-bottom: 3px;
+}
+
+.param-key {
+  color: #718096;
+  margin-right: 8px;
+  min-width: 60px;
+}
+
+.param-val {
+  color: var(--text-primary);
+  font-family: monospace;
+}
+
+.success-text {
+  color: #2f855a;
+  white-space: pre-wrap;
+}
+
+.error-text {
+  color: #c53030;
+  font-weight: 500;
+}
+
+.text-result {
+  color: var(--text-primary);
+  white-space: pre-wrap;
 }
 
 .step-error {
   margin-top: 10px;
   color: #c53030;
   font-size: 13px;
+  background: #fff5f5;
+  padding: 8px;
+  border-radius: 4px;
 }
 
 pre {
@@ -354,23 +690,5 @@ pre {
   border-radius: 4px;
   overflow-x: auto;
   margin: 5px 0 0;
-}
-
-.result-text {
-  white-space: pre-wrap;
-  font-family: inherit;
-  background: transparent;
-  padding: 0;
-  margin: 0;
-  color: var(--text-primary);
-}
-
-.error-text {
-  color: #c53030;
-  font-weight: 500;
-}
-
-.info-text {
-  color: #2b6cb0;
 }
 </style>

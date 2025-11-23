@@ -151,7 +151,8 @@ class ReminderManager:
         self,
         user_id: str,
         enabled_only: bool = True,
-        reminder_type: Optional[str] = None
+        reminder_type: Optional[str] = None,
+        use_cache: bool = True
     ) -> List[Dict[str, Any]]:
         """
         获取用户的提醒列表
@@ -160,13 +161,14 @@ class ReminderManager:
             user_id: 用户ID
             enabled_only: 是否只返回启用的提醒
             reminder_type: 提醒类型过滤
+            use_cache: 是否使用缓存
 
         Returns:
             提醒列表
         """
         # 检查缓存
         cache_key = f"{user_id}_{enabled_only}_{reminder_type}"
-        if self._is_cache_valid() and cache_key in self.reminders_cache:
+        if use_cache and self._is_cache_valid() and cache_key in self.reminders_cache:
             return self.reminders_cache[cache_key]
 
         conn = get_db_connection()
@@ -220,9 +222,17 @@ class ReminderManager:
         if not updates:
             return False
 
+        # 处理JSONB字段：将字典转为JSON字符串
+        processed_updates = {}
+        for key, value in updates.items():
+            if isinstance(value, dict):
+                processed_updates[key] = json.dumps(value)
+            else:
+                processed_updates[key] = value
+
         # 构建更新SQL
-        set_clause = ", ".join([f"{k} = %s" for k in updates.keys()])
-        values = list(updates.values())
+        set_clause = ", ".join([f"{k} = %s" for k in processed_updates.keys()])
+        values = list(processed_updates.values())
         values.append(reminder_id)
 
         conn = get_db_connection()
@@ -312,10 +322,12 @@ class ReminderManager:
         Returns:
             需要触发的提醒列表
         """
+        # 强制不使用缓存，确保获取最新的数据库状态（特别是Snooze更新后）
         reminders = await self.get_user_reminders(
             user_id,
             enabled_only=True,
-            reminder_type=ReminderType.TIME
+            reminder_type=ReminderType.TIME,
+            use_cache=False
         )
 
         triggered = []
@@ -334,6 +346,9 @@ class ReminderManager:
 
                 trigger_time = datetime.fromisoformat(trigger_time_str)
 
+                # DEBUG: 打印检查信息
+                # logger.info(f"Checking reminder {reminder['reminder_id']}: time={trigger_time}, now={now}")
+
                 # 检查是否到时间
                 if now >= trigger_time:
                     # 检查是否最近已触发（避免重复）
@@ -351,15 +366,24 @@ class ReminderManager:
                                 continue
                         else:
                             # 非重复提醒，如果已启用（未确认），每5分钟提醒一次
-                            # 如果已禁用（已确认），则不会出现在这里（get_user_reminders过滤了）
+                            # 只有当当前时间超过触发时间很久了（比如错过了），才需要这个重试逻辑
+                            # 如果是Snooze的情况，trigger_time应该是未来的时间，now < trigger_time，根本进不来这里
+                            # 所以这里的逻辑只针对：trigger_time已过，但用户没确认的情况
+
                             retry_interval = 300  # 5分钟
-                            if (
-                                (now - last_triggered).total_seconds()
-                                < retry_interval
-                            ):
+                            time_since_last = (
+                                now - last_triggered).total_seconds()
+
+                            # 如果距离上次触发还不到5分钟，跳过
+                            if time_since_last < retry_interval:
                                 continue
 
+                            # 只有当 trigger_time 确实是过去的时间时，才执行重试
+                            # (虽然外层 if now >= trigger_time 已经保证了这点)
+
                     triggered.append(reminder)
+                    logger.info(
+                        f"Reminder {reminder['reminder_id']} triggered! Time: {trigger_time}, Now: {now}")
 
             except Exception as e:
                 logger.error(
@@ -374,10 +398,12 @@ class ReminderManager:
         Returns:
             需要触发的提醒列表
         """
+        # 强制不使用缓存
         reminders = await self.get_user_reminders(
             user_id,
             enabled_only=True,
-            reminder_type=ReminderType.BEHAVIOR
+            reminder_type=ReminderType.BEHAVIOR,
+            use_cache=False
         )
 
         triggered = []
@@ -395,6 +421,13 @@ class ReminderManager:
                 condition = reminder['trigger_condition']
                 if isinstance(condition, str):
                     condition = json.loads(condition)
+
+                # 检查是否有稍后提醒的设定时间
+                snooze_until_str = condition.get('datetime')
+                if snooze_until_str:
+                    snooze_until = datetime.fromisoformat(snooze_until_str)
+                    if now < snooze_until:
+                        continue
 
                 # 检查不活跃时间
                 required_hours = condition.get('inactive_hours', 24)
@@ -694,9 +727,10 @@ class ReminderManager:
         try:
             with conn.cursor() as cur:
                 cur.execute("""
-                    SELECT MAX(created_at) as last_active
-                    FROM conversation_history
-                    WHERE user_id = %s
+                    SELECT MAX(m.created_at) as last_active
+                    FROM messages m
+                    JOIN conversations c ON m.session_id = c.session_id
+                    WHERE c.user_id = %s AND m.role = 'user'
                 """, (user_id,))
                 result = cur.fetchone()
                 return result[0] if result and result[0] else None
