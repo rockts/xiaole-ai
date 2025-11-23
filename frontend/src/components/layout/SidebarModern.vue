@@ -332,15 +332,18 @@
       </div>
       <button class="settings-icon-btn" title="用户菜单">
         <svg
-          width="20"
-          height="20"
+          width="24"
+          height="24"
           viewBox="0 0 24 24"
-          fill="currentColor"
-          stroke="none"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
         >
-          <circle cx="12" cy="12" r="2" />
-          <circle cx="12" cy="6" r="2" />
-          <circle cx="12" cy="18" r="2" />
+          <circle cx="12" cy="12" r="1"></circle>
+          <circle cx="12" cy="5" r="1"></circle>
+          <circle cx="12" cy="19" r="1"></circle>
         </svg>
       </button>
 
@@ -1620,8 +1623,9 @@ watch(
 }
 
 .settings-icon-btn {
-  width: 28px;
-  height: 28px;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1630,12 +1634,14 @@ watch(
   color: var(--text-secondary);
   border-radius: 6px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: color 0.2s;
+  margin-left: auto; /* 推到最右边 */
 }
 
 .user-profile:hover .settings-icon-btn {
   color: var(--text-primary);
-  background: var(--bg-secondary);
+  /* 移除背景色，响应用户"去掉外面方框"的请求 */
+  background: transparent;
 }
 
 /* 收起状态下的用户栏 */
