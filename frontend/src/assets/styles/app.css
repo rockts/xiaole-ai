@@ -118,9 +118,9 @@ body {
 
 /* 侧边栏 */
 .sidebar {
-    width: 280px;
-    flex: 0 0 280px;
-    min-width: 280px;
+    width: 245px;
+    flex: 0 0 245px;
+    min-width: 245px;
     background: var(--card-bg);
     border-right: 1px solid var(--border-color);
     display: flex;
@@ -905,7 +905,7 @@ body {
 .input-container {
     position: fixed;
     bottom: 0;
-    left: 280px;
+    left: 245px;
     right: 0;
     padding: 16px 20px 20px;
     background: var(--container-bg);
