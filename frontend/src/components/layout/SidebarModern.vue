@@ -897,6 +897,8 @@ watch(
   display: flex;
   flex-direction: column;
   width: 245px;
+  min-width: 245px;
+  flex: 0 0 245px;
   height: 100vh;
   background: var(--bg-primary);
   border-right: 1px solid var(--border-light);
@@ -906,6 +908,8 @@ watch(
 
 .sidebar.collapsed {
   width: 70px;
+  min-width: 70px;
+  flex: 0 0 70px;
 }
 
 /* 移动端适配 */
@@ -916,6 +920,8 @@ watch(
     left: 0;
     bottom: 0;
     width: 245px !important; /* 移动端展开时宽度固定 */
+    min-width: 245px !important;
+    flex: 0 0 245px !important;
     transform: translateX(0);
     box-shadow: var(--shadow-lg);
     z-index: 1000;
@@ -923,6 +929,8 @@ watch(
 
   .sidebar.collapsed {
     width: 245px !important;
+    min-width: 245px !important;
+    flex: 0 0 245px !important;
     transform: translateX(-100%);
   }
 
