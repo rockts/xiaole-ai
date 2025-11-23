@@ -210,6 +210,28 @@ class FileTool(Tool):
 
     async def _read_file(self, path: Path) -> Dict[str, Any]:
         """读取文件内容"""
+        # 智能查找：如果文件不存在，尝试在 uploads 目录查找（处理时间戳前缀）
+        if not path.exists():
+            # 尝试查找 uploads 目录下的同名文件（忽略前缀）
+            filename = path.name
+            uploads_dir = self.PROJECT_ROOT / "backend" / "uploads"
+            
+            if uploads_dir.exists():
+                # 查找以 _filename 结尾的文件
+                found_files = list(uploads_dir.glob(f"*_{filename}"))
+                if found_files:
+                    # 找到匹配的文件，使用最新的一个
+                    found_files.sort(
+                        key=lambda x: x.stat().st_mtime, reverse=True
+                    )
+                    path = found_files[0]
+                    # 重新验证路径安全性
+                    if not self._resolve_path(str(path)):
+                        return {
+                            "success": False,
+                            "error": f"找到文件但路径不安全: {path}"
+                        }
+
         if not path.exists():
             return {
                 "success": False,
