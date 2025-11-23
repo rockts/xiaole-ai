@@ -8,39 +8,8 @@
       ></div>
     </teleport>
     <div class="sidebar-content">
-      <!-- 顶部：logo + 标题 + 收起按钮 -->
+      <!-- 顶部：标题 + 收起按钮 -->
       <div class="sidebar-logo-title">
-        <div
-          class="logo-wrapper"
-          :class="{ 'show-toggle': isCollapsed }"
-          @click="isCollapsed && toggleSidebar()"
-          :title="isCollapsed ? '展开侧边栏' : ''"
-        >
-          <div class="logo">
-            <img
-              v-if="!showFallbackLogo"
-              :src="logoSrc"
-              alt="小乐logo"
-              @error="onLogoError"
-            />
-            <div v-else class="logo-fallback">乐</div>
-          </div>
-          <svg
-            v-if="isCollapsed"
-            class="toggle-icon"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <rect x="3" y="3" width="18" height="18" rx="4" ry="4"></rect>
-            <line x1="15" y1="3" x2="15" y2="21"></line>
-          </svg>
-        </div>
         <div class="title">小乐 AI 管家</div>
         <button class="collapse-btn" @click="toggleSidebar" title="收起侧边栏">
           <svg
@@ -312,27 +281,40 @@
       </div>
     </div>
 
-    <!-- 底部：设置按钮 -->
-    <div class="sidebar-footer">
-      <button class="settings-btn" @click="goToSettings">
-        <span class="nav-icon">
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <circle cx="12" cy="12" r="3"></circle>
-            <path
-              d="M12 1v6m0 6v6M3.93 3.93l4.24 4.24m8.48 8.48l4.24 4.24M1 12h6m6 0h6M3.93 20.07l4.24-4.24m8.48-8.48l4.24-4.24"
-            ></path>
-          </svg>
-        </span>
-        <span class="nav-label">设置</span>
+    <!-- 底部：用户资料 -->
+    <div class="sidebar-footer user-profile" @click="openSettingsModal">
+      <div class="avatar-wrapper">
+        <img
+          v-if="!showFallbackLogo"
+          :src="logoSrc"
+          alt="用户头像"
+          @error="onLogoError"
+        />
+        <div v-else class="logo-fallback">乐</div>
+      </div>
+      <div class="user-info">
+        <div class="username">{{ username }}</div>
+        <div class="user-status">在线</div>
+      </div>
+      <button class="settings-icon-btn" title="设置">
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <circle cx="12" cy="12" r="3"></circle>
+          <path
+            d="M12 1v6m0 6v6M3.93 3.93l4.24 4.24m8.48 8.48l4.24 4.24M1 12h6m6 0h6M3.93 20.07l4.24-4.24m8.48-8.48l4.24-4.24"
+          ></path>
+        </svg>
       </button>
     </div>
+
+    <!-- 设置弹窗 -->
+    <SettingsModal v-if="showSettingsModal" @close="showSettingsModal = false" />
 
     <!-- 删除确认对话框 -->
     <div v-if="showDeleteConfirm" class="modal-overlay" @click="cancelDelete">
@@ -363,6 +345,7 @@ import { useChatStore } from "@/stores/chat";
 import { storeToRefs } from "pinia";
 import logoImage from "@/assets/logo-xiaole.png";
 import ShareDialog from "@/components/common/ShareDialog.vue";
+import SettingsModal from "@/components/common/SettingsModal.vue";
 
 const router = useRouter();
 const route = useRoute();
@@ -430,9 +413,24 @@ const loadSession = (id) => {
   router.push(`/chat/${id}`);
   handleMobileNav();
 };
-const goToSettings = () => {
-  router.push("/settings");
+
+const showSettingsModal = ref(false);
+const username = ref("游戏小乐乐"); // 默认值，后续从localStorage加载
+
+const openSettingsModal = () => {
+  showSettingsModal.value = true;
   handleMobileNav();
+};
+
+// 加载用户名
+const loadUserProfile = () => {
+  const saved = localStorage.getItem("xiaole_settings");
+  if (saved) {
+    const settings = JSON.parse(saved);
+    if (settings.nickname) {
+      username.value = settings.nickname;
+    }
+  }
 };
 
 // 悬停和菜单状态
@@ -710,6 +708,7 @@ let clickOutsideHandler = null;
 
 onMounted(() => {
   chatStore.loadSessions();
+  loadUserProfile();
 
   // 点击外部关闭菜单
   clickOutsideHandler = (e) => {
@@ -1383,6 +1382,105 @@ watch(
 .btn-delete:hover {
   background: #dc2626;
   box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+}
+
+/* 用户资料底部栏 */
+.user-profile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out);
+}
+
+.user-profile:hover {
+  background: var(--bg-hover);
+}
+
+.avatar-wrapper {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  border: 2px solid var(--bg-secondary);
+}
+
+.avatar-wrapper img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.user-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.username {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.user-status {
+  font-size: 12px;
+  color: var(--success);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.user-status::before {
+  content: "";
+  display: block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--success);
+}
+
+.settings-icon-btn {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--text-tertiary);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.user-profile:hover .settings-icon-btn {
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+}
+
+/* 收起状态下的用户栏 */
+.sidebar.collapsed .user-profile {
+  justify-content: center;
+  padding: 12px 0;
+}
+
+.sidebar.collapsed .user-info,
+.sidebar.collapsed .settings-icon-btn {
+  display: none;
+}
+
+.sidebar.collapsed .avatar-wrapper {
+  width: 40px;
+  height: 40px;
+  border-width: 0;
 }
 </style>
 
