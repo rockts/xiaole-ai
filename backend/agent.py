@@ -1273,6 +1273,9 @@ class XiaoLeAgent:
                     "用户背景信息（从记忆库提取）：\n" + "\n".join(location_memories)
                 )
 
+            # TODO: [Optimization] Document preview is too short for detailed QA.
+            # Consider implementing RAG or forcing file_tool usage.
+            # See docs/issues/20251124_DOCUMENT_RETRIEVAL_FAIL.md
             if document_memories:
                 context_parts.append(
                     "最近上传的文档上下文：\n" + "\n".join(document_memories)
