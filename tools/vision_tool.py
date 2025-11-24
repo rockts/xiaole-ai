@@ -327,8 +327,15 @@ class VisionTool(Tool):
 
             # Generate safe filename
             import time
-            timestamp = int(time.time())
-            safe_filename = f"{timestamp}_{filename}"
+            import uuid
+
+            # Get file extension
+            _, ext = os.path.splitext(filename)
+            if not ext:
+                ext = ".jpg"  # Default to jpg if no extension
+
+            # Use UUID for filename to avoid encoding issues with Chinese characters
+            safe_filename = f"{int(time.time())}_{uuid.uuid4().hex[:8]}{ext}"
             file_path = os.path.join(uploads_dir, safe_filename)
 
             # Save file

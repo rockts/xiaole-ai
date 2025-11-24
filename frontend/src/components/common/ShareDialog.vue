@@ -41,35 +41,60 @@
 
             <!-- 摘要式布局 -->
             <div class="summary-content">
-              <div class="summary-intro">
-                <div
-                  class="summary-text"
-                  v-html="renderMarkdown(summaryText)"
-                ></div>
-              </div>
-
-              <div class="summary-divider"></div>
-
-              <div class="summary-answer">
-                <div class="answer-icon">
-                  <svg
-                    width="24"
-                    height="24"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                  >
-                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                  </svg>
+              <div
+                v-for="(msg, index) in previewMessages"
+                :key="index"
+                class="message-row"
+                :class="msg.role"
+              >
+                <!-- 用户消息 -->
+                <div v-if="msg.role === 'user'" class="user-message">
+                  <div class="message-bubble">
+                    <div
+                      v-if="msg.content"
+                      class="message-text"
+                      v-html="renderMarkdown(msg.content)"
+                    ></div>
+                    <div v-if="msg.image" class="message-image-wrapper">
+                      <img
+                        :src="msg.image"
+                        class="message-image"
+                        crossorigin="anonymous"
+                      />
+                    </div>
+                  </div>
                 </div>
-                <div class="answer-text">
-                  <h3>XiaoLe 回答:</h3>
-                  <div
-                    class="answer-body"
-                    v-html="renderMarkdown(answerText)"
-                  ></div>
+
+                <!-- AI 消息 -->
+                <div v-else class="ai-message">
+                  <div class="ai-avatar">
+                    <svg
+                      width="20"
+                      height="20"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                      <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                    </svg>
+                  </div>
+                  <div class="message-content">
+                    <div class="ai-name">XiaoLe AI</div>
+                    <div
+                      v-if="msg.content"
+                      class="message-text"
+                      v-html="renderMarkdown(msg.content)"
+                    ></div>
+                    <div v-if="msg.image" class="message-image-wrapper">
+                      <img
+                        :src="msg.image"
+                        class="message-image"
+                        crossorigin="anonymous"
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -465,32 +490,35 @@ onMounted(async () => {
 .summary-content {
   position: relative;
   z-index: 1;
-}
-
-.summary-intro {
-  margin-bottom: 24px;
-}
-
-.summary-text {
-  font-size: 22px;
-  font-weight: 600;
-  line-height: 1.5;
-  color: #ffffff;
-  margin: 0;
-}
-
-.summary-divider {
-  height: 1px;
-  background: rgba(255, 255, 255, 0.1);
-  margin: 0 0 24px 0;
-}
-
-.summary-answer {
   display: flex;
-  gap: 16px;
+  flex-direction: column;
+  gap: 24px;
 }
 
-.answer-icon {
+.message-row {
+  display: flex;
+  width: 100%;
+}
+
+.message-row.user {
+  justify-content: flex-end;
+}
+
+.user-message .message-bubble {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 12px 12px 0 12px;
+  padding: 12px 16px;
+  max-width: 85%;
+  color: #fff;
+}
+
+.ai-message {
+  display: flex;
+  gap: 12px;
+  max-width: 90%;
+}
+
+.ai-avatar {
   width: 32px;
   height: 32px;
   border-radius: 50%;
@@ -500,39 +528,49 @@ onMounted(async () => {
   justify-content: center;
   color: white;
   flex-shrink: 0;
+  margin-top: 2px;
 }
 
-.answer-text {
+.message-content {
   flex: 1;
 }
 
-.answer-text h3 {
-  font-size: 13px;
+.ai-name {
+  font-size: 12px;
   font-weight: 600;
   color: rgba(255, 255, 255, 0.5);
-  margin: 0 0 8px 0;
+  margin-bottom: 4px;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
 }
 
-.answer-body {
-  font-size: 16px;
+.message-text {
+  font-size: 15px;
   line-height: 1.6;
   color: rgba(255, 255, 255, 0.9);
 }
 
-.answer-body :deep(p),
-.summary-text :deep(p) {
+.message-text :deep(p) {
   margin: 0 0 0.5em 0;
 }
-.answer-body :deep(p:last-child),
-.summary-text :deep(p:last-child) {
+.message-text :deep(p:last-child) {
   margin: 0;
 }
-.answer-body :deep(strong),
-.summary-text :deep(strong) {
+.message-text :deep(strong) {
   font-weight: 700;
   color: #fff;
+}
+
+.message-image-wrapper {
+  margin-top: 8px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.message-image {
+  display: block;
+  max-width: 100%;
+  height: auto;
 }
 
 .fade-overlay {

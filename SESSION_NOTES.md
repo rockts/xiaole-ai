@@ -892,27 +892,22 @@ npm run dev
 
 ## 🧾 本次会话快照（2025-11-24）
 
-- **目标**：修复记忆混淆问题（儿子/女儿名字混淆），并提交所有代码变更。
+- **目标**：修复记忆混淆问题，完善移动端交互体验。
 - **已完成**：
   - **记忆修复**：
-    - 诊断出数据库中存在冲突的记忆条目（儿子名字被错误关联到女儿）。
-    - 创建并运行 `scripts/fix_memory_data.py` 清理了错误的记忆条目，并确认了正确的家庭成员信息。
-    - 优化 `backend/agent.py` 中的家庭成员关键词提取逻辑，增加对"姑娘"、"闺女"等口语词汇的支持。
+    - 诊断并修复了儿子/女儿名字混淆的记忆数据 (`scripts/fix_memory_data.py`)。
+    - 优化 `backend/agent.py` 家庭成员关键词提取逻辑，增加对"姑娘"、"闺女"等口语词汇的支持。
+  - **前端交互优化**：
+    - **移动端图片预览**：在 `ChatView.vue` 中实现了双指缩放 (Pinch-to-zoom) 和单指拖拽 (Pan) 的触摸手势支持，完善了移动端图片查看体验。
   - **调试工具**：
     - 创建 `scripts/debug_chat_session.py` 用于快速查看特定会话的完整历史。
     - 创建 `scripts/check_daughter_name.py` 用于诊断特定记忆问题。
-  - **前端优化**（上一轮）：
-    - 完成了拖拽上传功能的 UI 实现。
 
 - **关键文件**：
+  - `frontend/src/views/ChatView.vue`（触摸手势）
   - `backend/agent.py`（逻辑优化）
   - `scripts/fix_memory_data.py`（数据修复脚本）
-  - `scripts/debug_chat_session.py`（调试工具）
 
 - **快速恢复**：
   - 记忆已修复，无需额外操作。
-  - 如需再次检查记忆，可运行：
-    ```bash
-    export PYTHONPATH=$PYTHONPATH:$(pwd)
-    python scripts/check_daughter_name.py
-    ```
+  - 前端已更新，需确保开发服务器运行中。

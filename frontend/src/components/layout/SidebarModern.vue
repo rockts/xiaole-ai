@@ -678,34 +678,54 @@ const updateMenuPosition = (id, evt) => {
   const btn =
     menuBtnRefs.value[id] || document.getElementById(`menu-btn-${id}`);
   if (!btn) return;
+
+  // 尝试获取实际菜单尺寸 (需要在 nextTick 后调用)
+  const menuEl = document.querySelector(".session-menu");
+  const width = menuEl ? menuEl.offsetWidth : 180;
+  const height = menuEl ? menuEl.offsetHeight : 200;
+
   const rect = btn.getBoundingClientRect();
-  const minWidth = 180; // 与样式一致
-  const estHeight = 168; // 约4项菜单高度 + 内边距
-  const clickX = evt?.clientX;
-  const clickY = evt?.clientY;
-  // 右对齐为主：靠按钮右侧对齐
-  let left = Math.max(
-    8,
-    Math.min(
-      (clickX ?? rect.right) - minWidth,
-      window.innerWidth - minWidth - 8
-    )
-  );
-  // 默认向下展开
-  let top = (clickY ?? rect.bottom) + 8;
+  const windowWidth = window.innerWidth;
+  const windowHeight = window.innerHeight;
+  const gap = 6;
+
+  // 默认策略：右对齐 (菜单右边缘与按钮右边缘对齐)
+  let left = rect.right - width;
+  // 如果右对齐导致左边溢出 (按钮太靠左)，则改为左对齐
+  if (left < gap) {
+    left = rect.left;
+  }
+  // 再次检查是否溢出屏幕右侧
+  if (left + width > windowWidth - gap) {
+    left = windowWidth - width - gap;
+  }
+  // 再次检查是否溢出屏幕左侧
+  if (left < gap) {
+    left = gap;
+  }
+
+  // 垂直策略
+  let top = rect.bottom + gap;
   let placement = "bottom";
 
-  // 底部空间不足则向上翻转
-  const bottomSpace = window.innerHeight - (clickY ?? rect.bottom);
-  if (bottomSpace < estHeight + 12) {
-    top = Math.max(8, (clickY ?? rect.top) - estHeight - 8);
-    placement = "top";
+  // 检查底部空间
+  if (top + height > windowHeight - gap) {
+    // 底部空间不足，尝试向上
+    const topPosition = rect.top - gap - height;
+    if (topPosition > gap) {
+      top = topPosition;
+      placement = "top";
+    } else {
+      // 上下都不够，选择空间更大的一侧并限制高度(CSS中处理滚动)或强制贴边
+      if (rect.top > windowHeight - rect.bottom) {
+        top = gap; // 贴顶
+        // 这里理想情况应该设置 max-height，但简化处理先保证位置
+      } else {
+        top = windowHeight - height - gap; // 贴底
+      }
+    }
   }
-  if (left + minWidth > window.innerWidth - 8) {
-    left = window.innerWidth - 8 - minWidth;
-  }
-  // 避免超出顶部
-  if (top < 8) top = 8;
+
   menuPosition.value = { top, left, placement };
 };
 
