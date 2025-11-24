@@ -52,6 +52,7 @@ class NoCacheStaticFiles(StaticFiles):
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 STATIC_DIR = os.path.join(BASE_DIR, "static")
 UPLOADS_DIR = os.path.join(BASE_DIR, "uploads")
+FILES_DIR = os.path.join(os.path.dirname(BASE_DIR), "files")
 
 app.mount(
     "/static",
@@ -59,6 +60,8 @@ app.mount(
     name="static"
 )
 app.mount("/uploads", StaticFiles(directory=UPLOADS_DIR), name="uploads")
+if os.path.exists(FILES_DIR):
+    app.mount("/files", StaticFiles(directory=FILES_DIR), name="files")
 
 
 # Pydantic模型 - v0.5.0提醒系统

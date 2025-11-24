@@ -1,5 +1,5 @@
 from sqlalchemy import (
-    create_engine, Column, Integer, String, Text, DateTime, Boolean, Float
+    create_engine, Column, Integer, String, Text, DateTime, Boolean, Float, ARRAY
 )
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
@@ -157,6 +157,23 @@ class ToolExecution(Base):
 
     # 时间记录
     executed_at = Column(DateTime, default=datetime.now, index=True)
+
+
+class FaceEncoding(Base):
+    """人脸特征向量表 - v0.9.0 Phase 1"""
+    __tablename__ = "face_encodings"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(String(50), default="default_user", index=True)
+    name = Column(String(100), nullable=False)  # 人名
+
+    # 128维特征向量 (PostgreSQL ARRAY)
+    # 注意: SQLite不支持ARRAY，如果使用SQLite需改为JSON存储
+    encoding = Column(ARRAY(Float))
+
+    image_path = Column(String(500))  # 来源图片路径
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 Base.metadata.create_all(engine)

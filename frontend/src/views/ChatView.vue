@@ -1,5 +1,36 @@
 <template>
-  <div class="chat-view" :class="{ empty: isEmptyChat }">
+  <div
+    class="chat-view"
+    :class="{ empty: isEmptyChat }"
+    @dragover.prevent
+    @dragenter.prevent="handleDragEnter"
+    @dragleave.prevent="handleDragLeave"
+    @drop.prevent="handleDrop"
+  >
+    <!-- 全屏拖拽遮罩 -->
+    <div v-if="isDraggingFile" class="drag-overlay">
+      <div class="drag-content">
+        <div class="drag-icon">
+          <svg
+            width="64"
+            height="64"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="17 8 12 3 7 8"></polyline>
+            <line x1="12" y1="3" x2="12" y2="15"></line>
+          </svg>
+        </div>
+        <div class="drag-title">在此处拖放文件</div>
+        <div class="drag-subtitle">添加任意内容到对话中</div>
+      </div>
+    </div>
+
     <!-- 空状态问候语 -->
     <div v-if="isEmptyChat" class="welcome-message">
       <div class="welcome-icon">👋</div>
@@ -474,6 +505,32 @@
           </button>
         </div>
 
+        <!-- 图片预览条 (待发送) -->
+        <div v-if="pendingPreviewUrl" class="input-preview-area">
+          <div class="preview-card">
+            <img
+              :src="pendingPreviewUrl"
+              class="preview-image"
+              alt="待发送图片"
+            />
+            <button class="preview-close-btn" @click="clearPendingFile">
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          </div>
+        </div>
+
         <div class="input-controls">
           <button class="icon-btn" @click="handleUpload" title="附件">
             <svg
@@ -734,9 +791,15 @@ const imagePreviewUrl = ref(null);
 const imageScale = ref(1);
 const imageTranslate = ref({ x: 0, y: 0 });
 const isDragging = ref(false);
+const isDraggingFile = ref(false);
+const dragCounter = ref(0);
 const dragStart = ref({ x: 0, y: 0 });
 const showScrollToBottom = ref(false);
 const observer = ref(null);
+
+// 待发送文件状态
+const pendingFile = ref(null);
+const pendingPreviewUrl = ref(null);
 
 // 分享弹窗状态
 const showShareDialog = ref(false);
@@ -771,7 +834,7 @@ const feedbackTags = [
 
 // 判断是否有输入内容
 const hasInputContent = computed(() => {
-  return inputContent.value.trim().length > 0;
+  return inputContent.value.trim().length > 0 || !!pendingFile.value;
 });
 
 // 按钮状态：voice-mode(语音模式) / send(发送) / stop(停止)
@@ -1188,8 +1251,16 @@ const shareMessage = async (message) => {
 
 const formatImagePath = (path) => {
   if (!path) return "";
-  // 如果路径不是以 / 或 http 开头，添加 / 前缀
-  if (!path.startsWith("/") && !path.startsWith("http")) {
+  // 如果是 base64 或 blob 或 http 开头，直接返回
+  if (
+    path.startsWith("data:") ||
+    path.startsWith("blob:") ||
+    path.startsWith("http")
+  ) {
+    return path;
+  }
+  // 如果路径不是以 / 开头，添加 / 前缀
+  if (!path.startsWith("/")) {
     return "/" + path;
   }
   return path;
@@ -1515,7 +1586,8 @@ const sendMessage = async () => {
     content = quote + (content || "");
   }
 
-  if (!content || isTyping.value) return;
+  // 如果没有内容且没有待发送文件，且不在打字中，则返回
+  if ((!content && !pendingFile.value) || isTyping.value) return;
 
   // 立即清空输入框和引用
   messageInput.value.innerText = "";
@@ -1523,25 +1595,61 @@ const sendMessage = async () => {
   inputContent.value = "";
   quoteText.value = ""; // 清空引用
 
+  // 处理待发送文件
+  let imagePath = null;
+  const currentFile = pendingFile.value;
+  const currentPreview = pendingPreviewUrl.value;
+
+  // 清空待发送状态
+  pendingFile.value = null;
+  pendingPreviewUrl.value = null;
+
   // 立即添加用户消息到界面末尾（保持对话顺序）
   messages.value.push({
     id: `temp-${Date.now()}`,
     role: "user",
     content: content,
+    image_path: currentPreview, // 临时显示本地预览图
     timestamp: new Date().toISOString(),
   });
 
   // 设置标志位：需要滚动到底部
   shouldScrollToBottom.value = true;
 
-  // 发送到后端
-  await chatStore.sendMessage(content, null, router);
+  try {
+    // 如果有文件，先上传
+    if (currentFile) {
+      // 显示上传状态（可选，目前直接用打字状态覆盖）
+      imagePath = await chatStore.uploadImage(currentFile);
+      if (!imagePath) {
+        // 上传失败处理
+        messages.value.push({
+          id: `error-${Date.now()}`,
+          role: "assistant",
+          content: "❌ 图片上传失败，请重试。",
+          status: "done",
+        });
+        return;
+      }
+    }
+
+    // 发送到后端
+    await chatStore.sendMessage(content, imagePath, router);
+  } catch (e) {
+    console.error("Send message failed:", e);
+    messages.value.push({
+      id: `error-${Date.now()}`,
+      role: "assistant",
+      content: "❌ 发送失败，请重试。",
+      status: "done",
+    });
+  }
 
   // 检测是否需要刷新提醒或任务列表
   // 检查用户输入和AI响应
-  const lowerContent = content.toLowerCase();
-  const needsReminderRefresh = /提醒|闹钟|reminder/.test(content);
-  const needsTaskRefresh = /任务|待办|todo|task/.test(content);
+  const lowerContent = (content || "").toLowerCase();
+  const needsReminderRefresh = /提醒|闹钟|reminder/.test(lowerContent);
+  const needsTaskRefresh = /任务|待办|todo|task/.test(lowerContent);
 
   // 增加延迟到3秒，确保AI响应和工具执行都已完成
   setTimeout(() => {
@@ -1581,12 +1689,22 @@ const handleFileChange = async (e) => {
 
   // 检查文件类型
   if (file.type.startsWith("image/")) {
-    const imagePath = await chatStore.uploadImage(file);
-    if (imagePath) {
-      await chatStore.sendMessage("", imagePath, router);
-    }
+    // 图片：添加到待发送列表，显示预览
+    pendingFile.value = file;
+
+    // 创建本地预览URL
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      pendingPreviewUrl.value = e.target.result;
+    };
+    reader.readAsDataURL(file);
+
+    // 聚焦输入框
+    nextTick(() => {
+      messageInput.value?.focus();
+    });
   } else {
-    // 处理文档上传
+    // 处理文档上传 (保持原有逻辑，文档直接上传处理)
     try {
       // 显示加载状态
       chatStore.isTyping = true;
@@ -1662,6 +1780,38 @@ const handleFileChange = async (e) => {
     }
   }
   e.target.value = "";
+};
+
+const clearPendingFile = () => {
+  pendingFile.value = null;
+  pendingPreviewUrl.value = null;
+  if (fileInput.value) {
+    fileInput.value.value = "";
+  }
+};
+
+const handleDragEnter = (e) => {
+  dragCounter.value++;
+  isDraggingFile.value = true;
+};
+
+const handleDragLeave = (e) => {
+  dragCounter.value--;
+  if (dragCounter.value <= 0) {
+    isDraggingFile.value = false;
+    dragCounter.value = 0;
+  }
+};
+
+const handleDrop = (e) => {
+  isDraggingFile.value = false;
+  dragCounter.value = 0;
+  const files = e.dataTransfer.files;
+  if (files.length > 0) {
+    const file = files[0];
+    // 复用 handleFileChange 的逻辑，但需要构造一个类似 event 的对象
+    handleFileChange({ target: { files: [file], value: "dummy" } });
+  }
 };
 
 const handleVoice = () => {
@@ -2296,12 +2446,13 @@ const feedbackMessage = async (message, type) => {
   max-width: 800px;
   margin: 0 auto;
   display: flex;
+  flex-direction: column; /* 改为纵向布局以容纳预览图 */
   gap: 8px;
-  align-items: center;
+  align-items: stretch; /* 撑满宽度 */
   background: var(--bg-secondary);
   border: 1px solid var(--border-light);
   border-radius: 22px;
-  padding: 5px 10px;
+  padding: 8px 10px; /* 调整内边距 */
   transition: all 0.2s ease;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
   min-height: 50px;
@@ -2311,12 +2462,88 @@ const feedbackMessage = async (message, type) => {
   border-color: var(--text-tertiary);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
+.input-wrapper.drag-over {
+  border-color: var(--brand-primary);
+  background: var(--bg-tertiary);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+.input-wrapper.drag-over::after {
+  content: "释放以添加文件";
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  color: var(--brand-primary);
+  font-weight: 500;
+  border-radius: 22px;
+  z-index: 10;
+  pointer-events: none;
+}
+[data-theme="dark"] .input-wrapper.drag-over::after {
+  background: rgba(30, 30, 30, 0.8);
+}
 .input-controls {
   display: flex;
   align-items: center;
   gap: 4px;
   width: 100%;
 }
+/* 图片预览区域优化 */
+.input-preview-area {
+  padding: 4px 4px 0 4px;
+  display: flex;
+  gap: 10px;
+  animation: fadeIn 0.2s ease;
+}
+
+.preview-card {
+  position: relative;
+  width: 60px;
+  height: 60px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border-medium);
+  background: var(--bg-tertiary);
+}
+
+.preview-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.preview-close-btn {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 18px;
+  height: 18px;
+  background: rgba(0, 0, 0, 0.6);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  border: none;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s;
+  padding: 0;
+}
+
+.preview-card:hover .preview-close-btn {
+  opacity: 1;
+}
+
+.preview-close-btn:hover {
+  background: rgba(0, 0, 0, 0.8);
+}
+
 .message-editor {
   flex: 1;
   max-height: 200px;
@@ -3002,5 +3229,67 @@ const feedbackMessage = async (message, type) => {
 
 .card-snippet {
   display: none; /* 隐藏摘要以节省空间 */
+}
+
+/* 拖拽遮罩样式 */
+.drag-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none; /* 让事件穿透，但 dragover 会拦截 */
+}
+
+/* 暗色模式适配 */
+:global(.dark) .drag-overlay {
+  background: rgba(0, 0, 0, 0.7);
+}
+
+.drag-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  border-radius: 16px;
+  background: var(--bg-secondary);
+  box-shadow: var(--shadow-lg);
+  border: 2px dashed var(--brand-primary);
+  animation: scaleIn 0.2s ease-out;
+}
+
+.drag-icon {
+  color: var(--brand-primary);
+  margin-bottom: 16px;
+}
+
+.drag-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.drag-subtitle {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 </style>

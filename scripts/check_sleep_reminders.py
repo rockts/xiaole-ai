@@ -10,6 +10,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'backend'))
 
 load_dotenv()
 
+
 def get_db_connection():
     conn = psycopg2.connect(
         host=os.getenv('DB_HOST', '192.168.88.188'),
@@ -20,6 +21,7 @@ def get_db_connection():
         client_encoding='UTF8'
     )
     return conn
+
 
 def check_sleep_reminders():
     conn = get_db_connection()
@@ -46,6 +48,7 @@ def check_sleep_reminders():
         print(f"Error: {e}")
     finally:
         conn.close()
+
 
 if __name__ == "__main__":
     check_sleep_reminders()

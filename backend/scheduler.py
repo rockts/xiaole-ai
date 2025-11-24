@@ -249,8 +249,8 @@ class ReminderScheduler:
         try:
             logger.info("Starting memory cleanup...")
 
-            # 清理7天前的conversation记忆
-            count = self.memory_manager.cleanup_old_conversations(days=7)
+            # 清理30天前的conversation记忆 (v0.9.2: 延长至30天以改善跨对话记忆)
+            count = self.memory_manager.cleanup_old_conversations(days=30)
 
             logger.info(
                 f"Memory cleanup complete: "

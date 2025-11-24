@@ -2475,6 +2475,7 @@ button:disabled {
 
 /* 移动端适配优化 */
 @media (max-width: 768px) {
+
     /* 侧边栏改为浮动遮罩模式 */
     .sidebar {
         position: fixed !important;
@@ -2507,12 +2508,14 @@ button:disabled {
 
     /* 聊天区域调整 */
     .chat-inner {
-        padding: 16px 12px 100px !important; /* 减小内边距，底部留出输入框空间 */
+        padding: 16px 12px 100px !important;
+        /* 减小内边距，底部留出输入框空间 */
     }
 
     /* 消息气泡优化 */
     .user-bubble {
-        max-width: 88% !important; /* 增加气泡最大宽度 */
+        max-width: 88% !important;
+        /* 增加气泡最大宽度 */
         padding: 10px 14px !important;
         font-size: 15px !important;
     }
@@ -2531,12 +2534,13 @@ button:disabled {
         right: 0 !important;
         width: 100% !important;
         padding: 10px 12px calc(16px + env(safe-area-inset-bottom)) !important;
-        background: var(--container-bg); /* 确保背景不透明 */
+        background: var(--container-bg);
+        /* 确保背景不透明 */
         border-top: 1px solid var(--border-color);
     }
 
     /* 覆盖兄弟选择器规则 */
-    .sidebar.collapsed + .main-content .input-container {
+    .sidebar.collapsed+.main-content .input-container {
         left: 0 !important;
     }
 
@@ -2547,7 +2551,8 @@ button:disabled {
 
     #messageInput {
         font-size: 15px !important;
-        max-height: 100px !important; /* 限制最大高度 */
+        max-height: 100px !important;
+        /* 限制最大高度 */
     }
 
     /* 调整输入框按钮大小 */
@@ -2559,23 +2564,25 @@ button:disabled {
 
     /* 隐藏或调整不重要的元素 */
     .session-time {
-        display: none; /* 列表里隐藏时间以节省空间 */
+        display: none;
+        /* 列表里隐藏时间以节省空间 */
     }
 
     /* 调整代码块字体 */
     .message-content code {
         font-size: 13px !important;
     }
-    
+
     /* 调整设置面板在移动端的显示 */
     .settings-modal {
         width: 95% !important;
         max-height: 90vh !important;
     }
-    
+
     /* 移动端遮罩层层级 */
     .sidebar-overlay {
-        z-index: 1900 !important; /* 低于侧边栏但高于其他内容 */
+        z-index: 1900 !important;
+        /* 低于侧边栏但高于其他内容 */
     }
 }
 
@@ -2583,7 +2590,8 @@ button:disabled {
 .message-toolbar {
     opacity: 1 !important;
     margin-top: 8px;
-    justify-content: flex-end; /* 确保靠右 */
+    justify-content: flex-end;
+    /* 确保靠右 */
 }
 
 /* 调整回到底部按钮位置 */

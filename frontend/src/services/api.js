@@ -83,7 +83,9 @@ export default {
     sendMessage(data) {
         // 后端使用查询参数而不是 POST body
         const params = new URLSearchParams()
-        if (data.prompt) params.append('prompt', data.prompt)
+        // 即使是空字符串也要发送 prompt 参数
+        params.append('prompt', data.prompt || '')
+
         if (data.session_id) params.append('session_id', data.session_id)
         if (data.user_id) params.append('user_id', data.user_id)
         if (data.response_style) params.append('response_style', data.response_style)

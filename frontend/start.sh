@@ -1,5 +1,11 @@
 #!/bin/bash
 
+# 确保使用正确的 Node 版本
+if [ -s "$HOME/.nvm/nvm.sh" ]; then
+    source "$HOME/.nvm/nvm.sh"
+    nvm use 20
+fi
+
 echo "🚀 启动小乐 AI 管家 Vue3 前端"
 echo "================================"
 

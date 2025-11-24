@@ -83,6 +83,10 @@ class BehaviorAnalyzer:
             # 简化版：从会话中提取关键词作为话题
             topics = self._extract_topics(user_messages)
 
+            # v0.8.2: 新增情感分析和交互类型判断
+            sentiment_score = self._analyze_sentiment(user_messages)
+            interaction_type = self._determine_interaction_type(user_messages)
+
             # 检查是否已存在记录
             existing = session.query(UserBehavior).filter(
                 UserBehavior.session_id == session_id
@@ -96,6 +100,8 @@ class BehaviorAnalyzer:
                 existing.end_time = end_time
                 existing.duration_seconds = duration
                 existing.topics = json.dumps(topics, ensure_ascii=False)
+                existing.sentiment_score = sentiment_score
+                existing.interaction_type = interaction_type
             else:
                 # 创建新记录
                 behavior = UserBehavior(
@@ -107,7 +113,9 @@ class BehaviorAnalyzer:
                     start_time=start_time,
                     end_time=end_time,
                     duration_seconds=duration,
-                    topics=json.dumps(topics, ensure_ascii=False)
+                    topics=json.dumps(topics, ensure_ascii=False),
+                    sentiment_score=sentiment_score,
+                    interaction_type=interaction_type
                 )
                 session.add(behavior)
 
@@ -116,7 +124,9 @@ class BehaviorAnalyzer:
                 "session_id": session_id,
                 "message_count": message_count,
                 "duration": duration,
-                "topics": topics
+                "topics": topics,
+                "sentiment_score": sentiment_score,
+                "interaction_type": interaction_type
             }
         except Exception as e:
             session.rollback()
@@ -124,6 +134,62 @@ class BehaviorAnalyzer:
             return None
         finally:
             session.close()
+
+    def _analyze_sentiment(self, messages):
+        """
+        简单情感分析 (基于关键词)
+        Returns: float (-1.0 to 1.0)
+        """
+        positive_words = {"喜欢", "开心", "谢谢", "不错", "好",
+                          "棒", "优秀", "爱", "快乐", "赞", "哈哈", "有趣"}
+        negative_words = {"讨厌", "生气", "差", "坏", "难过",
+                          "悲伤", "滚", "垃圾", "烦", "慢", "笨", "无聊"}
+
+        score = 0.0
+        count = 0
+
+        for msg in messages:
+            text = msg.content
+            for word in positive_words:
+                if word in text:
+                    score += 0.5
+            for word in negative_words:
+                if word in text:
+                    score -= 0.5
+            count += 1
+
+        # Normalize to -1 to 1
+        if count == 0:
+            return 0.0
+
+        # 简单的归一化逻辑
+        final_score = max(min(score, 1.0), -1.0)
+        return round(final_score, 2)
+
+    def _determine_interaction_type(self, messages):
+        """
+        判断交互类型: chat, task, qa
+        """
+        task_keywords = {"提醒", "闹钟", "日程", "待办",
+                         "搜索", "查找", "播放", "打开", "计算", "帮我"}
+        qa_keywords = {"是什么", "为什么", "怎么", "如何", "解释", "介绍", "谁", "哪里", "什么时候"}
+
+        task_score = 0
+        qa_score = 0
+
+        for msg in messages:
+            text = msg.content
+            if any(k in text for k in task_keywords):
+                task_score += 1
+            if any(k in text for k in qa_keywords):
+                qa_score += 1
+
+        if task_score > 0:
+            return "task"
+        elif qa_score > 0:
+            return "qa"
+        else:
+            return "chat"
 
     def _extract_topics(self, messages, top_n=5):
         """
@@ -377,6 +443,50 @@ class BehaviorAnalyzer:
                 ),
                 "avg_message_length": overall_avg_length,
                 "period_days": days
+            }
+        finally:
+            session.close()
+
+    def get_advanced_stats(self, user_id, days=30):
+        """
+        获取高级统计数据 (情感趋势, 交互类型分布)
+        """
+        from db_setup import UserBehavior
+
+        session = SessionLocal()
+        try:
+            since = datetime.now() - timedelta(days=days)
+            behaviors = session.query(UserBehavior).filter(
+                UserBehavior.user_id == user_id,
+                UserBehavior.created_at >= since
+            ).all()
+
+            if not behaviors:
+                return None
+
+            # 情感趋势 (按天平均)
+            sentiment_trend = {}
+            for b in behaviors:
+                date_str = b.start_time.strftime("%Y-%m-%d")
+                if date_str not in sentiment_trend:
+                    sentiment_trend[date_str] = []
+                # 兼容旧数据 (None -> 0.0)
+                score = b.sentiment_score if b.sentiment_score is not None else 0.0
+                sentiment_trend[date_str].append(score)
+
+            sentiment_daily = {
+                k: round(sum(v)/len(v), 2) for k, v in sentiment_trend.items()
+            }
+
+            # 交互类型分布
+            interaction_types = Counter([
+                b.interaction_type if b.interaction_type else 'chat'
+                for b in behaviors
+            ])
+
+            return {
+                "sentiment_trend": sentiment_daily,
+                "interaction_distribution": dict(interaction_types)
             }
         finally:
             session.close()

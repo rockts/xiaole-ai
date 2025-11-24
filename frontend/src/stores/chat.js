@@ -174,7 +174,7 @@ export const useChatStore = defineStore('chat', () => {
     const uploadImage = async (file) => {
         try {
             const formData = new FormData()
-            formData.append('image', file)
+            formData.append('file', file)
 
             const response = await api.uploadImage(formData)
             return response.file_path

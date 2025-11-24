@@ -1,204 +1,245 @@
-#!/usr/bin/env python3
-"""
-图片识别工具 - v0.6.0 Phase 4
-
-支持图片上传、分析和理解
-使用Claude Vision或GPT-4V进行图片识别
-"""
-
+import face_recognition
+import numpy as np
 import os
+import logging
 import base64
 import requests
-from pathlib import Path
-from typing import Dict, Any, Optional
+import json
 from datetime import datetime
-from dotenv import load_dotenv
+from typing import Dict, Any, List, Optional
+from tool_manager import Tool, ToolParameter
+from db_setup import SessionLocal, FaceEncoding
 
-load_dotenv()
+logger = logging.getLogger(__name__)
 
 
-class VisionTool:
-    """图片识别工具类"""
-
+class VisionTool(Tool):
     def __init__(self):
-        """初始化视觉工具"""
-        self.api_type = os.getenv("AI_API_TYPE", "deepseek")
-        self.claude_key = os.getenv("CLAUDE_API_KEY")
-        self.openai_key = os.getenv("OPENAI_API_KEY")
+        super().__init__()
+        self.name = "vision_analysis"
+        self.description = "Analyze images to identify people using face recognition."
+        self.category = "vision"
+        self.parameters = [
+            ToolParameter(
+                name="image_path",
+                param_type="string",
+                description="The path to the image file to analyze.",
+                required=True
+            )
+        ]
         self.qwen_key = os.getenv("QWEN_API_KEY")
+        self.claude_key = os.getenv("CLAUDE_API_KEY")
 
-        # 支持的图片格式
-        self.supported_formats = {'.jpg', '.jpeg',
-                                  '.png', '.gif', '.webp', '.bmp'}
+    def _resolve_path(self, image_path: str) -> Optional[str]:
+        """Resolve image path relative to backend or project root"""
+        if os.path.exists(image_path):
+            return image_path
 
-        # 上传目录
-        self.upload_dir = Path("uploads")
-        self.upload_dir.mkdir(exist_ok=True)
+        # Try relative to backend root
+        backend_root = os.path.dirname(
+            os.path.dirname(os.path.abspath(__file__)))
+        potential_path = os.path.join(backend_root, image_path)
+        if os.path.exists(potential_path):
+            return potential_path
 
-    def encode_image(self, image_path: str) -> str:
+        # Try relative to project root
+        project_root = os.path.dirname(backend_root)
+        potential_path = os.path.join(project_root, image_path)
+        if os.path.exists(potential_path):
+            return potential_path
+
+        # Try removing leading slash if present
+        if image_path.startswith('/'):
+            return self._resolve_path(image_path[1:])
+
+        return None
+
+    def analyze_image(self, image_path: str, prompt: str = None, prefer_model: str = "auto") -> Dict[str, Any]:
         """
-        将图片编码为base64字符串
-
-        Args:
-            image_path: 图片文件路径
-
-        Returns:
-            str: base64编码的图片数据
+        Analyze image content using hybrid approach:
+        1. Use face_recognition to identify known people
+        2. Use Vision LLM (Qwen-VL/Claude) for general scene description
         """
-        with open(image_path, "rb") as image_file:
-            return base64.b64encode(image_file.read()).decode('utf-8')
-
-    def validate_image(self, image_path: str) -> tuple[bool, str]:
-        """
-        验证图片文件
-
-        Args:
-            image_path: 图片路径
-
-        Returns:
-            tuple: (是否有效, 错误信息)
-        """
-        path = Path(image_path)
-
-        # 检查文件是否存在
-        if not path.exists():
-            return False, f"文件不存在: {image_path}"
-
-        # 检查文件格式
-        if path.suffix.lower() not in self.supported_formats:
-            return False, f"不支持的文件格式: {path.suffix}。支持的格式: {', '.join(self.supported_formats)}"
-
-        # 检查文件大小 (限制20MB)
-        max_size = 20 * 1024 * 1024
-        if path.stat().st_size > max_size:
-            return False, f"文件过大: {path.stat().st_size / 1024 / 1024:.1f}MB (最大20MB)"
-
-        return True, ""
-
-    def analyze_with_qwen(self, image_path: str, prompt: str = "请详细描述这张图片") -> Dict[str, Any]:
-        """使用通义千问 Qwen-VL 分析图片"""
-        if not self.qwen_key:
-            return {'success': False, 'error': 'Qwen API密钥未配置'}
-
-        valid, error = self.validate_image(image_path)
-        if not valid:
-            return {'success': False, 'error': error}
-
-        base64_image = self.encode_image(image_path)
-        image_format = Path(image_path).suffix[1:]
-        if image_format == 'jpg':
-            image_format = 'jpeg'
-
         try:
+            if not prompt:
+                prompt = "请详细描述这张图片的内容。"
+
+            full_path = self._resolve_path(image_path)
+            if not full_path:
+                return {"success": False, "error": f"Image file not found: {image_path}"}
+
+            # Step 1: Face Recognition
+            face_info = ""
+            try:
+                # Load image
+                image = face_recognition.load_image_file(full_path)
+                # Detect faces
+                face_locations = face_recognition.face_locations(image)
+
+                if len(face_locations) > 0:
+                    face_encodings = face_recognition.face_encodings(
+                        image, face_locations)
+
+                    # Load known faces from DB
+                    db = SessionLocal()
+                    known_face_encodings = []
+                    known_face_names = []
+                    try:
+                        known_faces = db.query(FaceEncoding).all()
+                        for face in known_faces:
+                            if face.encoding:
+                                known_face_encodings.append(
+                                    np.array(face.encoding))
+                                known_face_names.append(face.name)
+                    finally:
+                        db.close()
+
+                    identified_people = []
+                    if known_face_encodings:
+                        for face_encoding in face_encodings:
+                            matches = face_recognition.compare_faces(
+                                known_face_encodings, face_encoding, tolerance=0.6)
+                            name = "未知人物"
+
+                            face_distances = face_recognition.face_distance(
+                                known_face_encodings, face_encoding)
+                            if len(face_distances) > 0:
+                                best_match_index = np.argmin(face_distances)
+                                if matches[best_match_index]:
+                                    name = known_face_names[best_match_index]
+
+                            identified_people.append(name)
+                    else:
+                        identified_people = ["未知人物"] * len(face_locations)
+
+                    # Filter out unknown people to avoid noise if desired, or keep them
+                    known_people = [
+                        p for p in identified_people if p != "未知人物"]
+
+                    if known_people:
+                        face_info = f"【人脸识别结果】图中发现了以下熟人：{', '.join(known_people)}。\n"
+                    else:
+                        face_info = f"【人脸识别结果】图中发现了 {len(face_locations)} 个人，但未识别出具体身份。\n"
+
+            except Exception as e:
+                logger.error(f"Face recognition failed: {e}")
+                face_info = "【人脸识别】人脸检测过程中出现错误，跳过此步骤。\n"
+
+            # Step 2: Vision LLM Analysis
+            llm_result = {}
+            # Dispatch based on model preference and availability
+            if prefer_model == "qwen" or (prefer_model == "auto" and self.qwen_key):
+                llm_result = self.analyze_with_qwen(full_path, prompt)
+            elif prefer_model == "claude" or (prefer_model == "auto" and self.claude_key):
+                llm_result = self.analyze_with_claude(full_path, prompt)
+            else:
+                llm_result = {
+                    "success": False,
+                    "error": "No suitable vision model configured. Please set QWEN_API_KEY or CLAUDE_API_KEY."
+                }
+
+            if not llm_result.get("success"):
+                return llm_result
+
+            # Combine results
+            final_description = face_info + "\n" + \
+                llm_result.get("description", "")
+
+            return {
+                "success": True,
+                "description": final_description.strip(),
+                "model": llm_result.get("model", "unknown"),
+                "face_info": face_info
+            }
+
+        except Exception as e:
+            logger.error(f"Analyze image failed: {e}", exc_info=True)
+            return {"success": False, "error": str(e)}
+
+    def analyze_with_qwen(self, image_path: str, prompt: str) -> Dict[str, Any]:
+        """Use Qwen-VL-Plus for image analysis"""
+        try:
+            if not self.qwen_key:
+                return {"success": False, "error": "Qwen API key not configured"}
+
+            # Encode image to base64
+            with open(image_path, "rb") as f:
+                base64_image = base64.b64encode(f.read()).decode('utf-8')
+
+            # Determine mime type
+            ext = os.path.splitext(image_path)[1].lower()
+            mime_type = "image/jpeg"
+            if ext == ".png":
+                mime_type = "image/png"
+            elif ext == ".webp":
+                mime_type = "image/webp"
+            elif ext == ".gif":
+                mime_type = "image/gif"
+
+            data_uri = f"data:{mime_type};base64,{base64_image}"
+
             url = "https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation"
             headers = {
                 "Authorization": f"Bearer {self.qwen_key}",
                 "Content-Type": "application/json"
             }
 
-            data = {
-                "model": "qwen-vl-plus",  # 尝试 qwen-vl-plus 模型
+            payload = {
+                "model": "qwen-vl-plus",
                 "input": {
-                    "messages": [{
-                        "role": "user",
-                        "content": [
-                            {"image": f"data:image/{image_format};base64,{base64_image}"},
-                            {"text": prompt}
-                        ]
-                    }]
-                },
-                "parameters": {}
-            }
-
-            # 增加超时时间到60秒，添加重试逻辑
-            max_retries = 2
-            last_error = None
-            for attempt in range(max_retries):
-                try:
-                    response = requests.post(
-                        url, headers=headers, json=data, timeout=60)
-                    response.raise_for_status()
-                    result = response.json()
-                    break  # 成功则跳出重试循环
-                except requests.exceptions.Timeout as e:
-                    last_error = e
-                    if attempt < max_retries - 1:
-                        print(
-                            f"⏳ Qwen API超时，正在重试 ({attempt + 1}/{max_retries})...")
-                        continue
-                    else:
-                        raise  # 最后一次失败则抛出异常
-                except Exception as e:
-                    raise  # 其他错误直接抛出
-
-            if result.get('output') and result['output'].get('choices'):
-                description = result['output']['choices'][0]['message']['content'][0]['text']
-                return {
-                    'success': True,
-                    'description': description,
-                    'model': 'qwen-vl-plus',
-                    'timestamp': datetime.now().isoformat()
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": [
+                                {"image": data_uri},
+                                {"text": prompt}
+                            ]
+                        }
+                    ]
                 }
+            }
+
+            response = requests.post(
+                url, headers=headers, json=payload, timeout=60)
+
+            if response.status_code == 200:
+                result = response.json()
+                if "output" in result and "choices" in result["output"]:
+                    content = result["output"]["choices"][0]["message"]["content"][0]["text"]
+                    return {
+                        "success": True,
+                        "description": content,
+                        "model": "qwen-vl-plus"
+                    }
+                else:
+                    return {"success": False, "error": f"Qwen API format error: {result}"}
             else:
-                return {'success': False, 'error': f'无法解析API响应: {result}'}
+                return {"success": False, "error": f"Qwen API error: {response.status_code} - {response.text}"}
 
-        except requests.exceptions.HTTPError as e:
-            resp_text = ''
-            try:
-                resp_text = e.response.text
-            except Exception:
-                pass
-            return {
-                'success': False,
-                'error': f'API请求失败: {str(e)}',
-                'details': resp_text
-            }
         except Exception as e:
-            return {'success': False, 'error': f'分析失败: {str(e)}'}
+            return {"success": False, "error": f"Qwen analysis failed: {str(e)}"}
 
-    def analyze_with_claude(self, image_path: str, prompt: str = "请详细描述这张图片的内容") -> Dict[str, Any]:
-        """
-        使用Claude Vision分析图片
-
-        Args:
-            image_path: 图片路径
-            prompt: 分析提示语
-
-        Returns:
-            dict: 分析结果
-        """
-        if not self.claude_key:
-            return {
-                'success': False,
-                'error': 'Claude API密钥未配置'
-            }
-
-        # 验证图片
-        valid, error = self.validate_image(image_path)
-        if not valid:
-            return {'success': False, 'error': error}
-
-        # 编码图片
-        base64_image = self.encode_image(image_path)
-
-        # 获取图片格式
-        image_format = Path(image_path).suffix[1:]  # 去掉点号
-        if image_format == 'jpg':
-            image_format = 'jpeg'
-
+    def analyze_with_claude(self, image_path: str, prompt: str) -> Dict[str, Any]:
+        """Use Claude 3.5 Sonnet for image analysis"""
         try:
-            # 调用Claude API
-            url = "https://api.anthropic.com/v1/messages"
-            headers = {
-                "x-api-key": self.claude_key,
-                "anthropic-version": "2023-06-01",
-                "content-type": "application/json"
-            }
+            if not self.claude_key:
+                return {"success": False, "error": "Claude API key not configured"}
 
-            data = {
-                "model": "claude-3-5-sonnet-20241022",
-                "max_tokens": 1024,
-                "messages": [
+            import anthropic
+            client = anthropic.Anthropic(api_key=self.claude_key)
+
+            with open(image_path, "rb") as f:
+                image_data = base64.b64encode(f.read()).decode("utf-8")
+
+            ext = os.path.splitext(image_path)[1].lower().replace('.', '')
+            if ext == 'jpg':
+                ext = 'jpeg'
+            media_type = f"image/{ext}"
+
+            message = client.messages.create(
+                model="claude-3-5-sonnet-20240620",
+                max_tokens=1024,
+                messages=[
                     {
                         "role": "user",
                         "content": [
@@ -206,308 +247,212 @@ class VisionTool:
                                 "type": "image",
                                 "source": {
                                     "type": "base64",
-                                    "media_type": f"image/{image_format}",
-                                    "data": base64_image
-                                }
+                                    "media_type": media_type,
+                                    "data": image_data,
+                                },
                             },
                             {
                                 "type": "text",
                                 "text": prompt
                             }
-                        ]
-                    }
-                ]
-            }
-
-            response = requests.post(
-                url, headers=headers, json=data, timeout=30)
-            response.raise_for_status()
-
-            result = response.json()
-
-            return {
-                'success': True,
-                'description': result['content'][0]['text'],
-                'model': 'claude-3.5-sonnet',
-                'timestamp': datetime.now().isoformat()
-            }
-
-        except requests.exceptions.RequestException as e:
-            return {
-                'success': False,
-                'error': f'API请求失败: {str(e)}'
-            }
-        except Exception as e:
-            return {
-                'success': False,
-                'error': f'分析失败: {str(e)}'
-            }
-
-    def analyze_with_gpt4v(self, image_path: str, prompt: str = "What's in this image?") -> Dict[str, Any]:
-        """
-        使用GPT-4V分析图片
-
-        Args:
-            image_path: 图片路径
-            prompt: 分析提示语
-
-        Returns:
-            dict: 分析结果
-        """
-        if not self.openai_key:
-            return {
-                'success': False,
-                'error': 'OpenAI API密钥未配置'
-            }
-
-        # 验证图片
-        valid, error = self.validate_image(image_path)
-        if not valid:
-            return {'success': False, 'error': error}
-
-        # 编码图片
-        base64_image = self.encode_image(image_path)
-
-        try:
-            # 调用OpenAI API
-            url = "https://api.openai.com/v1/chat/completions"
-            headers = {
-                "Authorization": f"Bearer {self.openai_key}",
-                "Content-Type": "application/json"
-            }
-
-            data = {
-                "model": "gpt-4-vision-preview",
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": [
-                            {
-                                "type": "text",
-                                "text": prompt
-                            },
-                            {
-                                "type": "image_url",
-                                "image_url": {
-                                    "url": f"data:image/jpeg;base64,{base64_image}"
-                                }
-                            }
-                        ]
+                        ],
                     }
                 ],
-                "max_tokens": 1024
-            }
-
-            response = requests.post(
-                url, headers=headers, json=data, timeout=30)
-            response.raise_for_status()
-
-            result = response.json()
+            )
 
             return {
-                'success': True,
-                'description': result['choices'][0]['message']['content'],
-                'model': 'gpt-4-vision',
-                'timestamp': datetime.now().isoformat()
+                "success": True,
+                "description": message.content[0].text,
+                "model": "claude-3-5-sonnet"
             }
 
-        except requests.exceptions.RequestException as e:
-            return {
-                'success': False,
-                'error': f'API请求失败: {str(e)}'
-            }
         except Exception as e:
+            return {"success": False, "error": f"Claude analysis failed: {str(e)}"}
+
+    async def execute(self, image_path: str, prompt: str = None, **kwargs) -> Dict[str, Any]:
+        try:
+            # Handle relative paths
+            image_path = self._resolve_path(image_path) or image_path
+
+            # Check if path exists
+            if not os.path.exists(image_path):
+                return {
+                    "success": False,
+                    "error": f"Image file not found: {image_path}",
+                    "result": None
+                }
+
+            logger.info(f"👁️ VisionTool analyzing: {image_path}")
+
+            # Use the hybrid analysis method
+            analysis_result = self.analyze_image(image_path, prompt=prompt)
+
+            if not analysis_result.get("success"):
+                return {
+                    "success": False,
+                    "error": analysis_result.get("error", "Unknown error during analysis"),
+                    "result": None
+                }
+
             return {
-                'success': False,
-                'error': f'分析失败: {str(e)}'
+                "success": True,
+                "result": {
+                    "description": analysis_result.get("description", ""),
+                    "face_info": analysis_result.get("face_info", ""),
+                    "model": analysis_result.get("model", "unknown")
+                }
             }
 
-    def analyze_image(self, image_path: str, prompt: Optional[str] = None,
-                      prefer_model: str = "auto") -> Dict[str, Any]:
-        """
-        智能图片分析（自动选择可用模型）
-
-        Args:
-            image_path: 图片路径
-            prompt: 分析提示语（可选）
-            prefer_model: 优先使用的模型 ("qwen", "claude", "gpt4v", "auto")
-
-        Returns:
-            dict: 分析结果
-        """
-        # 默认提示语
-        if prompt is None:
-            prompt = "请详细描述这张图片的内容，包括场景、物体、人物、文字等所有可见元素。"
-
-        # 检查密钥是否有效
-        valid_qwen = self.qwen_key and self.qwen_key != "your_qwen_api_key_here"
-        valid_claude = self.claude_key and len(self.claude_key) > 30
-        valid_openai = self.openai_key and self.openai_key != "your_openai_api_key_here"
-
-        # Auto 模式：优先 Qwen（国内可用）
-        if prefer_model == "auto":
-            if valid_qwen:
-                result = self.analyze_with_qwen(image_path, prompt)
-                if result['success']:
-                    return result
-                error_msg = result.get('error')
-                details = result.get('details', '')
-                print(f"⚠️ Qwen失败: {error_msg}")
-                if details:
-                    print(f"   详细错误: {details[:500]}")
-
-            if valid_claude:
-                result = self.analyze_with_claude(image_path, prompt)
-                if result['success']:
-                    return result
-                print(f"⚠️ Claude失败: {result.get('error')}")
-
-            if valid_openai:
-                return self.analyze_with_gpt4v(image_path, prompt)
-
-            return {'success': False, 'error': '没有配置可用的视觉API (推荐配置 QWEN_API_KEY)'}
-
-        # 指定使用 Qwen
-        if prefer_model == "qwen":
-            return self.analyze_with_qwen(image_path, prompt)
-
-        # 根据优先级选择模型
-        if prefer_model == "claude" or (prefer_model == "auto" and self.claude_key):
-            result = self.analyze_with_claude(image_path, prompt)
-            if result['success']:
-                return result
-            # Claude失败，尝试GPT-4V
-            if self.openai_key:
-                return self.analyze_with_gpt4v(image_path, prompt)
-            return result
-
-        elif prefer_model == "gpt4v" or (prefer_model == "auto" and self.openai_key):
-            result = self.analyze_with_gpt4v(image_path, prompt)
-            if result['success']:
-                return result
-            # GPT-4V失败，尝试Claude
-            if self.claude_key:
-                return self.analyze_with_claude(image_path, prompt)
-            return result
-
-        else:
+        except Exception as e:
+            logger.error(f"VisionTool error: {e}", exc_info=True)
             return {
-                'success': False,
-                'error': '没有配置可用的视觉API (需要CLAUDE_API_KEY或OPENAI_API_KEY)'
+                "success": False,
+                "error": str(e),
+                "result": None
             }
 
     def save_upload(self, file_data: bytes, filename: str) -> tuple[bool, str]:
-        """
-        保存上传的图片文件
-
-        Args:
-            file_data: 文件二进制数据
-            filename: 文件名
-
-        Returns:
-            tuple: (是否成功, 文件路径或错误信息)
-        """
+        """Save uploaded image file"""
         try:
-            # 生成唯一文件名
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            safe_filename = f"{timestamp}_{filename}"
-            file_path = self.upload_dir / safe_filename
+            # Determine upload directory
+            # Try to find backend/uploads directory
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            # tools/vision_tool.py -> tools/ -> root -> backend -> uploads
 
-            # 保存文件
-            with open(file_path, 'wb') as f:
+            project_root = os.path.dirname(current_dir)
+            uploads_dir = os.path.join(project_root, "backend", "uploads")
+
+            if not os.path.exists(uploads_dir):
+                os.makedirs(uploads_dir, exist_ok=True)
+
+            # Generate safe filename
+            import time
+            timestamp = int(time.time())
+            safe_filename = f"{timestamp}_{filename}"
+            file_path = os.path.join(uploads_dir, safe_filename)
+
+            # Save file
+            with open(file_path, "wb") as f:
                 f.write(file_data)
 
-            # 返回相对路径（用于前端访问）
-            relative_path = f"uploads/{safe_filename}"
-            return True, relative_path
+            # Return relative path (for frontend access)
+            # Frontend access /uploads/xxx -> Backend mount /uploads
+            # -> backend/uploads/xxx
+            return True, f"/uploads/{safe_filename}"
 
         except Exception as e:
-            return False, f"保存失败: {str(e)}"
+            logger.error(f"Failed to save uploaded image: {e}")
+            return False, str(e)
 
 
-# 工具接口（供tool_manager调用）
-def vision_tool_interface(parameters: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    视觉工具接口
+class RegisterFaceTool(Tool):
+    def __init__(self):
+        super().__init__()
+        self.name = "register_face"
+        self.description = "Register a new face for recognition. Use this when the user explicitly says 'This is [Name]' or wants to teach the AI a person's face."
+        self.category = "vision"
+        self.parameters = [
+            ToolParameter(
+                name="image_path",
+                param_type="string",
+                description="The path to the image file containing the face.",
+                required=True
+            ),
+            ToolParameter(
+                name="person_name",
+                param_type="string",
+                description="The name of the person to register.",
+                required=True
+            )
+        ]
 
-    Parameters:
-        image_path: 图片路径 (必需)
-        prompt: 分析提示语 (可选)
-        model: 优先模型 "claude"/"gpt4v"/"auto" (可选，默认auto)
+    def _resolve_path(self, image_path: str) -> Optional[str]:
+        """Resolve image path relative to backend or project root"""
+        if os.path.exists(image_path):
+            return image_path
 
-    Returns:
-        dict: 图片分析结果
-    """
-    tool = VisionTool()
+        # Try relative to backend root
+        backend_root = os.path.dirname(
+            os.path.dirname(os.path.abspath(__file__)))
+        potential_path = os.path.join(backend_root, image_path)
+        if os.path.exists(potential_path):
+            return potential_path
 
-    # 获取参数
-    image_path = parameters.get('image_path')
-    prompt = parameters.get('prompt')
-    model = parameters.get('model', 'auto')
+        # Try relative to project root
+        project_root = os.path.dirname(backend_root)
+        potential_path = os.path.join(project_root, image_path)
+        if os.path.exists(potential_path):
+            return potential_path
 
-    if not image_path:
-        return {
-            'success': False,
-            'error': '缺少必需参数: image_path'
-        }
+        # Try removing leading slash if present
+        if image_path.startswith('/'):
+            return self._resolve_path(image_path[1:])
 
-    # 分析图片
-    return tool.analyze_image(image_path, prompt, model)
+        return None
 
+    async def execute(self, image_path: str, person_name: str, **kwargs) -> Dict[str, Any]:
+        try:
+            full_path = self._resolve_path(image_path)
+            if not full_path:
+                return {"success": False, "error": f"Image file not found: {image_path}"}
 
-# 工具元数据
-VISION_TOOL_META = {
-    'name': 'vision',
-    'description': '分析和理解图片内容，识别物体、场景、文字等',
-    'category': 'multimodal',
-    'parameters': {
-        'image_path': {
-            'type': 'string',
-            'description': '图片文件路径',
-            'required': True
-        },
-        'prompt': {
-            'type': 'string',
-            'description': '分析提示语（可选）',
-            'required': False
-        },
-        'model': {
-            'type': 'string',
-            'description': '优先使用的模型: claude/gpt4v/auto',
-            'required': False,
-            'default': 'auto'
-        }
-    },
-    'examples': [
-        {
-            'prompt': '分析这张图片',
-            'parameters': {'image_path': 'uploads/photo.jpg'}
-        },
-        {
-            'prompt': '图片里有什么文字？',
-            'parameters': {
-                'image_path': 'uploads/document.png',
-                'prompt': '识别图片中的所有文字内容'
-            }
-        }
-    ]
-}
+            logger.info(
+                f"👤 Registering face for '{person_name}' from {full_path}")
 
+            # Load image
+            image = face_recognition.load_image_file(full_path)
 
-if __name__ == "__main__":
-    # 测试代码
-    print("🧪 测试Vision Tool")
-    print("=" * 60)
+            # Detect faces
+            face_locations = face_recognition.face_locations(image)
 
-    tool = VisionTool()
+            if len(face_locations) == 0:
+                return {
+                    "success": False,
+                    "error": "No faces detected in the image. Please provide a clear photo of the person."
+                }
 
-    # 测试图片验证
-    print("\n测试1: 图片验证")
-    valid, error = tool.validate_image("test.jpg")
-    print(f"结果: {'✅ 有效' if valid else f'❌ {error}'}")
+            if len(face_locations) > 1:
+                return {
+                    "success": False,
+                    "error": f"Found {len(face_locations)} faces. Please provide a photo with only one person to avoid ambiguity."
+                }
 
-    print("\n✅ Vision Tool初始化成功")
-    print(f"支持格式: {', '.join(tool.supported_formats)}")
-    print(f"上传目录: {tool.upload_dir}")
-    print(f"Claude可用: {'✅' if tool.claude_key else '❌'}")
-    print(f"GPT-4V可用: {'✅' if tool.openai_key else '❌'}")
+            # Get encoding
+            face_encodings = face_recognition.face_encodings(
+                image, face_locations)
+            if not face_encodings:
+                return {
+                    "success": False,
+                    "error": "Could not generate face encoding. The face might be too small or unclear."
+                }
+
+            new_encoding = face_encodings[0].tolist()
+
+            # Save to DB
+            db = SessionLocal()
+            try:
+                # Check if name already exists, if so, update/add new encoding?
+                # For simplicity, we just add a new record.
+                # Ideally we might want to merge or check duplicates, but multiple encodings for same name is fine (improves accuracy).
+
+                face_record = FaceEncoding(
+                    name=person_name,
+                    encoding=new_encoding,
+                    created_at=datetime.now()
+                )
+                db.add(face_record)
+                db.commit()
+
+                return {
+                    "success": True,
+                    "result": f"Successfully registered face for '{person_name}'."
+                }
+            except Exception as e:
+                db.rollback()
+                return {"success": False, "error": f"Database error: {str(e)}"}
+            finally:
+                db.close()
+
+        except Exception as e:
+            logger.error(f"RegisterFaceTool error: {e}", exc_info=True)
+            return {"success": False, "error": str(e)}

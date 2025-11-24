@@ -512,7 +512,11 @@ const logoSrc = computed(() => logoImage);
 // 从 localStorage 读取收起状态，移动端默认收起
 const savedCollapsed = localStorage.getItem("sidebar-collapsed");
 const isCollapsed = ref(
-  isMobile.value ? true : (savedCollapsed !== null ? savedCollapsed === "true" : false)
+  isMobile.value
+    ? true
+    : savedCollapsed !== null
+    ? savedCollapsed === "true"
+    : false
 );
 
 const navItems = [

@@ -78,7 +78,7 @@ class XiaoLeAgent:
                 weather_tool, system_info_tool,
                 time_tool, calculator_tool, reminder_tool,
                 search_tool, file_tool, delete_memory_tool,
-                task_tool
+                task_tool, vision_tool, register_face_tool
             )
 
             # 注册工具
@@ -91,6 +91,8 @@ class XiaoLeAgent:
             self.tool_registry.register(file_tool)  # v0.5.0 文件工具
             self.tool_registry.register(delete_memory_tool)  # v0.8.1 删除记忆
             self.tool_registry.register(task_tool)  # v0.8.2 任务工具
+            self.tool_registry.register(vision_tool)  # v0.9.0 视觉工具
+            self.tool_registry.register(register_face_tool)  # v0.9.1 人脸注册工具
 
             logger.info(
                 f"✅ 工具注册完成，共 "
@@ -334,11 +336,14 @@ class XiaoLeAgent:
 - **身体特征**（例如身高、体重、体型、视力等）
 - 明确的爱好、兴趣（例如"我喜欢..."）
 - 职业、工作
-- 家庭成员（**特别注意**：如果是家人的信息，必须明确标注"儿子"、"女儿"、"妻子"等，不要写"用户"）
+- 家庭成员（**特别注意**：如果是家人的信息，必须明确标注关系，如"儿子"、"女儿"、"姑娘"、"妻子"等，不要写"用户"）
 - 重要日期
 - **用户的纠正和反馈**（例如"不算晨读"、"不包括..."）
 - **用户的偏好和规则**（例如"我不喜欢..."、"只算..."）
 - **对AI回答的补充说明**（例如"实际上..."、"其实..."）
+- **用户的观点、看法或经历**（如果包含值得记忆的个人故事或独特见解）
+- **长期计划或正在进行的项目**（例如"我正在准备考试"、"最近在装修"）
+- **地点或环境信息**（例如"我在上海"、"家里养了猫"）
 
 **不要提取以下内容：**
 1. **临时任务和提醒**（例如"提醒我..."、"帮我..."、"查询..."、"告诉我..."）
@@ -505,16 +510,24 @@ class XiaoLeAgent:
             skip_tool_check = True
             tool_result = None
 
+        # v0.6.0 Phase 3: 使用增强的意图识别
+        context = {
+            'recent_messages': history,
+            'user_id': user_id,
+            'session_id': session_id
+        }
+
+        # 如果有图片，添加到prompt中以便意图识别能看到
+        intent_prompt = prompt
+        if image_path:
+            intent_prompt = f"{prompt}\n[系统提示：用户上传了图片 {image_path}，请优先考虑使用视觉工具分析]"
+            context['image_path'] = image_path
+
         if not skip_tool_check:
             try:
                 # v0.6.0 Phase 3: 使用增强的意图识别
-                context = {
-                    'recent_messages': history,
-                    'user_id': user_id,
-                    'session_id': session_id
-                }
                 tool_calls = self.enhanced_selector.analyze_intent(
-                    prompt, context)
+                    intent_prompt, context)
 
                 if tool_calls:
                     # 执行工具调用（按优先级）
@@ -537,13 +550,13 @@ class XiaoLeAgent:
                 # 如果增强选择器没有返回结果或执行失败，回退到旧的工具调用逻辑
                 if not tool_result:
                     tool_result = self._auto_call_tool(
-                        prompt, user_id, session_id)
+                        intent_prompt, user_id, session_id)
             except Exception as e:
                 logger.warning(f"增强工具调用失败: {e}")
                 # 回退到旧逻辑
                 try:
                     tool_result = self._auto_call_tool(
-                        prompt, user_id, session_id)
+                        intent_prompt, user_id, session_id)
                 except Exception as e2:
                     logger.warning(f"旧工具调用也失败: {e2}")
 
@@ -1325,7 +1338,13 @@ class XiaoLeAgent:
        - 询问**总结/概要** -> 不需要工具 (needs_tool=false)
        - 询问**具体细节/特定数据** -> **必须**调用file工具读取全文 (operation="read", path="文件名")
      - 如果用户询问未知的本地文件 -> 调用file工具查找/读取
-9. 普通对话 -> needs_tool=false
+9. vision_analysis - image_path(图片路径)
+   - 当用户上传图片或询问"这张图"、"图片里"时使用
+   - image_path通常在[系统提示]中提供
+10. register_face - image_path(图片路径), person_name(人名)
+   - 当用户明确说"这是xxx"、"记住这张脸是xxx"、"认识一下xxx"时使用
+   - 必须同时提供图片和人名
+11. 普通对话 -> needs_tool=false
 
 **search工具优先级最高** - 以下情况必须使用:
 - 用户明确要求"搜索"、"查一下"、"帮我找"
@@ -1481,7 +1500,8 @@ class XiaoLeAgent:
             try:
                 family_keywords = [
                     '儿子', '女儿', '孩子', '老婆', '妻子',
-                    '老公', '丈夫', '爸', '妈'
+                    '老公', '丈夫', '爸', '妈', '父亲', '母亲',
+                    '姑娘', '闺女', '宝宝', '家人'
                 ]
                 # recall_by_keywords 返回字典列表
                 family_results = self.memory.recall_by_keywords(
@@ -1498,7 +1518,7 @@ class XiaoLeAgent:
                 semantic_memories = self.memory.semantic_recall(
                     query=prompt,
                     tag=None,  # 不限制标签，搜索所有记忆
-                    limit=10,
+                    limit=20,  # v0.9.2: 增加召回数量以改善跨对话记忆
                     min_score=0.05  # 降低阈值，增加召回
                 )
 
@@ -1545,7 +1565,7 @@ class XiaoLeAgent:
                     Memory
                 ).filter(
                     Memory.tag.like('conversation:%')
-                ).order_by(Memory.created_at.desc()).limit(3).all()
+                ).order_by(Memory.created_at.desc()).limit(10).all()
                 conversation_memories = [
                     mem.content for mem in recent_conversations
                 ]
@@ -1607,7 +1627,7 @@ class XiaoLeAgent:
 
             # 第三优先级：对话摘要（了解之前的对话上下文）
             for mem in conversation_memories:
-                if (mem not in seen and len(all_memories) < 30 and
+                if (mem not in seen and len(all_memories) < 40 and
                         not is_outdated_reminder_memory(mem)):
                     all_memories.append(mem)
                     seen.add(mem)
@@ -1619,14 +1639,14 @@ class XiaoLeAgent:
                     mem if isinstance(mem, str)
                     else mem.get('content', str(mem))
                 )
-                if (mem_content not in seen and len(all_memories) < 30 and
+                if (mem_content not in seen and len(all_memories) < 40 and
                         not is_outdated_reminder_memory(mem_content)):
                     all_memories.append(mem_content)
                     seen.add(mem_content)
 
             # 第五优先级：最近记忆（补充上下文）
             for mem in recent_memories:
-                if (mem not in seen and len(all_memories) < 30 and
+                if (mem not in seen and len(all_memories) < 40 and
                         not is_outdated_reminder_memory(mem)):
                     all_memories.append(mem)
                     seen.add(mem)
@@ -1653,11 +1673,12 @@ class XiaoLeAgent:
                         mem.lower() if isinstance(mem, str)
                         else str(mem).lower()
                     )
-                    # 排除所有包含"提醒"、"删除"、"对话"的记忆
-                    exclude_words = ['提醒', '删除', '对话', '询问', '刚才']
+                    # 排除所有包含"提醒"、"删除"、"询问"的记忆
+                    # v0.9.2: 移除了"对话"关键词，避免误删对话摘要
+                    exclude_words = ['提醒', '删除', '询问', '刚才']
                     if not any(word in mem_lower for word in exclude_words):
                         filtered_memories.append(mem)
-                        if len(filtered_memories) >= 5:  # 最多保留5条
+                        if len(filtered_memories) >= 10:  # v0.9.2: 增加到10条
                             break
                 all_memories = filtered_memories
                 logger.info(
@@ -1708,7 +1729,9 @@ class XiaoLeAgent:
     )
     @handle_api_errors
     @log_execution
-    def _call_deepseek_with_history(self, system_prompt, messages, response_style="balanced"):
+    def _call_deepseek_with_history(
+        self, system_prompt, messages, response_style="balanced"
+    ):
         """
         v0.6.0: DeepSeek API 多轮对话（支持响应风格）
         """
