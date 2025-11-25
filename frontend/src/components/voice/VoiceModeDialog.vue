@@ -29,20 +29,38 @@
               <div class="neural-glow" :class="{ speaking: isSpeaking }"></div>
             </div>
           </div>
-          <!-- 简洁语音历史面板 -->
-          <div class="voice-history" v-if="voiceHistory.length">
-            <div class="voice-history-list">
+          <!-- 语音历史气泡流 -->
+          <div class="voice-history-stream" ref="historyStream">
+            <div class="history-content">
               <div
                 v-for="m in voiceHistory"
                 :key="m.id"
-                class="vh-item"
+                class="voice-bubble"
                 :class="m.role"
               >
-                <span
-                  class="vh-role"
-                  v-text="m.role === 'user' ? '我' : '小乐'"
-                ></span>
-                <span class="vh-text" v-text="truncate(m.content)"></span>
+                <div class="bubble-text">{{ m.content }}</div>
+                <div class="bubble-footer">
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    class="time-icon"
+                  >
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12 6 12 12 16 14"></polyline>
+                  </svg>
+                  <span class="bubble-time">{{ m.time }}</span>
+                </div>
+              </div>
+              <!-- 实时输入占位气泡 -->
+              <div v-if="currentTranscript" class="voice-bubble user pending">
+                <div class="bubble-text">{{ currentTranscript }}</div>
+                <div class="bubble-footer">
+                  <span class="bubble-time">正在聆听...</span>
+                </div>
               </div>
             </div>
           </div>
@@ -114,7 +132,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted, onBeforeUnmount } from "vue";
+import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from "vue";
 import { useChatStore } from "@/stores/chat";
 import VoiceSelector from "./VoiceSelector.vue";
 
@@ -133,6 +151,7 @@ const isSpeaking = ref(false);
 const audioLevel = ref(0);
 const currentVoice = ref("juniper");
 const sessionStartTime = ref(null);
+const currentTranscript = ref(""); // 实时语音转写
 
 let recognition = null;
 let audioContext = null;
@@ -155,7 +174,20 @@ const voiceHistory = computed(() => {
         m.content &&
         m.messageType !== "voice-session-end")
     ) {
-      filtered.unshift({ id: m.id, role: m.role, content: m.content });
+      // 格式化时间 HH:mm
+      let timeStr = "00:00";
+      if (m.timestamp) {
+        const date = new Date(m.timestamp);
+        const hours = date.getHours().toString().padStart(2, '0');
+        const minutes = date.getMinutes().toString().padStart(2, '0');
+        timeStr = `${hours}:${minutes}`;
+      }
+      filtered.unshift({ 
+        id: m.id, 
+        role: m.role, 
+        content: m.content,
+        time: timeStr
+      });
     }
   }
   return filtered;
@@ -189,18 +221,27 @@ const initRecognition = () => {
     recognition.lang = "zh-CN";
     // 语音电话式：一句一停，尽快出最终结果
     recognition.continuous = false;
-    recognition.interimResults = false;
+    recognition.interimResults = true; // 开启实时反馈
     recognition.maxAlternatives = 1;
 
     recognition.onresult = (event) => {
       let finalTranscript = "";
+      let interimTranscript = "";
+
       for (let i = event.resultIndex; i < event.results.length; ++i) {
         const res = event.results[i];
         if (res.isFinal) {
           finalTranscript += res[0].transcript;
+        } else {
+          interimTranscript += res[0].transcript;
         }
       }
+      
+      // 实时显示正在说的话
+      currentTranscript.value = interimTranscript;
+
       if (finalTranscript) {
+        currentTranscript.value = ""; // 清空临时
         emit("message", {
           type: "voice",
           content: finalTranscript,
@@ -325,6 +366,22 @@ const handleVoiceSelect = (voice) => {
   emit("voice-change", voice);
 };
 
+const historyStream = ref(null);
+
+const scrollToBottom = () => {
+  if (historyStream.value) {
+    historyStream.value.scrollTop = historyStream.value.scrollHeight;
+  }
+};
+
+watch(voiceHistory, () => {
+  nextTick(scrollToBottom);
+}, { deep: true });
+
+watch(currentTranscript, () => {
+  nextTick(scrollToBottom);
+});
+
 watch(
   () => props.visible,
   (val) => {
@@ -361,6 +418,7 @@ onMounted(() => {
     } catch (e) {
       console.error("Auto start on mount failed:", e);
     }
+    nextTick(scrollToBottom);
   }
 });
 
@@ -452,45 +510,96 @@ defineExpose({
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 32px;
+  justify-content: flex-start; /* 改为顶部对齐，给历史留空间 */
+  padding-top: 40px;
+  gap: 20px;
+  overflow: hidden; /* 防止溢出 */
 }
 
-.voice-history {
-  width: 320px;
-  max-height: 160px;
+.voice-history-stream {
+  width: 100%;
+  flex: 1;
   overflow-y: auto;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 12px;
-  padding: 8px 10px;
-  font-size: 13px;
-  backdrop-filter: blur(8px);
+  padding: 10px 20px;
+  display: flex;
+  flex-direction: column-reverse; /* 最新消息在底部，但我们用 flex-direction column 配合 scroll to bottom 更好? 
+                                     或者直接 column-reverse 让最新在最下? 
+                                     Wait, voiceHistory is sorted newest first in computed? 
+                                     "filtered.unshift" -> oldest first. 
+                                     So standard column is fine. */
 }
-.voice-history-list {
+
+.history-content {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 16px;
+  padding-bottom: 10px;
 }
-.vh-item {
+
+.voice-bubble {
+  max-width: 85%;
+  padding: 14px 18px;
+  border-radius: 20px;
+  position: relative;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  animation: bubble-pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes bubble-pop {
+  from { opacity: 0; transform: scale(0.9) translateY(10px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.voice-bubble.user {
+  align-self: flex-end;
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.85) 0%, rgba(118, 75, 162, 0.85) 100%);
+  border-bottom-right-radius: 4px;
+  color: #fff;
+}
+
+.voice-bubble.assistant {
+  align-self: flex-start;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom-left-radius: 4px;
+  color: #eee;
+}
+
+.voice-bubble.pending {
+  opacity: 0.8;
+  border: 1px dashed rgba(255,255,255,0.3);
+}
+
+.bubble-text {
+  font-size: 16px;
+  line-height: 1.5;
+  margin-bottom: 6px;
+  word-break: break-word;
+}
+
+.bubble-footer {
   display: flex;
-  gap: 6px;
-  line-height: 1.3;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  opacity: 0.7;
 }
-.vh-item.user .vh-role {
-  color: #ffd479;
+
+.time-icon {
+  opacity: 0.8;
 }
-.vh-item.assistant .vh-role {
-  color: #76b6ff;
+
+/* 滚动条样式 */
+.voice-history-stream::-webkit-scrollbar {
+  width: 4px;
 }
-.vh-role {
-  font-weight: 600;
+.voice-history-stream::-webkit-scrollbar-track {
+  background: transparent;
 }
-.vh-text {
-  flex: 1;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.voice-history-stream::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.2);
+  border-radius: 2px;
 }
 
 /* 电话模式已移除字幕区域 */
