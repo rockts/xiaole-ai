@@ -332,4 +332,10 @@ const formatCondition = (reminder) => {
   color: #ef4444; /* 悬停变红 */
   background: transparent;
 }
+
+@media (max-width: 400px) {
+  .reminder-popup {
+    width: 90vw;
+  }
+}
 </style>

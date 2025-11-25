@@ -124,9 +124,7 @@
             </div>
             <button
               class="session-actions"
-              @click.stop="
-                showSessionMenu(session.id || session.session_id, $event)
-              "
+              @click.stop="showSessionMenu(session.id || session.session_id)"
             >
               <svg
                 width="16"
@@ -141,6 +139,26 @@
                 <circle cx="12" cy="19" r="1" />
               </svg>
             </button>
+
+            <!-- 会话项菜单 -->
+            <div
+              v-if="activeMenuSessionId === (session.id || session.session_id)"
+              class="session-menu"
+              @click.stop
+            >
+              <button
+                class="menu-item"
+                @click="renameSession(session.id || session.session_id)"
+              >
+                重命名
+              </button>
+              <button
+                class="menu-item danger"
+                @click="confirmDelete(session.id || session.session_id)"
+              >
+                删除
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -171,29 +189,6 @@
       :class="{ active: isMobileOpen }"
       @click="closeMobile"
     ></div>
-
-    <!-- 全局会话菜单 -->
-    <teleport to="body">
-      <div
-        v-if="activeMenuSessionId"
-        class="session-menu-popover"
-        :style="{
-          top: `${menuPosition.top}px`,
-          left: `${menuPosition.left}px`,
-        }"
-        @click.stop
-      >
-        <button class="menu-item" @click="renameSession(activeMenuSessionId)">
-          重命名
-        </button>
-        <button
-          class="menu-item danger"
-          @click="confirmDelete(activeMenuSessionId)"
-        >
-          删除
-        </button>
-      </div>
-    </teleport>
   </div>
 </template>
 
@@ -239,11 +234,6 @@ const navItems = [
     label: "工具",
     icon: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>',
   },
-  {
-    path: "/faces",
-    label: "人脸",
-    icon: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>',
-  },
 ];
 
 const toggleCollapse = () => {
@@ -275,33 +265,10 @@ const loadSession = (sessionId) => {
 };
 
 const activeMenuSessionId = ref(null);
-const menuPosition = ref({ top: 0, left: 0 });
 
-const showSessionMenu = (sessionId, event) => {
-  if (activeMenuSessionId.value === sessionId) {
-    activeMenuSessionId.value = null;
-    return;
-  }
-
-  activeMenuSessionId.value = sessionId;
-
-  if (event && event.currentTarget) {
-    const button = event.currentTarget;
-    const rect = button.getBoundingClientRect();
-    const menuHeight = 90;
-    const menuWidth = 120;
-    const gap = 4;
-
-    let top = rect.bottom + gap;
-    let left = rect.right - menuWidth;
-
-    // 智能翻转：如果底部空间不足，则向上显示
-    if (top + menuHeight > window.innerHeight) {
-      top = rect.top - menuHeight - gap;
-    }
-
-    menuPosition.value = { top, left };
-  }
+const showSessionMenu = (sessionId) => {
+  activeMenuSessionId.value =
+    activeMenuSessionId.value === sessionId ? null : sessionId;
 };
 
 const renameSession = async (id) => {
@@ -465,47 +432,35 @@ onUnmounted(() => {
   position: relative;
 }
 
-.session-menu-popover {
-  position: fixed;
+.session-menu {
+  position: absolute;
+  top: 32px;
+  right: 8px;
   background: var(--bg-primary);
   border: 1px solid var(--border-light);
   border-radius: 8px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
   padding: 6px;
-  z-index: 9999;
+  z-index: 20;
   min-width: 120px;
-  animation: fadeIn 0.1s ease-out;
 }
 
-.session-menu-popover .menu-item {
+.session-menu .menu-item {
   width: 100%;
   text-align: left;
-  padding: 8px 12px;
+  padding: 8px 10px;
   border: none;
   background: transparent;
   color: var(--text-primary);
   border-radius: 6px;
   cursor: pointer;
-  font-size: 14px;
-  transition: background 0.2s;
 }
 
-.session-menu-popover .menu-item:hover {
+.session-menu .menu-item:hover {
   background: var(--bg-hover);
 }
 
-.session-menu-popover .menu-item.danger {
+.session-menu .menu-item.danger {
   color: var(--error);
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
 }
 </style>

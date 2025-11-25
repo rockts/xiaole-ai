@@ -41,64 +41,30 @@
 
             <!-- 摘要式布局 -->
             <div class="summary-content">
-              <div
-                v-for="(msg, index) in previewMessages"
-                :key="index"
-                class="message-row"
-                :class="msg.role"
-              >
+              <div v-for="(msg, index) in previewMessages" :key="index" class="message-row" :class="msg.role">
                 <!-- 用户消息 -->
                 <div v-if="msg.role === 'user'" class="user-message">
                   <div class="message-bubble">
-                    <div
-                      v-if="msg.content"
-                      class="message-text"
-                      v-html="renderMarkdown(msg.content)"
-                    ></div>
+                    <div v-if="msg.content" class="message-text" v-html="renderMarkdown(msg.content)"></div>
                     <div v-if="msg.image" class="message-image-wrapper">
-                      <img
-                        :src="msg.image"
-                        class="message-image"
-                        crossorigin="anonymous"
-                      />
+                      <img :src="msg.image" class="message-image" crossorigin="anonymous" />
                     </div>
                   </div>
                 </div>
 
-                // ...existing code... const previewMessages = ref([]); const
-                summaryText = ref(""); const answerText = ref(""); const
-                isLongText = (text) => { return text && text.length > 200; };
-                const renderMarkdown = (text) => { if (!text) return ""; return
-                marked.parse(text); }; // ...existing code...
                 <!-- AI 消息 -->
                 <div v-else class="ai-message">
                   <div class="ai-avatar">
-                    <svg
-                      width="20"
-                      height="20"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                    >
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                       <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
                       <polyline points="22 4 12 14.01 9 11.01"></polyline>
                     </svg>
                   </div>
                   <div class="message-content">
                     <div class="ai-name">XiaoLe AI</div>
-                    <div
-                      v-if="msg.content"
-                      class="message-text"
-                      :class="{ 'long-text': isLongText(msg.content) }"
-                      v-html="renderMarkdown(msg.content)"
-                    ></div>
+                    <div v-if="msg.content" class="message-text" v-html="renderMarkdown(msg.content)"></div>
                     <div v-if="msg.image" class="message-image-wrapper">
-                      <img
-                        :src="msg.image"
-                        class="message-image"
-                        crossorigin="anonymous"
-                      />
+                      <img :src="msg.image" class="message-image" crossorigin="anonymous" />
                     </div>
                   </div>
                 </div>
@@ -202,10 +168,6 @@ const previewCardRef = ref(null);
 const previewMessages = ref([]);
 const summaryText = ref("");
 const answerText = ref("");
-
-const isLongText = (text) => {
-  return text && text.length > 200;
-};
 
 const renderMarkdown = (text) => {
   if (!text) return "";
@@ -656,13 +618,5 @@ onMounted(async () => {
   to {
     opacity: 1;
   }
-}
-
-.message-text.long-text {
-  column-count: 2;
-  column-gap: 24px;
-  text-align: justify;
-  border-left: 2px solid rgba(255, 255, 255, 0.1);
-  padding-left: 16px;
 }
 </style>

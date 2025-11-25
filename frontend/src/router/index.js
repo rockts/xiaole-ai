@@ -68,12 +68,6 @@ const router = createRouter({
             meta: { title: '工具' }
         },
         {
-            path: '/faces',
-            name: 'Faces',
-            component: () => import('@/views/FacesView.vue'),
-            meta: { title: '人脸管理' }
-        },
-        {
             path: '/settings',
             name: 'Settings',
             component: () => import('@/views/SettingsView.vue'),

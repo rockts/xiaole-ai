@@ -1665,14 +1665,13 @@ const sendMessage = async () => {
   pendingPreviewUrl.value = null;
 
   // 立即添加用户消息到界面末尾（保持对话顺序）
-  const tempUserMessage = {
+  messages.value.push({
     id: `temp-${Date.now()}`,
     role: "user",
     content: content,
     image_path: currentPreview, // 临时显示本地预览图
     timestamp: new Date().toISOString(),
-  };
-  messages.value.push(tempUserMessage);
+  });
 
   // 设置标志位：需要滚动到底部
   shouldScrollToBottom.value = true;
@@ -1692,10 +1691,6 @@ const sendMessage = async () => {
         });
         return;
       }
-
-      // 关键修复：上传成功后，立即将临时消息的图片路径更新为服务器路径
-      // 这可以释放 Base64 占用的内存，防止页面卡顿
-      tempUserMessage.image_path = imagePath;
     }
 
     // 发送到后端
@@ -1913,13 +1908,8 @@ onMounted(() => {
     chatContainer.value.addEventListener("scroll", onScroll, { passive: true });
 
     // 使用 MutationObserver 监听 DOM 变化，自动添加代码块头部
-    // 使用防抖防止频繁触发导致性能问题
-    let debounceTimer = null;
     observer.value = new MutationObserver(() => {
-      if (debounceTimer) clearTimeout(debounceTimer);
-      debounceTimer = setTimeout(() => {
-        enhanceRenderedContent();
-      }, 200);
+      enhanceRenderedContent();
     });
     observer.value.observe(chatContainer.value, {
       childList: true,
@@ -2826,6 +2816,67 @@ const feedbackMessage = async (message, type) => {
 @media (max-width: 900px) {
   .input-wrapper {
     max-width: 98vw;
+  }
+}
+
+/* 移动端适配优化 */
+@media (max-width: 768px) {
+  .chat-inner {
+    padding: 12px 12px;
+  }
+
+  .user-bubble {
+    max-width: 88%;
+    font-size: 15px;
+    padding: 10px 14px;
+  }
+
+  .message.assistant .md-content {
+    font-size: 15px;
+  }
+
+  .input-container {
+    padding: 8px 10px 10px;
+  }
+
+  .input-wrapper {
+    padding: 6px 8px;
+    border-radius: 20px;
+  }
+
+  .welcome-title {
+    font-size: 20px;
+  }
+
+  .welcome-icon {
+    font-size: 40px;
+  }
+
+  /* 移动端始终显示工具栏，避免无法操作 */
+  .message-toolbar {
+    opacity: 1 !important;
+    margin-top: 6px;
+  }
+
+  .message.user .message-toolbar {
+    justify-content: flex-end;
+  }
+
+  /* 优化代码块在移动端的显示 */
+  .md-content :deep(pre) {
+    border-radius: 8px;
+    margin: 0.8em 0;
+  }
+
+  .md-content :deep(pre code) {
+    padding: 12px 14px;
+    font-size: 13px;
+  }
+
+  /* 调整图片最大宽度 */
+  .message-image {
+    max-width: 100%;
+    max-height: 240px;
   }
 }
 

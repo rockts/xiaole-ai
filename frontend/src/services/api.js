@@ -85,7 +85,7 @@ export default {
         const params = new URLSearchParams()
         // 即使是空字符串也要发送 prompt 参数
         params.append('prompt', data.prompt || '')
-
+        
         if (data.session_id) params.append('session_id', data.session_id)
         if (data.user_id) params.append('user_id', data.user_id)
         if (data.response_style) params.append('response_style', data.response_style)
@@ -223,14 +223,5 @@ export default {
             volume: 5,
             audio_format: 'mp3'
         })
-    },
-
-    // 人脸管理
-    getFaces(userId = 'default_user') {
-        return api.get('/api/faces', { params: { user_id: userId } })
-    },
-
-    deleteFace(faceId, userId = 'default_user') {
-        return api.delete(`/api/faces/${faceId}`, { params: { user_id: userId } })
     }
 }

@@ -401,7 +401,13 @@ onBeforeUnmount(() => {
   }
 
   .title-input {
-    min-width: 120px;
+    min-width: 100px;
+    max-width: 160px;
+    font-size: 14px;
+    padding: 4px 8px;
+  }
+
+  .page-title {
     max-width: 180px;
     font-size: 14px;
     padding: 4px 8px;
@@ -422,6 +428,12 @@ onBeforeUnmount(() => {
   padding: 6px 12px;
   border-radius: 6px;
   transition: background var(--duration-fast) var(--ease-out);
+  /* 防止标题过长撑开 */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 300px;
+  text-align: center;
 }
 
 .page-title.editable {
