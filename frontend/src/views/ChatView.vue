@@ -348,17 +348,16 @@
       aria-label="回到底部"
     >
       <svg
-        width="24"
-        height="24"
+        class="scroll-icon"
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
-        stroke-width="2.5"
+        stroke-width="2"
         stroke-linecap="round"
         stroke-linejoin="round"
       >
-        <line x1="12" y1="5" x2="12" y2="19"></line>
-        <polyline points="6 13 12 19 18 13"></polyline>
+        <line x1="12" y1="6" x2="12" y2="16" />
+        <polyline points="8 12 12 16 16 12" />
       </svg>
     </button>
 
@@ -566,7 +565,55 @@
             @click="handleVoiceInput"
             title="语音输入"
           >
+            <!-- 录音中状态 (动态音量环) -->
             <svg
+              v-if="isRecording"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              class="voice-visualizer"
+            >
+              <!-- 背景圆环 -->
+              <circle
+                cx="12"
+                cy="12"
+                r="9"
+                stroke="currentColor"
+                stroke-width="2"
+                opacity="0.18"
+              />
+              <!-- 动态音量环 -->
+              <circle
+                cx="12"
+                cy="12"
+                r="9"
+                :stroke="'currentColor'"
+                stroke-width="3.5"
+                fill="none"
+                :stroke-dasharray="2 * Math.PI * 9"
+                :stroke-dashoffset="
+                  2 * Math.PI * 9 * (1 - Math.min(audioLevel, 1))
+                "
+                stroke-linecap="round"
+                style="
+                  transition: stroke-dashoffset 0.15s
+                    cubic-bezier(0.4, 0, 0.2, 1);
+                "
+                opacity="0.95"
+              />
+              <!-- 中心小圆点 -->
+              <circle
+                cx="12"
+                cy="12"
+                r="3.2"
+                :fill="'currentColor'"
+                opacity="0.85"
+              />
+            </svg>
+            <!-- 默认麦克风图标 -->
+            <svg
+              v-else
               width="20"
               height="20"
               viewBox="0 0 24 24"
@@ -790,6 +837,14 @@ const fileInput = ref(null);
 const isRecording = ref(false);
 const isVoiceMode = ref(false);
 const recognition = ref(null); // 语音识别实例
+// 音频可视化相关状态
+const audioLevel = ref(0);
+let audioContext = null;
+let mediaStream = null;
+let analyser = null;
+let dataArray = null;
+let visualizerFrame = null;
+
 const imagePreviewUrl = ref(null);
 const imageScale = ref(1);
 const imageTranslate = ref({ x: 0, y: 0 });
@@ -989,6 +1044,20 @@ watch(
   { deep: true }
 );
 
+// 监听 AI 打字状态，用于语音模式自动朗读
+watch(isTyping, (newVal, oldVal) => {
+  if (oldVal && !newVal && isVoiceMode.value) {
+    // AI 停止打字，且处于语音模式
+    const lastMessage = messages.value[messages.value.length - 1];
+    if (lastMessage && lastMessage.role === "assistant") {
+      // 稍微延迟一点，确保内容渲染完成
+      setTimeout(() => {
+        toggleSpeak(lastMessage);
+      }, 500);
+    }
+  }
+});
+
 const renderMarkdown = (content) => {
   if (!content) return "";
   // 预处理 LaTeX 分隔符，兼容 \[ \] 和 \( \)
@@ -1155,6 +1224,10 @@ const toggleSpeak = (message) => {
     utterance.onend = () => {
       speakingMessageId.value = null;
       currentSpeech = null;
+      // 语音模式下，朗读结束后自动开始录音
+      if (isVoiceMode.value) {
+        handleVoiceInput();
+      }
     };
 
     utterance.onerror = () => {
@@ -1874,25 +1947,86 @@ const handleDrop = (e) => {
   }
 };
 
+const startVisualizer = async () => {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    mediaStream = stream;
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    analyser = audioContext.createAnalyser();
+    analyser.fftSize = 256;
+    const source = audioContext.createMediaStreamSource(stream);
+    source.connect(analyser);
+    dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+    const update = () => {
+      if (!isRecording.value) return;
+      analyser.getByteFrequencyData(dataArray);
+      // Calculate average volume
+      let sum = 0;
+      for (let i = 0; i < dataArray.length; i++) {
+        sum += dataArray[i];
+      }
+      const average = sum / dataArray.length;
+      // Normalize to 0-1 or similar for scaling
+      audioLevel.value = average / 50.0; // Adjust sensitivity
+      visualizerFrame = requestAnimationFrame(update);
+    };
+    update();
+  } catch (e) {
+    console.error("Visualizer init failed:", e);
+  }
+};
+
+const stopVisualizer = () => {
+  if (visualizerFrame) cancelAnimationFrame(visualizerFrame);
+  if (mediaStream) {
+    mediaStream.getTracks().forEach((track) => track.stop());
+    mediaStream = null;
+  }
+  if (audioContext) {
+    audioContext.close();
+    audioContext = null;
+  }
+  audioLevel.value = 0;
+};
+
 const handleVoice = () => {
   // 语音输入功能
   console.log("语音输入");
 };
 
 const handleVoiceInput = () => {
-  isRecording.value = !isRecording.value;
+  if (!recognition.value) {
+    alert("您的浏览器不支持语音识别功能，请使用 Chrome 或 Edge 浏览器。");
+    return;
+  }
+
   if (isRecording.value) {
-    console.log("开始语音输入");
-    // TODO: 调用语音识别 API
+    recognition.value.stop();
+    isRecording.value = false;
+    stopVisualizer();
   } else {
-    console.log("停止语音输入");
+    try {
+      recognition.value.start();
+      isRecording.value = true;
+      startVisualizer();
+    } catch (e) {
+      console.error("无法启动语音识别:", e);
+      isRecording.value = false;
+      stopVisualizer();
+    }
   }
 };
 
 const toggleVoiceMode = () => {
   isVoiceMode.value = !isVoiceMode.value;
-  console.log("语音模式:", isVoiceMode.value ? "开启" : "关闭");
-  // TODO: 实现语音模式逻辑
+  // 如果开启语音模式，自动开始录音
+  if (isVoiceMode.value && !isRecording.value) {
+    handleVoiceInput();
+  } else if (!isVoiceMode.value && isRecording.value) {
+    // 关闭语音模式时停止录音
+    handleVoiceInput();
+  }
 };
 
 const canSend = computed(() => {
@@ -1900,6 +2034,93 @@ const canSend = computed(() => {
 });
 
 onMounted(() => {
+  // 初始化语音识别
+  if ("webkitSpeechRecognition" in window || "SpeechRecognition" in window) {
+    const SpeechRecognition =
+      window.SpeechRecognition || window.webkitSpeechRecognition;
+    recognition.value = new SpeechRecognition();
+    recognition.value.lang = "zh-CN";
+    recognition.value.continuous = true;
+    recognition.value.interimResults = true;
+
+    let baselineText = "";
+
+    // 语音输入开始时初始化finalAccumulated为当前输入框内容
+    const startVoiceInput = () => {
+      baselineText = messageInput.value?.innerText || "";
+    };
+
+    // 输入框内容变动时同步finalAccumulated，防止手动删除后被还原
+    const oldHandleInput = handleInput;
+    window.handleInput = function (...args) {
+      baselineText = messageInput.value?.innerText || "";
+      return oldHandleInput.apply(this, args);
+    };
+    recognition.value.onresult = (event) => {
+      let interimTranscript = "";
+      let finalTranscript = "";
+
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        const transcript = event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          finalTranscript += transcript;
+        } else {
+          interimTranscript += transcript;
+        }
+      }
+
+      if (messageInput.value) {
+        if (finalTranscript) {
+          baselineText += finalTranscript;
+          messageInput.value.innerText = baselineText;
+          handleInput();
+          if (isVoiceMode.value) {
+            setTimeout(() => {
+              if (isVoiceMode.value && messageInput.value?.innerText.trim()) {
+                sendMessage();
+                baselineText = messageInput.value.innerText || "";
+              }
+            }, 800);
+          }
+        } else if (interimTranscript) {
+          messageInput.value.innerText = baselineText + interimTranscript;
+          handleInput();
+        }
+      }
+    };
+
+    recognition.value.onerror = (event) => {
+      console.error("Speech recognition error", event.error);
+      if (event.error !== "no-speech") {
+        isRecording.value = false;
+        stopVisualizer();
+      }
+    };
+
+    recognition.value.onend = () => {
+      // 如果是录音状态（非手动停止），则尝试重新启动
+      if (isRecording.value) {
+        try {
+          recognition.value.start();
+        } catch (e) {
+          console.error("Restart recognition failed:", e);
+          isRecording.value = false;
+          stopVisualizer();
+        }
+      } else {
+        stopVisualizer();
+      }
+    };
+    // 监听语音按钮，开始录音时初始化finalAccumulated
+    if (typeof handleVoiceInput === "function") {
+      const oldHandleVoiceInput = handleVoiceInput;
+      window.handleVoiceInput = function (...args) {
+        startVoiceInput();
+        return oldHandleVoiceInput.apply(this, args);
+      };
+    }
+  }
+
   // 移除自动滚动，让浏览器保持用户的滚动位置
   currentGreeting.value = selectRandomGreeting();
 
@@ -1926,6 +2147,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   // 停止朗读
   stopSpeech();
+  stopVisualizer();
 
   if (observer.value) {
     observer.value.disconnect();
@@ -2187,40 +2409,67 @@ const feedbackMessage = async (message, type) => {
 .user-bubble :deep(p:last-child) {
   margin-bottom: 0;
 }
-.message.assistant .md-content {
-  font-size: 16px;
-  max-width: 100%;
-  word-wrap: break-word;
-  word-break: break-word;
-  overflow-wrap: break-word;
+.scroll-to-bottom {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 120px;
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  z-index: 100;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+  animation: fadeIn 0.3s ease;
 }
-.message.assistant .md-content :deep(p) {
-  margin: 0 0 0.6em 0;
-  line-height: 1.6;
-  color: var(--text-primary);
+.scroll-icon-wrapper {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.14);
+  background: rgba(15, 15, 15, 0.85);
+  box-shadow: 0 18px 32px rgba(0, 0, 0, 0.45), 0 4px 12px rgba(0, 0, 0, 0.35);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.25s ease;
 }
-.message.assistant .md-content :deep(p:last-child) {
-  margin-bottom: 0;
+.scroll-icon-inner {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: radial-gradient(
+    circle at 30% 30%,
+    rgba(255, 255, 255, 0.08),
+    rgba(20, 20, 20, 0.9)
+  );
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fdfdfd;
 }
-.message-content :deep(p:last-child) {
-  margin-bottom: 0;
+.scroll-icon-inner svg {
+  width: 22px;
+  height: 22px;
+  display: block;
+  stroke: currentColor;
 }
-.message-content :deep(ul),
-.message-content :deep(ol),
-.md-content :deep(ul),
-.md-content :deep(ol) {
-  margin: 0.8em 0;
-  padding-left: 2em;
-  list-style-position: outside;
+.scroll-icon-inner svg circle {
+  stroke: rgba(255, 255, 255, 0.45);
 }
-.message-content :deep(li),
-.md-content :deep(li) {
-  margin: 0.3em 0;
-  line-height: 1.6;
-  padding-left: 0.3em;
+.scroll-icon-inner svg polyline,
+.scroll-icon-inner svg line {
+  stroke: #ffffff;
 }
-.md-content :deep(ul) {
-  list-style-type: disc;
+.scroll-to-bottom:hover .scroll-icon-wrapper {
+  border-color: rgba(255, 255, 255, 0.35);
+  transform: scale(1.03);
+  box-shadow: 0 22px 38px rgba(0, 0, 0, 0.55);
+}
+.scroll-to-bottom:active .scroll-icon-wrapper {
+  transform: scale(0.98);
+  box-shadow: 0 12px 20px rgba(0, 0, 0, 0.35);
 }
 .md-content :deep(ol) {
   list-style-type: decimal;
@@ -2654,8 +2903,8 @@ const feedbackMessage = async (message, type) => {
   color: var(--text-inverse);
 }
 .icon-btn.recording {
-  background: var(--error);
-  color: var(--text-inverse);
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
   animation: pulse 1.5s ease-in-out infinite;
 }
 .voice-mode-btn {
@@ -2761,10 +3010,10 @@ const feedbackMessage = async (message, type) => {
   width: 48px;
   height: 48px;
   border-radius: 50%;
-  border: 1px solid var(--border-medium);
-  background: var(--bg-secondary);
-  color: var(--text-primary);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  border: 1.5px solid rgba(255, 255, 255, 0.25);
+  background: rgba(32, 32, 32, 0.92);
+  color: #fff;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2773,19 +3022,24 @@ const feedbackMessage = async (message, type) => {
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   animation: fadeIn 0.3s ease;
 }
-.scroll-to-bottom svg {
-  opacity: 1;
+.scroll-icon {
+  width: 20px;
+  height: 20px;
+  position: relative;
+  z-index: 1;
+  color: inherit;
+}
+.scroll-icon * {
+  stroke: currentColor;
 }
 .scroll-to-bottom:hover {
-  background: var(--brand-primary);
-  color: white;
   transform: translateX(-50%) translateY(-2px);
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.25);
-  border-color: var(--brand-primary);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.3);
+  background: rgba(36, 36, 36, 0.96);
 }
 .scroll-to-bottom:active {
   transform: translateX(-50%) translateY(0);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 @keyframes fadeIn {
   from {

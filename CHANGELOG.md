@@ -18,6 +18,9 @@
 ## [Unreleased] - develop 分支
 
 ### 2025-11-25
+#### feat
+- ✨ 修复语音功能
+
 - 🎨 优化移动端适配 (ChatView, TopBar, ReminderListPopup)
 
 
