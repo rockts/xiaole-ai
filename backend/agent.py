@@ -1553,8 +1553,50 @@ class XiaoLeAgent:
                     system_prompt += tool_info
 
             # 添加长期记忆到系统提示词
-            # 1. 优先获取 facts 标签的关键事实（用户主动告知的真实信息）
-            facts_memories = self.memory.recall(tag="facts", limit=50)
+            # voice_call 模式：极度裁剪记忆以降低延迟，只在需要时保留关键信息
+            if response_style == 'voice_call':
+                schedule_keywords = ['课', '课程', '课程表', '第', '上午', '下午']
+                need_schedule = any(kw in prompt for kw in schedule_keywords)
+                # 尝试获取昵称相关的事实（用于个性化称呼）
+                nickname_facts = []
+                try:
+                    raw_facts = self.memory.recall(tag="facts", limit=20)
+                    for f in raw_facts:
+                        if any(k in f for k in ["我叫", "叫我", "昵称", "名字"]):
+                            nickname_facts.append(f[:60])
+                except Exception as e:
+                    logger.warning(f"voice_call 昵称记忆获取失败: {e}")
+                schedule_memories = []
+                if need_schedule:
+                    try:
+                        from db_setup import Memory
+                        schedules = self.memory.session.query(Memory).filter(
+                            Memory.tag == 'schedule'
+                        ).order_by(Memory.created_at.desc()).limit(1).all()
+                        schedule_memories = [mem.content for mem in schedules]
+                    except Exception as e:
+                        logger.warning(f"voice_call 课程表获取失败: {e}")
+                # 组装精简记忆（昵称 + 课程表）
+                trimmed_memories = []
+                if nickname_facts:
+                    trimmed_memories.append("昵称相关: " + nickname_facts[0])
+                if schedule_memories:
+                    trimmed_memories.extend(schedule_memories[:1])
+                if trimmed_memories:
+                    system_prompt += (
+                        "\n\n记忆（精简）:\n" +
+                        "\n".join(trimmed_memories)
+                    )
+                # 跳过后续大量记忆召回逻辑
+                facts_memories = []
+                semantic_memories = []
+                image_memories = []
+                document_memories = []
+                conversation_memories = []
+                recent_memories = []
+            else:
+                # 1. 优先获取 facts 标签的关键事实（用户主动告知的真实信息）
+                facts_memories = self.memory.recall(tag="facts", limit=50)
 
             # 1.5 特别召回：家庭成员信息 (确保家人信息不被遗忘)
             family_memories = []

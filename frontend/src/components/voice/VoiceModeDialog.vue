@@ -29,6 +29,15 @@
               <div class="neural-glow" :class="{ speaking: isSpeaking }"></div>
             </div>
           </div>
+          <!-- 简洁语音历史面板 -->
+          <div class="voice-history" v-if="voiceHistory.length">
+            <div class="voice-history-list">
+              <div v-for="m in voiceHistory" :key="m.id" class="vh-item" :class="m.role">
+                <span class="vh-role" v-text="m.role==='user' ? '我' : '小乐'"></span>
+                <span class="vh-text" v-text="truncate(m.content)"></span>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- 底部操作区 -->
@@ -96,6 +105,7 @@
 
 <script setup>
 import { ref, computed, watch, onMounted, onBeforeUnmount } from "vue";
+import { useChatStore } from "@/stores/chat";
 import VoiceSelector from "./VoiceSelector.vue";
 
 const props = defineProps({
@@ -120,6 +130,26 @@ let analyser = null;
 let animationFrame = null;
 let mediaStream = null;
 let levelFrame = null;
+
+// 引入全局消息用于展示语音历史
+const chatStore = useChatStore();
+const voiceHistory = computed(() => {
+  const src = chatStore.messages || [];
+  // 过滤最近的语音相关轮次（用户voice消息与其后的assistant回复）
+  const filtered = [];
+  for (let i = src.length - 1; i >= 0 && filtered.length < 20; i--) {
+    const m = src[i];
+    if (m.messageType === 'voice' || (m.role === 'assistant' && m.content && m.messageType !== 'voice-session-end')) {
+      filtered.unshift({ id: m.id, role: m.role, content: m.content });
+    }
+  }
+  return filtered;
+});
+
+const truncate = (t) => {
+  if (!t) return '';
+  return t.length > 38 ? t.slice(0, 38) + '…' : t;
+};
 
 // 电话模式：不显示状态文本
 const statusText = computed(() => "");
@@ -397,6 +427,24 @@ defineExpose({
   justify-content: center;
   gap: 32px;
 }
+
+.voice-history {
+  width: 320px;
+  max-height: 160px;
+  overflow-y: auto;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 12px;
+  padding: 8px 10px;
+  font-size: 13px;
+  backdrop-filter: blur(8px);
+}
+.voice-history-list { display: flex; flex-direction: column; gap: 4px; }
+.vh-item { display: flex; gap: 6px; line-height: 1.3; }
+.vh-item.user .vh-role { color: #ffd479; }
+.vh-item.assistant .vh-role { color: #76b6ff; }
+.vh-role { font-weight: 600; }
+.vh-text { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* 电话模式已移除字幕区域 */
 

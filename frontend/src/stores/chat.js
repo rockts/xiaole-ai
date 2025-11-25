@@ -66,8 +66,8 @@ export const useChatStore = defineStore('chat', () => {
             messages.value.push({
                 id: placeholderId,
                 role: 'assistant',
-                content: '',
-                status: 'thinking'
+                content: instant ? '…' : '', // 语音模式先占位省时反馈
+                status: instant ? 'typing' : 'thinking'
             })
 
             const response = await api.sendMessage({
@@ -122,6 +122,12 @@ export const useChatStore = defineStore('chat', () => {
                     messages.value[msgIndex].content = full
                     messages.value[msgIndex].status = 'done'
                     isTyping.value = false
+                    // 语音模式：派发事件供 ChatView 触发TTS朗读
+                    if (typeof window !== 'undefined') {
+                        window.dispatchEvent(new CustomEvent('voiceAssistantReply', {
+                            detail: { text: full }
+                        }))
+                    }
                 } else {
                     messages.value[msgIndex].status = 'typing'
                     messages.value[msgIndex].content = ''

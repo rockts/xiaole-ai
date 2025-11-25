@@ -1200,7 +1200,7 @@ async function speakAndResumeMic(text) {
     const resp = await fetch("/api/voice/synthesize", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: clean, person, speed: 6, pitch: 5, volume: 3, audio_format: "mp3" }),
+      body: JSON.stringify({ text: clean, person, speed: 7, pitch: 4, volume: 3, audio_format: "mp3" }),
     });
     console.log('🔊 TTS API 响应状态:', resp.status);
     if (!resp.ok) {
@@ -1403,7 +1403,7 @@ const toggleSpeak = async (message) => {
     const resp = await fetch("/api/voice/synthesize", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: clean, person, speed: 6, pitch: 5, volume: 3, audio_format: "mp3" }),
+      body: JSON.stringify({ text: clean, person, speed: 7, pitch: 4, volume: 3, audio_format: "mp3" }),
     });
     if (!resp.ok) throw new Error("TTS 请求失败");
     const data = await resp.json();
@@ -2313,6 +2313,17 @@ const canSend = computed(() => {
 });
 
 onMounted(() => {
+  // 监听即时语音助手回复事件（voice_call模式下 isTyping 为 false）
+  const voiceAssistantHandler = (e) => {
+    if (!isVoiceMode.value) return;
+    const text = e.detail?.text;
+    if (text) {
+      console.log('🔊 捕获 voiceAssistantReply 事件，触发朗读');
+      speakAndResumeMic(text);
+    }
+  };
+  window.addEventListener('voiceAssistantReply', voiceAssistantHandler);
+  chatStore.__voiceAssistantHandler = voiceAssistantHandler;
   // 初始化语音识别
   if ("webkitSpeechRecognition" in window || "SpeechRecognition" in window) {
     const SpeechRecognition =
@@ -2437,6 +2448,10 @@ onBeforeUnmount(() => {
     chatContainer.value.removeEventListener("scroll", onScroll);
   }
   document.removeEventListener("selectionchange", handleSelection);
+  if (chatStore.__voiceAssistantHandler) {
+    window.removeEventListener('voiceAssistantReply', chatStore.__voiceAssistantHandler);
+    delete chatStore.__voiceAssistantHandler;
+  }
 });
 
 // 语音模式期间产生的 AI 回复不可重新生成
