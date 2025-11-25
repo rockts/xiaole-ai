@@ -98,13 +98,13 @@ class WeatherTool(Tool):
             logger.info(f"查询天气: 城市={city}, 类型={query_type}")
 
             # 获取城市坐标
-            coords = self._get_city_coords(city)
+            coords = await self._get_city_coords(city)
             if not coords:
                 return {
                     'success': False,
                     'error': (
-                        f"不支持的城市: {city}。"
-                        f"支持的城市请参考帮助。"
+                        f"未找到城市: {city}。"
+                        f"请尝试使用更标准的城市名称。"
                     ),
                     'result': None
                 }
@@ -154,24 +154,57 @@ class WeatherTool(Tool):
                 'result': None
             }
 
-    def _get_city_coords(
+    async def _get_city_coords(
         self, city: str
     ) -> Optional[Tuple[float, float]]:
-        """获取城市坐标"""
+        """获取城市坐标（优先查表，其次调用API）"""
         # 移除常见后缀
         city_name = city.replace('市', '').replace('区', '').strip()
 
-        # 精确匹配
+        # 1. 精确匹配本地库
         if city_name in self.CITY_COORDS:
             return self.CITY_COORDS[city_name]
 
-        # 模糊匹配
+        # 2. 模糊匹配本地库
         for key, coords in self.CITY_COORDS.items():
             if city_name in key or key in city_name:
                 logger.info(f"模糊匹配: {city} -> {key}")
                 return coords
 
-        return None
+        # 3. 调用Geocoding API
+        return await self._fetch_coords_from_api(city_name)
+
+    async def _fetch_coords_from_api(
+        self, city_name: str
+    ) -> Optional[Tuple[float, float]]:
+        """从Open-Meteo Geocoding API获取坐标"""
+        url = "https://geocoding-api.open-meteo.com/v1/search"
+        params = {
+            'name': city_name,
+            'count': 1,
+            'language': 'zh',
+            'format': 'json'
+        }
+
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, params=params) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        if data.get('results'):
+                            result = data['results'][0]
+                            lat = result.get('latitude')
+                            lon = result.get('longitude')
+                            name = result.get('name')
+                            logger.info(
+                                f"Geocoding API匹配: {city_name} -> "
+                                f"{name} ({lat}, {lon})"
+                            )
+                            return lat, lon
+            return None
+        except Exception as e:
+            logger.error(f"Geocoding API调用失败: {e}")
+            return None
 
     async def _get_current_weather(
         self, lat: float, lon: float

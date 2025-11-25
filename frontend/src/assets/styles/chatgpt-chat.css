@@ -1,0 +1,336 @@
+/* ChatGPT 精准还原 - 对话界面样式 */
+
+.chat-view {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: var(--bg-secondary);
+}
+
+/* 会话信息栏 */
+.session-info {
+    padding: var(--space-md) var(--space-xl);
+    background: var(--bg-primary);
+    border-bottom: 1px solid var(--border-light);
+}
+
+.session-title-display {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+/* 消息容器 */
+.chat-container {
+    flex: 1;
+    overflow-y: auto;
+    scroll-behavior: smooth;
+}
+
+.chat-inner {
+    max-width: 768px;
+    margin: 0 auto;
+    padding: var(--space-xl) var(--space-lg);
+}
+
+/* 消息块 */
+.message {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-md);
+    padding: var(--space-xl) 0;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.message:last-child {
+    border-bottom: none;
+}
+
+.message.user {
+    background: var(--bg-primary);
+}
+
+.message-avatar {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.message.user .message-avatar {
+    background: var(--brand-gradient);
+    color: var(--text-inverse);
+}
+
+.message.assistant .message-avatar {
+    background: var(--success);
+    color: var(--text-inverse);
+}
+
+.message-content {
+    flex: 1;
+    width: 100%;
+    min-width: 0;
+    padding-top: 4px;
+}
+
+.message-content p {
+    margin: 0 0 var(--space-md) 0;
+    line-height: 1.7;
+    color: var(--text-primary);
+    font-size: 14px;
+}
+
+.message-content p:last-child {
+    margin-bottom: 0;
+}
+
+/* 代码块 */
+.message-content pre {
+    background: #000;
+    color: #fff;
+    padding: var(--space-md);
+    border-radius: var(--radius-md);
+    overflow-x: auto;
+    margin: var(--space-md) 0;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.message-content code {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    padding: 2px 6px;
+    border-radius: var(--radius-xs);
+    font-size: 13px;
+    font-family: "SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace;
+}
+
+.message-content pre code {
+    background: transparent;
+    padding: 0;
+}
+
+/* 列表 */
+.message-content ul,
+.message-content ol {
+    margin: var(--space-md) 0;
+    padding-left: var(--space-xl);
+}
+
+.message-content li {
+    margin: var(--space-xs) 0;
+    line-height: 1.7;
+}
+
+/* 链接 */
+.message-content a {
+    color: var(--brand-primary);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: border-color var(--duration-fast) var(--ease-out);
+}
+
+.message-content a:hover {
+    border-bottom-color: var(--brand-primary);
+}
+
+/* 图片 */
+.message-image {
+    max-width: 100%;
+    max-height: 400px;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-light);
+    display: block;
+    background: var(--bg-primary);
+}
+
+/* 输入容器 */
+.input-container {
+    flex-shrink: 0;
+    padding: var(--space-lg) var(--space-xl);
+    background: var(--bg-primary);
+    border-top: 1px solid var(--border-light);
+}
+
+.input-wrapper {
+    max-width: 768px;
+    margin: 0 auto;
+    position: relative;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-medium);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-sm);
+    transition: all var(--duration-fast) var(--ease-out);
+}
+
+.input-wrapper:focus-within {
+    border-color: var(--border-heavy);
+    box-shadow: 0 0 0 2px rgba(16, 163, 127, 0.1);
+}
+
+.input-controls {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+}
+
+.icon-btn {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-md);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all var(--duration-fast) var(--ease-out);
+}
+
+.icon-btn:hover:not(:disabled) {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.icon-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.icon-btn.primary {
+    background: var(--brand-primary);
+    color: var(--text-inverse);
+}
+
+.icon-btn.primary:hover:not(:disabled) {
+    background: var(--brand-primary-hover);
+}
+
+.icon-btn.primary:disabled {
+    background: var(--bg-tertiary);
+}
+
+.message-editor {
+    flex: 1;
+    min-height: 24px;
+    max-height: 200px;
+    padding: 8px 0;
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--text-primary);
+    outline: none;
+    overflow-y: auto;
+    word-wrap: break-word;
+    white-space: pre-wrap;
+}
+
+.message-editor:empty:before {
+    content: attr(data-placeholder);
+    color: var(--text-tertiary);
+    pointer-events: none;
+}
+
+.input-actions {
+    display: flex;
+    gap: var(--space-xs);
+}
+
+/* 打字指示器 */
+.message.typing .message-content {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.typing-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--text-tertiary);
+    animation: typingDot 1.4s infinite;
+}
+
+.typing-dot:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.typing-dot:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+@keyframes typingDot {
+
+    0%,
+    60%,
+    100% {
+        opacity: 0.3;
+        transform: scale(0.8);
+    }
+
+    30% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* 空状态 */
+.empty-chat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    padding: var(--space-3xl);
+    text-align: center;
+}
+
+.empty-chat-icon {
+    font-size: 64px;
+    margin-bottom: var(--space-xl);
+    opacity: 0.3;
+}
+
+.empty-chat-title {
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: var(--space-sm);
+}
+
+.empty-chat-description {
+    font-size: 14px;
+    color: var(--text-secondary);
+    max-width: 400px;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+    .chat-inner {
+        padding: var(--space-md);
+    }
+
+    .message {
+        gap: var(--space-md);
+        padding: var(--space-lg) 0;
+    }
+
+    .message-avatar {
+        width: 28px;
+        height: 28px;
+        font-size: 12px;
+    }
+
+    .input-container {
+        padding: var(--space-md);
+    }
+}

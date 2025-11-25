@@ -8,7 +8,7 @@ v0.6.0 Phase 3 - Day 1
 from enhanced_intent import EnhancedToolSelector, ContextEnhancer, ToolCall
 import sys
 import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "backend"))
 
 
 def test_quick_match():

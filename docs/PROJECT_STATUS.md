@@ -140,20 +140,20 @@ Claude 3.5 Sonnet   # 备用模型
 | `dialogue_enhancer.py` | 对话质量增强   | ~280  | ✅    |
 
 ### 工具模块
-| 工具 | 文件                     | 功能           | 状态 |
-| ---- | ------------------------ | -------------- | ---- |
-| 搜索 | `tools/search_tool.py`   | DuckDuckGo搜索 | ✅    |
-| 文件 | `tools/file_tool.py`     | 文件操作       | ✅    |
-| 天气 | `tools/weather_tool.py`  | 天气查询       | ✅    |
-| 系统 | `tools/system_tool.py`   | 系统信息       | ✅    |
-| 提醒 | `tools/reminder_tool.py` | 提醒创建       | ✅    |
-| 视觉 | `vision_tool.py`         | 图片识别       | ✅    |
-| ---- | ------------------------ | -------------- | ---- |
-| 搜索 | `tools/search_tool.py`   | DuckDuckGo搜索 | ✅    |
-| 文件 | `tools/file_tool.py`     | 文件操作       | ✅    |
-| 天气 | `tools/weather_tool.py`  | 天气查询       | ✅    |
-| 系统 | `tools/system_tool.py`   | 系统信息       | ✅    |
-| 提醒 | `tools/reminder_tool.py` | 提醒创建       | ✅    |
+| 工具 | 文件                     | 功能               | 状态 |
+| ---- | ------------------------ | ------------------ | ---- |
+| 搜索 | `tools/search_tool.py`   | DuckDuckGo搜索     | ✅    |
+| 文件 | `tools/file_tool.py`     | 文件操作           | ✅    |
+| 天气 | `tools/weather_tool.py`  | 天气查询           | ✅    |
+| 系统 | `tools/system_tool.py`   | 系统信息           | ✅    |
+| 提醒 | `tools/reminder_tool.py` | 提醒创建           | ✅    |
+| 视觉 | `vision_tool.py`         | 图片识别           | ✅    |
+| ---- | ------------------------ | --------------     | ---- |
+| 搜索 | `tools/search_tool.py`   | DuckDuckGo搜索     | ✅    |
+| 文件 | `tools/file_tool.py`     | 文件操作           | ✅    |
+| 天气 | `tools/weather_tool.py`  | 天气查询           | ✅    |
+| 系统 | `tools/system_tool.py`   | 系统信息           | ✅    |
+| 提醒 | `tools/reminder_tool.py` | 提醒创建/查询/删除 | ✅    |
 
 ### 前端界面
 | 文件                        | 功能             | 行数  | 状态 |

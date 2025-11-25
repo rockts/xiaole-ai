@@ -1,0 +1,18 @@
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Xiaole Transparent Logo">
+  <!-- transparent canvas; glyphs are white so they show on dark bg; we'll invert in light theme via CSS -->
+  <g fill="none" stroke="#ffffff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Headset outer -->
+    <rect x="26" y="22" width="76" height="84" rx="22"/>
+    <rect x="18" y="54" width="12" height="28" rx="6"/>
+    <rect x="98" y="54" width="12" height="28" rx="6"/>
+    <!-- Face container -->
+    <rect x="36" y="34" width="56" height="60" rx="18"/>
+    <!-- Brain stylized -->
+    <path d="M48 56c4-10 28-10 32 0m-28 2c-6 2-10 7-10 13 0 6 6 14 14 14 3 0 6-1 8-3 2 2 5 3 8 3 8 0 14-8 14-14 0-6-4-11-10-13"/>
+    <path d="M64 50v24"/>
+    <!-- Eyes + smile -->
+    <path d="M54 82h0"/>
+    <path d="M74 82h0"/>
+    <path d="M54 94c6 6 14 6 20 0"/>
+  </g>
+</svg>

@@ -42,6 +42,14 @@ class SearchTool(Tool):
                 description="最大返回结果数量，默认5条",
                 required=False,
                 default=5
+            ),
+            ToolParameter(
+                name="timelimit",
+                param_type="string",
+                description="时间限制 (d:一天内, w:一周内, m:一月内, y:一年内)",
+                required=False,
+                default=None,
+                enum=["d", "w", "m", "y"]
             )
         ]
 
@@ -72,12 +80,14 @@ class SearchTool(Tool):
         Args:
             query: 搜索关键词
             max_results: 最大结果数，默认5
+            timelimit: 时间限制 (d/w/m/y)
 
         Returns:
             Dict: 包含搜索结果的字典
         """
         query = kwargs.get("query")
         max_results = kwargs.get("max_results", 5)
+        timelimit = kwargs.get("timelimit")
 
         if not query:
             return {
@@ -85,17 +95,34 @@ class SearchTool(Tool):
                 "error": "搜索关键词不能为空"
             }
 
+        # 自动推断时间限制
+        if not timelimit:
+            import datetime
+            current_year = datetime.datetime.now().year
+            next_year = current_year + 1
+
+            lower_query = query.lower()
+            if any(k in lower_query for k in ["最新", "最近", "news", "latest", "today", "今天"]):
+                timelimit = "w"  # 默认一周内
+                print(f"ℹ️ 自动设置时间限制: {timelimit} (检测到最新/新闻关键词)")
+            elif any(k in lower_query for k in ["本月", "this month"]):
+                timelimit = "m"
+            elif any(k in lower_query for k in ["今年", "this year", str(current_year), str(next_year)]):
+                timelimit = "y"
+
         # === v0.6.0 新增：检查缓存 ===
-        cached_result = self._get_cached_result(query)
+        # 缓存键包含 timelimit
+        cache_key = f"{query}_{timelimit}" if timelimit else query
+        cached_result = self._get_cached_result(cache_key)
         if cached_result:
-            print(f"✅ 使用缓存结果: {query}")
+            print(f"✅ 使用缓存结果: {cache_key}")
             return cached_result
 
         # === v0.6.0 新增：带重试的搜索 ===
         for attempt in range(self.max_retries):
             try:
                 # 使用 DuckDuckGo 搜索
-                results = await self._search_ddg(query, max_results)
+                results = await self._search_ddg(query, max_results, timelimit)
 
                 if not results:
                     # 搜索失败或无结果
@@ -124,7 +151,7 @@ class SearchTool(Tool):
                     }
 
                 # === v0.6.0 新增：缓存结果 ===
-                self._cache_result(query, result)
+                self._cache_result(cache_key, result)
 
                 # === v0.6.0 新增：记录历史 ===
                 self._add_to_history(query, len(results) > 0)
@@ -249,7 +276,8 @@ class SearchTool(Tool):
     async def _search_ddg(
         self,
         query: str,
-        max_results: int = 5
+        max_results: int = 5,
+        timelimit: str = None
     ) -> List[Dict]:
         """
         使用 DuckDuckGo 搜索（带超时控制）
@@ -257,6 +285,7 @@ class SearchTool(Tool):
         Args:
             query: 搜索关键词
             max_results: 最大结果数
+            timelimit: 时间限制
 
         Returns:
             List[Dict]: 搜索结果列表
@@ -269,7 +298,8 @@ class SearchTool(Tool):
                     None,
                     self._do_search,
                     query,
-                    max_results
+                    max_results,
+                    timelimit
                 ),
                 timeout=self.timeout
             )
@@ -281,16 +311,23 @@ class SearchTool(Tool):
             print(f"搜索出错: {e}")
             return []
 
-    def _do_search(self, query: str, max_results: int) -> List[Dict]:
+    def _do_search(
+        self,
+        query: str,
+        max_results: int,
+        timelimit: str = None
+    ) -> List[Dict]:
         """
         执行实际的搜索（同步方法）
 
         v0.6.1: 使用新的ddgs包API,改进搜索稳定性
         v0.6.2: 添加代理支持
+        v0.6.3: 添加时间限制支持
 
         Args:
             query: 搜索关键词
             max_results: 最大结果数
+            timelimit: 时间限制 (d/w/m/y)
 
         Returns:
             List[Dict]: 搜索结果
@@ -307,9 +344,13 @@ class SearchTool(Tool):
 
         # 策略1: 直接搜索
         try:
-            print(f"🔍 尝试搜索: {query}")
+            print(f"🔍 尝试搜索: {query} (timelimit={timelimit})")
             ddgs = DDGS(**ddgs_kwargs)
-            results = list(ddgs.text(query, max_results=max_results))
+            results = list(ddgs.text(
+                query,
+                max_results=max_results,
+                timelimit=timelimit
+            ))
             if results:
                 print(f"✅ 找到 {len(results)} 条结果")
                 return results
@@ -317,7 +358,7 @@ class SearchTool(Tool):
         except Exception as e:
             print(f"⚠️  策略1失败: {str(e)[:100]}")
 
-        # 策略2: 简化查询后重试
+        # 策略2: 简化查询后重试 (不带timelimit，作为fallback)
         time.sleep(1)
         try:
             simplified_query = query.replace(
@@ -325,8 +366,13 @@ class SearchTool(Tool):
             print(f"🔍 尝试简化查询: {simplified_query}")
 
             ddgs = DDGS(**ddgs_kwargs)
+            # 简化查询时，如果之前有timelimit但失败了，这里尝试去掉timelimit或者放宽
+            # 这里选择保留timelimit，如果还是失败，策略3会尝试英文
             results = list(ddgs.text(
-                simplified_query, max_results=max_results))
+                simplified_query,
+                max_results=max_results,
+                timelimit=timelimit
+            ))
             if results:
                 print(f"✅ 简化查询找到 {len(results)} 条结果")
                 return results
@@ -347,7 +393,10 @@ class SearchTool(Tool):
 
                     ddgs = DDGS(**ddgs_kwargs)
                     results = list(ddgs.text(
-                        en_query, max_results=max_results))
+                        en_query,
+                        max_results=max_results,
+                        timelimit=timelimit
+                    ))
                     if results:
                         print(f"✅ 英文查询找到 {len(results)} 条结果")
                         return results
