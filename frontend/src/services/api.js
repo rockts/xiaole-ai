@@ -223,5 +223,14 @@ export default {
             volume: 5,
             audio_format: 'mp3'
         })
+    },
+
+    // 人脸管理
+    getFaces(userId = 'default_user') {
+        return api.get('/api/faces', { params: { user_id: userId } })
+    },
+
+    deleteFace(faceId, userId = 'default_user') {
+        return api.delete(`/api/faces/${faceId}`, { params: { user_id: userId } })
     }
 }

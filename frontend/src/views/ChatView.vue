@@ -348,7 +348,6 @@
       aria-label="回到底部"
     >
       <svg
-        xmlns="http://www.w3.org/2000/svg"
         width="24"
         height="24"
         viewBox="0 0 24 24"
@@ -357,10 +356,9 @@
         stroke-width="2.5"
         stroke-linecap="round"
         stroke-linejoin="round"
-        style="display: block; min-width: 24px; min-height: 24px;"
       >
         <line x1="12" y1="5" x2="12" y2="19"></line>
-        <polyline points="19 12 12 19 5 12"></polyline>
+        <polyline points="6 13 12 19 18 13"></polyline>
       </svg>
     </button>
 
@@ -1667,13 +1665,14 @@ const sendMessage = async () => {
   pendingPreviewUrl.value = null;
 
   // 立即添加用户消息到界面末尾（保持对话顺序）
-  messages.value.push({
+  const tempUserMessage = {
     id: `temp-${Date.now()}`,
     role: "user",
     content: content,
     image_path: currentPreview, // 临时显示本地预览图
     timestamp: new Date().toISOString(),
-  });
+  };
+  messages.value.push(tempUserMessage);
 
   // 设置标志位：需要滚动到底部
   shouldScrollToBottom.value = true;
@@ -1693,6 +1692,10 @@ const sendMessage = async () => {
         });
         return;
       }
+
+      // 关键修复：上传成功后，立即将临时消息的图片路径更新为服务器路径
+      // 这可以释放 Base64 占用的内存，防止页面卡顿
+      tempUserMessage.image_path = imagePath;
     }
 
     // 发送到后端
@@ -2058,7 +2061,6 @@ const feedbackMessage = async (message, type) => {
   height: 100%;
   position: relative;
   background: var(--bg-primary);
-  overflow: hidden;
 }
 /* 欢迎消息 */
 .welcome-message {
@@ -2759,81 +2761,45 @@ const feedbackMessage = async (message, type) => {
 .scroll-to-bottom {
   position: absolute;
   left: 50%;
-  bottom: 120px;
-  width: 42px;
-  height: 42px;
   transform: translateX(-50%);
+  bottom: 120px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
-  /* 默认深色模式样式 */
-  background-color: rgba(30, 30, 30, 0.85);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  border: 1px solid var(--border-medium);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  z-index: 999;
-  transition: all 0.2s ease;
-  backdrop-filter: blur(4px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  z-index: 100;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: fadeIn 0.3s ease;
 }
-
-/* 浅色模式样式覆盖 */
-[data-theme="light"] .scroll-to-bottom {
-  background-color: rgba(255, 255, 255, 0.85);
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
 .scroll-to-bottom svg {
-  width: 24px;
-  height: 24px;
-  display: block;
-  /* 默认深色模式箭头为白色 */
-  stroke: #ffffff !important;
+  opacity: 1;
 }
-
-/* 浅色模式箭头为深色 */
-[data-theme="light"] .scroll-to-bottom svg,
-[data-theme="light"] .scroll-to-bottom svg line,
-[data-theme="light"] .scroll-to-bottom svg polyline {
-  stroke: #1f2937 !important;
-}
-
-.scroll-to-bottom svg line,
-.scroll-to-bottom svg polyline {
-  stroke: #ffffff !important;
-}
-
 .scroll-to-bottom:hover {
-  /* 默认深色模式 Hover */
-  background-color: rgba(0, 0, 0, 0.95);
+  background: var(--brand-primary);
+  color: white;
   transform: translateX(-50%) translateY(-2px);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
-  border-color: rgba(255, 255, 255, 0.3);
-}
-
-/* 浅色模式 Hover */
-[data-theme="light"] .scroll-to-bottom:hover {
-  background-color: #ffffff;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.25);
   border-color: var(--brand-primary);
-  color: var(--brand-primary);
 }
-
-[data-theme="light"] .scroll-to-bottom:hover svg,
-[data-theme="light"] .scroll-to-bottom:hover svg line,
-[data-theme="light"] .scroll-to-bottom:hover svg polyline {
-  stroke: var(--brand-primary) !important;
-}
-
 .scroll-to-bottom:active {
   transform: translateX(-50%) translateY(0);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 @keyframes fadeIn {
   from {
     opacity: 0;
+    transform: translateX(-50%) translateY(10px);
   }
   to {
     opacity: 1;
+    transform: translateX(-50%) translateY(0);
   }
 }
 .image-preview-overlay {

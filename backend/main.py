@@ -1977,6 +1977,74 @@ def delete_document_api(doc_id: int):
         }
 
 
+# ==================== v0.9.0 Phase 1: 人脸管理API ====================
+
+@app.get("/api/faces")
+def get_faces(user_id: str = "default_user"):
+    """获取已注册的人脸列表"""
+    from db_setup import SessionLocal, FaceEncoding
+
+    db = SessionLocal()
+    try:
+        faces = db.query(FaceEncoding).filter(
+            FaceEncoding.user_id == user_id
+        ).order_by(FaceEncoding.created_at.desc()).all()
+
+        return {
+            "success": True,
+            "faces": [
+                {
+                    "id": f.id,
+                    "name": f.name,
+                    "image_path": f.image_path,
+                    "created_at": f.created_at.isoformat() if f.created_at else None
+                }
+                for f in faces
+            ]
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e)
+        }
+    finally:
+        db.close()
+
+
+@app.delete("/api/faces/{face_id}")
+def delete_face(face_id: int, user_id: str = "default_user"):
+    """删除已注册的人脸"""
+    from db_setup import SessionLocal, FaceEncoding
+
+    db = SessionLocal()
+    try:
+        face = db.query(FaceEncoding).filter(
+            FaceEncoding.id == face_id,
+            FaceEncoding.user_id == user_id
+        ).first()
+
+        if not face:
+            return {
+                "success": False,
+                "error": "Face not found"
+            }
+
+        db.delete(face)
+        db.commit()
+
+        return {
+            "success": True,
+            "message": "Face deleted successfully"
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e)
+        }
+    finally:
+        db.close()
+
+
 # ==================== v0.8.1 用户反馈系统 ====================
 
 @app.post("/api/feedback")
