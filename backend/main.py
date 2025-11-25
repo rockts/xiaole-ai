@@ -1,7 +1,8 @@
 from fastapi import (
     FastAPI, WebSocket, WebSocketDisconnect,
-    File, UploadFile, HTTPException
+    File, UploadFile, HTTPException, Depends, status
 )
+from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import Response
@@ -18,6 +19,15 @@ from reminder_manager import get_reminder_manager, get_db_connection  # v0.5.0 �
 from scheduler import get_scheduler  # v0.5.0 定时调度
 from tools.baidu_voice_tool import baidu_voice_tool  # v0.8.0 百度语音识别
 from document_summarizer import DocumentSummarizer  # v0.8.0 Phase 3 文档总结
+from auth import (
+    create_access_token,
+    get_current_user,
+    verify_password,
+    ADMIN_USERNAME,
+    ADMIN_PASSWORD_HASH,
+    ACCESS_TOKEN_EXPIRE_MINUTES
+)
+from datetime import timedelta
 import time
 
 app = FastAPI(
@@ -101,6 +111,11 @@ class FeedbackRequest(BaseModel):
     feedback_type: str  # 'good' or 'bad'
     timestamp: str
     user_id: str = "default_user"
+
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
 
 
 xiaole = XiaoLeAgent()
@@ -336,6 +351,30 @@ async def delete_memory(memory_id: int):
         }
 
 
+@app.post("/token", response_model=Token)
+async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
+    if not verify_password(form_data.password, ADMIN_PASSWORD_HASH):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    # 简单起见，只验证密码，用户名可以是任意的或者必须是admin
+    # 这里我们强制用户名必须匹配
+    if form_data.username != ADMIN_USERNAME:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": form_data.username}, expires_delta=access_token_expires
+    )
+    return {"access_token": access_token, "token_type": "bearer"}
+
+
 # 对话会话管理 API
 @app.post("/chat")
 def chat(
@@ -344,7 +383,8 @@ def chat(
     user_id: str = "default_user",
     response_style: str = "balanced",  # v0.6.0: 响应风格
     image_path: str = None,  # 图片路径（可选）
-    memorize: bool = False  # 是否强制记忆（可选）
+    memorize: bool = False,  # 是否强制记忆（可选）
+    current_user: str = Depends(get_current_user)  # 添加鉴权
 ):
     """
     支持上下文的对话接口
@@ -357,6 +397,9 @@ def chat(
         image_path: 图片路径（可选，用于图片识别）
         memorize: 是否强制记忆图片内容（可选）
     """
+    # 使用认证用户ID覆盖请求中的user_id
+    user_id = current_user
+
     # 如果有图片，先进行图片识别
     if image_path:
         from tools.vision_tool import VisionTool
@@ -1264,7 +1307,10 @@ async def save_schedule(request: dict):
 # ========================================
 
 @app.post("/api/vision/upload")
-async def upload_image(file: UploadFile = File(...)):
+async def upload_image(
+    file: UploadFile = File(...),
+    current_user: str = Depends(get_current_user)
+):
     """
     上传图片文件
 
@@ -1693,7 +1739,8 @@ document_summarizer = DocumentSummarizer(
 async def upload_document(
     file: UploadFile = File(...),
     user_id: str = "default_user",
-    session_id: str = None
+    session_id: str = None,
+    current_user: str = Depends(get_current_user)
 ):
     """
     上传文档并自动总结
@@ -1701,6 +1748,7 @@ async def upload_document(
     支持格式: PDF, DOCX, TXT, MD
     最大大小: 10MB
     """
+    user_id = current_user
     start_time = time.time()
     doc_id = None
 
@@ -1723,7 +1771,13 @@ async def upload_document(
         # 生成唯一文件名
         timestamp = int(time.time())
         safe_filename = f"{timestamp}_{file.filename}"
-        file_path = os.path.join(UPLOADS_DIR, safe_filename)
+
+        # 确保 documents 子目录存在
+        docs_dir = os.path.join(UPLOADS_DIR, "documents")
+        if not os.path.exists(docs_dir):
+            os.makedirs(docs_dir, exist_ok=True)
+
+        file_path = os.path.join(docs_dir, safe_filename)
 
         # 保存文件
         with open(file_path, 'wb') as f:

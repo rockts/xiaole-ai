@@ -18,6 +18,9 @@
 ## [Unreleased] - develop 分支
 
 ### 2025-11-26
+#### feat
+- ✨ 2
+
 - ⚡ voice_call minimal prompt + fast hearing confirm; switch frontend to voice_call style
 
 

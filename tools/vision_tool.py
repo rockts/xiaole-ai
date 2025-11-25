@@ -320,7 +320,9 @@ class VisionTool(Tool):
             # tools/vision_tool.py -> tools/ -> root -> backend -> uploads
 
             project_root = os.path.dirname(current_dir)
-            uploads_dir = os.path.join(project_root, "backend", "uploads")
+            # 修改为 uploads/images 子目录
+            uploads_dir = os.path.join(
+                project_root, "backend", "uploads", "images")
 
             if not os.path.exists(uploads_dir):
                 os.makedirs(uploads_dir, exist_ok=True)
@@ -336,9 +338,9 @@ class VisionTool(Tool):
                 f.write(file_data)
 
             # Return relative path (for frontend access)
-            # Frontend access /uploads/xxx -> Backend mount /uploads
-            # -> backend/uploads/xxx
-            return True, f"/uploads/{safe_filename}"
+            # Frontend access /uploads/images/xxx -> Backend mount /uploads
+            # -> backend/uploads/images/xxx
+            return True, f"/uploads/images/{safe_filename}"
 
         except Exception as e:
             logger.error(f"Failed to save uploaded image: {e}")

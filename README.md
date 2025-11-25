@@ -10,6 +10,7 @@
 
 ### 🎨 前端架构全面升级
 - **Vue 3 + Vite**：现代化前端框架，极速热更新
+- **安全认证**：JWT 登录系统，保护个人隐私 (v0.9.0)
 - **组件化架构**：5个核心组件（TopBar/Sidebar/ChatView/MemoryView/SettingsView）
 - **状态管理**：Pinia统一管理应用状态（chat/memory/settings/tasks）
 - **路由系统**：Vue Router动态路由，支持会话URL跳转

@@ -132,7 +132,14 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from "vue";
+import {
+  ref,
+  computed,
+  watch,
+  onMounted,
+  onBeforeUnmount,
+  nextTick,
+} from "vue";
 import { useChatStore } from "@/stores/chat";
 import VoiceSelector from "./VoiceSelector.vue";
 
@@ -178,15 +185,15 @@ const voiceHistory = computed(() => {
       let timeStr = "00:00";
       if (m.timestamp) {
         const date = new Date(m.timestamp);
-        const hours = date.getHours().toString().padStart(2, '0');
-        const minutes = date.getMinutes().toString().padStart(2, '0');
+        const hours = date.getHours().toString().padStart(2, "0");
+        const minutes = date.getMinutes().toString().padStart(2, "0");
         timeStr = `${hours}:${minutes}`;
       }
-      filtered.unshift({ 
-        id: m.id, 
-        role: m.role, 
+      filtered.unshift({
+        id: m.id,
+        role: m.role,
         content: m.content,
-        time: timeStr
+        time: timeStr,
       });
     }
   }
@@ -236,7 +243,7 @@ const initRecognition = () => {
           interimTranscript += res[0].transcript;
         }
       }
-      
+
       // 实时显示正在说的话
       currentTranscript.value = interimTranscript;
 
@@ -374,9 +381,13 @@ const scrollToBottom = () => {
   }
 };
 
-watch(voiceHistory, () => {
-  nextTick(scrollToBottom);
-}, { deep: true });
+watch(
+  voiceHistory,
+  () => {
+    nextTick(scrollToBottom);
+  },
+  { deep: true }
+);
 
 watch(currentTranscript, () => {
   nextTick(scrollToBottom);
@@ -542,18 +553,28 @@ defineExpose({
   border-radius: 20px;
   position: relative;
   backdrop-filter: blur(10px);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
   animation: bubble-pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 @keyframes bubble-pop {
-  from { opacity: 0; transform: scale(0.9) translateY(10px); }
-  to { opacity: 1; transform: scale(1) translateY(0); }
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
 }
 
 .voice-bubble.user {
   align-self: flex-end;
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.85) 0%, rgba(118, 75, 162, 0.85) 100%);
+  background: linear-gradient(
+    135deg,
+    rgba(102, 126, 234, 0.85) 0%,
+    rgba(118, 75, 162, 0.85) 100%
+  );
   border-bottom-right-radius: 4px;
   color: #fff;
 }
@@ -568,7 +589,7 @@ defineExpose({
 
 .voice-bubble.pending {
   opacity: 0.8;
-  border: 1px dashed rgba(255,255,255,0.3);
+  border: 1px dashed rgba(255, 255, 255, 0.3);
 }
 
 .bubble-text {
@@ -598,7 +619,7 @@ defineExpose({
   background: transparent;
 }
 .voice-history-stream::-webkit-scrollbar-thumb {
-  background: rgba(255,255,255,0.2);
+  background: rgba(255, 255, 255, 0.2);
   border-radius: 2px;
 }
 

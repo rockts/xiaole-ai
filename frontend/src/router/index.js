@@ -1,8 +1,15 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
 
 const router = createRouter({
     history: createWebHistory(),
     routes: [
+        {
+            path: '/login',
+            name: 'Login',
+            component: () => import('@/views/LoginView.vue'),
+            meta: { title: '登录' }
+        },
         {
             path: '/',
             redirect: '/chat'
@@ -78,7 +85,15 @@ const router = createRouter({
 
 router.beforeEach((to, from, next) => {
     document.title = to.meta.title ? `${to.meta.title} - 小乐 AI 管家` : '小乐 AI 管家'
-    next()
+
+    const authStore = useAuthStore()
+    if (to.name !== 'Login' && !authStore.isAuthenticated) {
+        next({ name: 'Login' })
+    } else if (to.name === 'Login' && authStore.isAuthenticated) {
+        next({ name: 'Chat' })
+    } else {
+        next()
+    }
 })
 
 export default router

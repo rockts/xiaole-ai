@@ -22,3 +22,7 @@ pdf2image==1.17.0
 # v0.9.0 Phase 1: 本地人脸识别 (预装依赖)
 face_recognition
 opencv-python-headless
+
+# v0.9.0 Phase 2: 安全认证
+python-jose[cryptography]
+bcrypt

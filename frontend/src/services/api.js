@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { useAuthStore } from '@/stores/auth'
 
 // API基础URL配置
 // 优先使用环境变量，否则使用空字符串（通过vite代理访问）
@@ -19,6 +20,12 @@ const RETRY_DELAY = 1000 // 毫秒
 // 请求拦截器
 api.interceptors.request.use(
     config => {
+        // 注入 Token
+        const authStore = useAuthStore()
+        if (authStore.token) {
+            config.headers.Authorization = `Bearer ${authStore.token}`
+        }
+
         // 初始化重试计数
         config.retryCount = config.retryCount || 0
         return config
@@ -33,6 +40,17 @@ api.interceptors.response.use(
     response => response.data,
     async error => {
         const config = error.config
+
+        // 处理 401 未授权
+        if (error.response && error.response.status === 401) {
+            const authStore = useAuthStore()
+            authStore.logout()
+            // 可以在这里触发重定向，或者由路由守卫处理
+            if (window.location.pathname !== '/login') {
+                window.location.href = '/login'
+            }
+            return Promise.reject(error)
+        }
 
         // 如果没有配置或已达到最大重试次数，直接拒绝
         if (!config || config.retryCount >= MAX_RETRIES) {
@@ -85,7 +103,7 @@ export default {
         const params = new URLSearchParams()
         // 即使是空字符串也要发送 prompt 参数
         params.append('prompt', data.prompt || '')
-        
+
         if (data.session_id) params.append('session_id', data.session_id)
         if (data.user_id) params.append('user_id', data.user_id)
         if (data.response_style) params.append('response_style', data.response_style)

@@ -1,8 +1,11 @@
 <template>
   <div class="app-layout">
-    <SidebarModern ref="sidebarRef" />
+    <SidebarModern v-if="authStore.isAuthenticated" ref="sidebarRef" />
     <div class="main-content">
-      <TopBar @toggle-sidebar="handleToggleSidebar" />
+      <TopBar
+        v-if="authStore.isAuthenticated"
+        @toggle-sidebar="handleToggleSidebar"
+      />
       <div class="content-wrapper">
         <router-view v-slot="{ Component }">
           <transition name="page" mode="out-in">
@@ -11,7 +14,7 @@
         </router-view>
       </div>
     </div>
-    <ReminderNotification />
+    <ReminderNotification v-if="authStore.isAuthenticated" />
   </div>
 </template>
 
@@ -19,9 +22,11 @@
 import SidebarModern from "@/components/layout/SidebarModern.vue";
 import TopBar from "@/components/layout/TopBar.vue";
 import ReminderNotification from "@/components/common/ReminderNotification.vue";
-import { ref, onMounted } from "vue";
+import { ref, onMounted, watch } from "vue";
 import { useWebSocket } from "@/composables/useWebSocket";
+import { useAuthStore } from "@/stores/auth";
 
+const authStore = useAuthStore();
 const sidebarRef = ref(null);
 
 const handleToggleSidebar = () => {
@@ -30,11 +35,24 @@ const handleToggleSidebar = () => {
   }
 };
 
-const { connect } = useWebSocket();
+const { connect, disconnect } = useWebSocket();
 
 onMounted(() => {
-  connect();
+  if (authStore.isAuthenticated) {
+    connect();
+  }
 });
+
+watch(
+  () => authStore.isAuthenticated,
+  (isAuthenticated) => {
+    if (isAuthenticated) {
+      connect();
+    } else {
+      disconnect();
+    }
+  }
+);
 </script>
 
 <style scoped>
