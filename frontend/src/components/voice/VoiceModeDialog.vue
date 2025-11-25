@@ -32,8 +32,16 @@
           <!-- 简洁语音历史面板 -->
           <div class="voice-history" v-if="voiceHistory.length">
             <div class="voice-history-list">
-              <div v-for="m in voiceHistory" :key="m.id" class="vh-item" :class="m.role">
-                <span class="vh-role" v-text="m.role==='user' ? '我' : '小乐'"></span>
+              <div
+                v-for="m in voiceHistory"
+                :key="m.id"
+                class="vh-item"
+                :class="m.role"
+              >
+                <span
+                  class="vh-role"
+                  v-text="m.role === 'user' ? '我' : '小乐'"
+                ></span>
                 <span class="vh-text" v-text="truncate(m.content)"></span>
               </div>
             </div>
@@ -56,7 +64,9 @@
               stroke="currentColor"
               stroke-width="2"
             >
-              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+              <path
+                d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"
+              ></path>
               <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
               <line x1="12" y1="19" x2="12" y2="23"></line>
               <line x1="8" y1="23" x2="16" y2="23"></line>
@@ -139,7 +149,12 @@ const voiceHistory = computed(() => {
   const filtered = [];
   for (let i = src.length - 1; i >= 0 && filtered.length < 20; i--) {
     const m = src[i];
-    if (m.messageType === 'voice' || (m.role === 'assistant' && m.content && m.messageType !== 'voice-session-end')) {
+    if (
+      m.messageType === "voice" ||
+      (m.role === "assistant" &&
+        m.content &&
+        m.messageType !== "voice-session-end")
+    ) {
       filtered.unshift({ id: m.id, role: m.role, content: m.content });
     }
   }
@@ -147,8 +162,8 @@ const voiceHistory = computed(() => {
 });
 
 const truncate = (t) => {
-  if (!t) return '';
-  return t.length > 38 ? t.slice(0, 38) + '…' : t;
+  if (!t) return "";
+  return t.length > 38 ? t.slice(0, 38) + "…" : t;
 };
 
 // 电话模式：不显示状态文本
@@ -186,7 +201,11 @@ const initRecognition = () => {
         }
       }
       if (finalTranscript) {
-        emit("message", { type: "voice", content: finalTranscript, duration: 0 });
+        emit("message", {
+          type: "voice",
+          content: finalTranscript,
+          duration: 0,
+        });
       }
     };
 
@@ -209,7 +228,9 @@ const initRecognition = () => {
     };
     // 语音结束尽快提交一次
     recognition.onspeechend = () => {
-      try { recognition.stop(); } catch (e) {}
+      try {
+        recognition.stop();
+      } catch (e) {}
     };
   }
 };
@@ -352,11 +373,18 @@ onBeforeUnmount(() => {
 
 // 暴露方法和会话时长供父组件调用
 defineExpose({
-  startSpeaking: () => { isSpeaking.value = true; },
-  stopSpeaking: () => { isSpeaking.value = false; },
+  startSpeaking: () => {
+    isSpeaking.value = true;
+  },
+  stopSpeaking: () => {
+    isSpeaking.value = false;
+  },
   getSessionDuration: () => {
     if (!sessionStartTime.value) return 0;
-    return Math.max(0, Math.floor((Date.now() - sessionStartTime.value) / 1000));
+    return Math.max(
+      0,
+      Math.floor((Date.now() - sessionStartTime.value) / 1000)
+    );
   },
 });
 </script>
@@ -432,19 +460,38 @@ defineExpose({
   width: 320px;
   max-height: 160px;
   overflow-y: auto;
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 12px;
   padding: 8px 10px;
   font-size: 13px;
   backdrop-filter: blur(8px);
 }
-.voice-history-list { display: flex; flex-direction: column; gap: 4px; }
-.vh-item { display: flex; gap: 6px; line-height: 1.3; }
-.vh-item.user .vh-role { color: #ffd479; }
-.vh-item.assistant .vh-role { color: #76b6ff; }
-.vh-role { font-weight: 600; }
-.vh-text { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.voice-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.vh-item {
+  display: flex;
+  gap: 6px;
+  line-height: 1.3;
+}
+.vh-item.user .vh-role {
+  color: #ffd479;
+}
+.vh-item.assistant .vh-role {
+  color: #76b6ff;
+}
+.vh-role {
+  font-weight: 600;
+}
+.vh-text {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
 /* 电话模式已移除字幕区域 */
 
@@ -474,7 +521,7 @@ defineExpose({
   border-radius: 50%;
   object-fit: cover;
   background: #fff;
-  box-shadow: inset 0 0 12px rgba(0,0,0,0.3);
+  box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.3);
 }
 
 .neural-glow {
@@ -482,11 +529,17 @@ defineExpose({
   inset: 0;
   border-radius: 50%;
   pointer-events: none;
-  background: radial-gradient(circle at 50% 50%, rgba(102,126,234,0.25), transparent 60%);
+  background: radial-gradient(
+    circle at 50% 50%,
+    rgba(102, 126, 234, 0.25),
+    transparent 60%
+  );
   opacity: 0;
   transition: opacity 0.25s ease;
 }
-.neural-glow.speaking { opacity: 0.9; }
+.neural-glow.speaking {
+  opacity: 0.9;
+}
 
 .voice-status-text {
   font-size: 18px;

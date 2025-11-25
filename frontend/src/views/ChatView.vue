@@ -1147,13 +1147,16 @@ watch(isTyping, (newVal, oldVal) => {
   if (oldVal && !newVal && isVoiceMode.value) {
     // AI 停止打字，且处于语音模式
     const lastMessage = messages.value[messages.value.length - 1];
-    console.log('🔊 语音模式检测到AI回复完成:', lastMessage);
+    console.log("🔊 语音模式检测到AI回复完成:", lastMessage);
     if (
       lastMessage &&
       lastMessage.role === "assistant" &&
       lastMessage.messageType !== "voice-session-end"
     ) {
-      console.log('🔊 准备调用 TTS(无延迟)，内容:', lastMessage.content.substring(0, 50) + '...');
+      console.log(
+        "🔊 准备调用 TTS(无延迟)，内容:",
+        lastMessage.content.substring(0, 50) + "..."
+      );
       speakAndResumeMic(lastMessage.content);
     }
   }
@@ -1161,10 +1164,10 @@ watch(isTyping, (newVal, oldVal) => {
 
 // 音色ID映射到百度TTS的person参数
 const voiceIdToPersonMap = {
-  'vale': 0,      // 度小宇（男）
-  'juniper': 1,  // 度小美（女）
-  'arbor': 3,    // 度逍遥（男）
-  'sage': 4,     // 度丫丫（女）
+  vale: 0, // 度小宇（男）
+  juniper: 1, // 度小美（女）
+  arbor: 3, // 度逍遥（男）
+  sage: 4, // 度丫丫（女）
 };
 
 function getPersonFromVoiceId(voiceId) {
@@ -1175,12 +1178,12 @@ function getPersonFromVoiceId(voiceId) {
 function cleanTtsText(raw) {
   if (!raw) return "";
   let txt = raw
-    .replace(/\*\*(.*?)\*\*/g, '$1')               // 去除 **bold**
-    .replace(/[_`~>*#-]/g, ' ')                       // 去除常见 Markdown 标记
-    .replace(/[\p{Extended_Pictographic}]/gu, '')     // 去除 emoji
-    .replace(/（[^）]{0,20}）/g, '')                   // 删除短括号提示
-    .replace(/\([^\)]{0,20}\)/g, '')                // 删除 () 内短提示
-    .replace(/\s+/g, ' ')                             // 压缩空白
+    .replace(/\*\*(.*?)\*\*/g, "$1") // 去除 **bold**
+    .replace(/[_`~>*#-]/g, " ") // 去除常见 Markdown 标记
+    .replace(/[\p{Extended_Pictographic}]/gu, "") // 去除 emoji
+    .replace(/（[^）]{0,20}）/g, "") // 删除短括号提示
+    .replace(/\([^\)]{0,20}\)/g, "") // 删除 () 内短提示
+    .replace(/\s+/g, " ") // 压缩空白
     .trim();
   // 如果太短，保持原样；否则返回清洗后
   return txt.length ? txt : raw;
@@ -1189,39 +1192,53 @@ function cleanTtsText(raw) {
 // 语音模式下AI回复自动朗读，朗读结束后自动恢复麦克风监听
 // 语音模式下AI回复自动朗读（Baidu TTS），朗读结束后自动恢复麦克风监听
 async function speakAndResumeMic(text) {
-  console.log('🔊 speakAndResumeMic 被调用，文本长度:', text?.length);
+  console.log("🔊 speakAndResumeMic 被调用，文本长度:", text?.length);
   stopSpeech();
   const voiceId = localStorage.getItem("selectedVoice") || "juniper";
   const person = getPersonFromVoiceId(voiceId);
-  console.log('🔊 使用音色ID:', voiceId, '-> person:', person);
+  console.log("🔊 使用音色ID:", voiceId, "-> person:", person);
   const clean = cleanTtsText(text);
   try {
-    console.log('🔊 开始请求 TTS API...');
+    console.log("🔊 开始请求 TTS API...");
     const resp = await fetch("/api/voice/synthesize", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: clean, person, speed: 7, pitch: 4, volume: 3, audio_format: "mp3" }),
+      body: JSON.stringify({
+        text: clean,
+        person,
+        speed: 7,
+        pitch: 4,
+        volume: 3,
+        audio_format: "mp3",
+      }),
     });
-    console.log('🔊 TTS API 响应状态:', resp.status);
+    console.log("🔊 TTS API 响应状态:", resp.status);
     if (!resp.ok) {
       const errorText = await resp.text();
-      console.error('🔊 TTS API 错误响应(HTTP层):', errorText);
+      console.error("🔊 TTS API 错误响应(HTTP层):", errorText);
       throw new Error("TTS 请求失败: " + resp.status);
     }
     const data = await resp.json();
     const base64Audio = data.audio_base64 || data.audio; // 兼容旧字段
     const mimeType = data.mime || data.mime_type;
-    console.log('🔊 TTS 响应数据解析:', { success: data.success, hasAudio: !!base64Audio, mimeType, len: base64Audio?.length, raw: data });
-    if (!data.success) throw new Error(data.error || '语音合成失败');
+    console.log("🔊 TTS 响应数据解析:", {
+      success: data.success,
+      hasAudio: !!base64Audio,
+      mimeType,
+      len: base64Audio?.length,
+      raw: data,
+    });
+    if (!data.success) throw new Error(data.error || "语音合成失败");
     if (!base64Audio || !mimeType) throw new Error("TTS 响应无音频");
     const audio = new Audio(`data:${mimeType};base64,${base64Audio}`);
     audio.onplay = () => {
-      console.log('🔊 音频开始播放');
-      speakingMessageId.value = messages.value[messages.value.length - 1]?.id || null;
+      console.log("🔊 音频开始播放");
+      speakingMessageId.value =
+        messages.value[messages.value.length - 1]?.id || null;
       voiceModeDialogRef.value?.startSpeaking();
     };
     audio.onended = () => {
-      console.log('🔊 音频播放完成');
+      console.log("🔊 音频播放完成");
       speakingMessageId.value = null;
       voiceModeDialogRef.value?.stopSpeaking();
       if (isVoiceMode.value && recognition.value && !isRecording.value) {
@@ -1233,18 +1250,18 @@ async function speakAndResumeMic(text) {
       }
     };
     audio.onerror = (e) => {
-      console.error('🔊 音频播放错误:', e);
+      console.error("🔊 音频播放错误:", e);
       speakingMessageId.value = null;
       voiceModeDialogRef.value?.stopSpeaking();
     };
     currentSpeech = audio;
-    console.log('🔊 准备播放音频...');
+    console.log("🔊 准备播放音频...");
     await audio.play();
-    console.log('🔊 音频播放命令已发送');
+    console.log("🔊 音频播放命令已发送");
   } catch (err) {
     speakingMessageId.value = null;
-    console.error('🔊 TTS 播放失败:', err);
-    alert('语音播放失败: ' + err.message);
+    console.error("🔊 TTS 播放失败:", err);
+    alert("语音播放失败: " + err.message);
   }
 }
 
@@ -1403,13 +1420,20 @@ const toggleSpeak = async (message) => {
     const resp = await fetch("/api/voice/synthesize", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: clean, person, speed: 7, pitch: 4, volume: 3, audio_format: "mp3" }),
+      body: JSON.stringify({
+        text: clean,
+        person,
+        speed: 7,
+        pitch: 4,
+        volume: 3,
+        audio_format: "mp3",
+      }),
     });
     if (!resp.ok) throw new Error("TTS 请求失败");
     const data = await resp.json();
     const base64Audio = data.audio_base64 || data.audio;
     const mimeType = data.mime || data.mime_type;
-    if (!data.success) throw new Error(data.error || '语音合成失败');
+    if (!data.success) throw new Error(data.error || "语音合成失败");
     if (!base64Audio || !mimeType) throw new Error("TTS 响应无音频");
     const audio = new Audio(`data:${mimeType};base64,${base64Audio}`);
     audio.onplay = () => {
@@ -2244,7 +2268,9 @@ const onVoiceModeVisibleChange = (val) => {
 
 // 处理语音消息
 const handleVoiceMessage = async (data) => {
-  if (!data.content || isTyping.value) return;
+  // 移除 isTyping 限制，允许用户在上一条AI回复播放或打字时继续说话
+  if (!data.content) return;
+  console.log('🎤 接收到语音消息:', data.content, 'isTyping=', isTyping.value);
 
   // 添加用户语音消息
   messages.value.push({
@@ -2260,7 +2286,10 @@ const handleVoiceMessage = async (data) => {
 
   try {
     // 发送到后端（语音：即时显示 + voice_call 极简风格）
-    await chatStore.sendMessage(data.content, null, null, { instant: true, responseStyle: 'voice_call' });
+    await chatStore.sendMessage(data.content, null, null, {
+      instant: true,
+      responseStyle: "voice_call",
+    });
   } catch (error) {
     console.error("发送语音消息失败:", error);
   }
@@ -2268,7 +2297,7 @@ const handleVoiceMessage = async (data) => {
 
 // 处理语音音色切换
 const handleVoiceChange = (voice) => {
-  console.log("选择语音:", voice, '-> person:', getPersonFromVoiceId(voice));
+  console.log("选择语音:", voice, "-> person:", getPersonFromVoiceId(voice));
   // 保存到本地存储（保存音色ID，使用时转换为person数字）
   localStorage.setItem("selectedVoice", voice);
 };
@@ -2318,11 +2347,11 @@ onMounted(() => {
     if (!isVoiceMode.value) return;
     const text = e.detail?.text;
     if (text) {
-      console.log('🔊 捕获 voiceAssistantReply 事件，触发朗读');
+      console.log("🔊 捕获 voiceAssistantReply 事件，触发朗读");
       speakAndResumeMic(text);
     }
   };
-  window.addEventListener('voiceAssistantReply', voiceAssistantHandler);
+  window.addEventListener("voiceAssistantReply", voiceAssistantHandler);
   chatStore.__voiceAssistantHandler = voiceAssistantHandler;
   // 初始化语音识别
   if ("webkitSpeechRecognition" in window || "SpeechRecognition" in window) {
@@ -2449,7 +2478,10 @@ onBeforeUnmount(() => {
   }
   document.removeEventListener("selectionchange", handleSelection);
   if (chatStore.__voiceAssistantHandler) {
-    window.removeEventListener('voiceAssistantReply', chatStore.__voiceAssistantHandler);
+    window.removeEventListener(
+      "voiceAssistantReply",
+      chatStore.__voiceAssistantHandler
+    );
     delete chatStore.__voiceAssistantHandler;
   }
 });
