@@ -65,6 +65,11 @@
                   </div>
                 </div>
 
+                // ...existing code... const previewMessages = ref([]); const
+                summaryText = ref(""); const answerText = ref(""); const
+                isLongText = (text) => { return text && text.length > 200; };
+                const renderMarkdown = (text) => { if (!text) return ""; return
+                marked.parse(text); }; // ...existing code...
                 <!-- AI 消息 -->
                 <div v-else class="ai-message">
                   <div class="ai-avatar">
@@ -85,6 +90,7 @@
                     <div
                       v-if="msg.content"
                       class="message-text"
+                      :class="{ 'long-text': isLongText(msg.content) }"
                       v-html="renderMarkdown(msg.content)"
                     ></div>
                     <div v-if="msg.image" class="message-image-wrapper">
@@ -196,6 +202,10 @@ const previewCardRef = ref(null);
 const previewMessages = ref([]);
 const summaryText = ref("");
 const answerText = ref("");
+
+const isLongText = (text) => {
+  return text && text.length > 200;
+};
 
 const renderMarkdown = (text) => {
   if (!text) return "";
@@ -646,5 +656,13 @@ onMounted(async () => {
   to {
     opacity: 1;
   }
+}
+
+.message-text.long-text {
+  column-count: 2;
+  column-gap: 24px;
+  text-align: justify;
+  border-left: 2px solid rgba(255, 255, 255, 0.1);
+  padding-left: 16px;
 }
 </style>

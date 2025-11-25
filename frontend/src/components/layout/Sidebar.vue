@@ -124,7 +124,9 @@
             </div>
             <button
               class="session-actions"
-              @click.stop="showSessionMenu(session.id || session.session_id)"
+              @click.stop="
+                showSessionMenu(session.id || session.session_id, $event)
+              "
             >
               <svg
                 width="16"
@@ -139,26 +141,6 @@
                 <circle cx="12" cy="19" r="1" />
               </svg>
             </button>
-
-            <!-- 会话项菜单 -->
-            <div
-              v-if="activeMenuSessionId === (session.id || session.session_id)"
-              class="session-menu"
-              @click.stop
-            >
-              <button
-                class="menu-item"
-                @click="renameSession(session.id || session.session_id)"
-              >
-                重命名
-              </button>
-              <button
-                class="menu-item danger"
-                @click="confirmDelete(session.id || session.session_id)"
-              >
-                删除
-              </button>
-            </div>
           </div>
         </div>
       </div>
@@ -189,6 +171,29 @@
       :class="{ active: isMobileOpen }"
       @click="closeMobile"
     ></div>
+
+    <!-- 全局会话菜单 -->
+    <teleport to="body">
+      <div
+        v-if="activeMenuSessionId"
+        class="session-menu-popover"
+        :style="{
+          top: `${menuPosition.top}px`,
+          left: `${menuPosition.left}px`,
+        }"
+        @click.stop
+      >
+        <button class="menu-item" @click="renameSession(activeMenuSessionId)">
+          重命名
+        </button>
+        <button
+          class="menu-item danger"
+          @click="confirmDelete(activeMenuSessionId)"
+        >
+          删除
+        </button>
+      </div>
+    </teleport>
   </div>
 </template>
 
@@ -270,10 +275,33 @@ const loadSession = (sessionId) => {
 };
 
 const activeMenuSessionId = ref(null);
+const menuPosition = ref({ top: 0, left: 0 });
 
-const showSessionMenu = (sessionId) => {
-  activeMenuSessionId.value =
-    activeMenuSessionId.value === sessionId ? null : sessionId;
+const showSessionMenu = (sessionId, event) => {
+  if (activeMenuSessionId.value === sessionId) {
+    activeMenuSessionId.value = null;
+    return;
+  }
+
+  activeMenuSessionId.value = sessionId;
+
+  if (event && event.currentTarget) {
+    const button = event.currentTarget;
+    const rect = button.getBoundingClientRect();
+    const menuHeight = 90;
+    const menuWidth = 120;
+    const gap = 4;
+
+    let top = rect.bottom + gap;
+    let left = rect.right - menuWidth;
+
+    // 智能翻转：如果底部空间不足，则向上显示
+    if (top + menuHeight > window.innerHeight) {
+      top = rect.top - menuHeight - gap;
+    }
+
+    menuPosition.value = { top, left };
+  }
 };
 
 const renameSession = async (id) => {
@@ -437,35 +465,47 @@ onUnmounted(() => {
   position: relative;
 }
 
-.session-menu {
-  position: absolute;
-  top: 32px;
-  right: 8px;
+.session-menu-popover {
+  position: fixed;
   background: var(--bg-primary);
   border: 1px solid var(--border-light);
   border-radius: 8px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
   padding: 6px;
-  z-index: 20;
+  z-index: 9999;
   min-width: 120px;
+  animation: fadeIn 0.1s ease-out;
 }
 
-.session-menu .menu-item {
+.session-menu-popover .menu-item {
   width: 100%;
   text-align: left;
-  padding: 8px 10px;
+  padding: 8px 12px;
   border: none;
   background: transparent;
   color: var(--text-primary);
   border-radius: 6px;
   cursor: pointer;
+  font-size: 14px;
+  transition: background 0.2s;
 }
 
-.session-menu .menu-item:hover {
+.session-menu-popover .menu-item:hover {
   background: var(--bg-hover);
 }
 
-.session-menu .menu-item.danger {
+.session-menu-popover .menu-item.danger {
   color: var(--error);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 </style>

@@ -123,7 +123,9 @@ export const useChatStore = defineStore('chat', () => {
                 }
 
                 let i = 0
-                const step = Math.max(1, Math.round(full.length / 60)) // 约1秒60步
+                // 降低打字机效果的频率以减轻渲染压力
+                // 从 16ms (60fps) 调整为 50ms (20fps)
+                const step = Math.max(1, Math.round(full.length / 20)) // 约1秒20步
                 typingTimer.value = setInterval(() => {
                     if (i >= full.length) {
                         clearInterval(typingTimer.value)
@@ -135,7 +137,7 @@ export const useChatStore = defineStore('chat', () => {
                     }
                     messages.value[msgIndex].content = full.slice(0, i)
                     i += step
-                }, 16) // ~60fps
+                }, 50) // ~20fps
             }
 
             await loadSessions()

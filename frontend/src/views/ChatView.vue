@@ -1913,8 +1913,13 @@ onMounted(() => {
     chatContainer.value.addEventListener("scroll", onScroll, { passive: true });
 
     // 使用 MutationObserver 监听 DOM 变化，自动添加代码块头部
+    // 使用防抖防止频繁触发导致性能问题
+    let debounceTimer = null;
     observer.value = new MutationObserver(() => {
-      enhanceRenderedContent();
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        enhanceRenderedContent();
+      }, 200);
     });
     observer.value.observe(chatContainer.value, {
       childList: true,
