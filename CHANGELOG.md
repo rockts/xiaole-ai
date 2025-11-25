@@ -17,6 +17,10 @@
 
 ## [Unreleased] - develop 分支
 
+### 2025-11-26
+- ⚡ voice_call minimal prompt + fast hearing confirm; switch frontend to voice_call style
+
+
 ### 2025-11-25
 #### feat
 - ✨ 修复语音功能

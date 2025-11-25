@@ -69,61 +69,140 @@
               </div>
             </template>
             <template v-else>
-              <div
-                class="md-content"
-                :class="{ typing: message.status === 'typing' }"
-                v-html="renderMarkdown(getDisplayContent(message))"
-              ></div>
-
-              <!-- 相关阅读卡片 -->
-              <div v-if="hasRelatedReadings(message)" class="related-reading">
-                <div class="related-title">相关阅读</div>
-                <div class="related-cards">
-                  <a
-                    v-for="(item, i) in getRelatedReadings(message).slice(0, 3)"
-                    :key="i"
-                    :href="item.href"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="related-card"
-                  >
-                    <div class="card-image-area">
-                      <img
-                        :src="`https://www.google.com/s2/favicons?domain=${getDomain(
-                          item.href
-                        )}&sz=128`"
-                        class="card-cover-icon"
-                        @error="handleFaviconError"
+              <!-- 语音会话结束标签渲染 -->
+              <template v-if="message.messageType === 'voice-session-end'">
+                <div class="voice-session-tag">
+                  <div class="tag-left">
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="currentColor"
+                    >
+                      <line
+                        x1="6"
+                        y1="8"
+                        x2="6"
+                        y2="16"
+                        stroke="currentColor"
+                        stroke-width="2"
                       />
+                      <line
+                        x1="10"
+                        y1="6"
+                        x2="10"
+                        y2="18"
+                        stroke="currentColor"
+                        stroke-width="2"
+                      />
+                      <line
+                        x1="14"
+                        y1="6"
+                        x2="14"
+                        y2="18"
+                        stroke="currentColor"
+                        stroke-width="2"
+                      />
+                      <line
+                        x1="18"
+                        y1="8"
+                        x2="18"
+                        y2="16"
+                        stroke="currentColor"
+                        stroke-width="2"
+                      />
+                    </svg>
+                  </div>
+                  <div class="tag-main">
+                    <div class="tag-title">语音聊天已结束</div>
+                    <div class="tag-sub">
+                      {{ formatDuration(message.duration || 0) }}
                     </div>
-                    <div class="card-content">
-                      <div class="card-source">
+                  </div>
+                </div>
+              </template>
+              <template v-else>
+                <div
+                  class="md-content"
+                  :class="{ typing: message.status === 'typing' }"
+                  v-html="renderMarkdown(getDisplayContent(message))"
+                ></div>
+
+                <!-- 相关阅读卡片 -->
+                <div v-if="hasRelatedReadings(message)" class="related-reading">
+                  <div class="related-title">相关阅读</div>
+                  <div class="related-cards">
+                    <a
+                      v-for="(item, i) in getRelatedReadings(message).slice(
+                        0,
+                        3
+                      )"
+                      :key="i"
+                      :href="item.href"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="related-card"
+                    >
+                      <div class="card-image-area">
                         <img
                           :src="`https://www.google.com/s2/favicons?domain=${getDomain(
                             item.href
-                          )}&sz=32`"
-                          class="favicon"
+                          )}&sz=128`"
+                          class="card-cover-icon"
                           @error="handleFaviconError"
                         />
-                        <span class="domain-text">{{
-                          getDomain(item.href)
-                        }}</span>
                       </div>
-                      <div class="card-title" :title="item.title">
-                        {{ item.title }}
+                      <div class="card-content">
+                        <div class="card-source">
+                          <img
+                            :src="`https://www.google.com/s2/favicons?domain=${getDomain(
+                              item.href
+                            )}&sz=32`"
+                            class="favicon"
+                            @error="handleFaviconError"
+                          />
+                          <span class="domain-text">{{
+                            getDomain(item.href)
+                          }}</span>
+                        </div>
+                        <div class="card-title" :title="item.title">
+                          {{ item.title }}
+                        </div>
                       </div>
-                    </div>
-                  </a>
+                    </a>
+                  </div>
                 </div>
-              </div>
+              </template>
             </template>
           </template>
           <template v-else>
-            <div class="user-bubble" v-if="editingMessageId !== message.id">
+            <div
+              class="user-bubble"
+              :class="{ 'voice-message': message.messageType === 'voice' }"
+              v-if="editingMessageId !== message.id"
+            >
               <div
                 class="md-content"
                 v-html="renderMarkdown(message.content)"
               ></div>
+
+              <!-- 语音消息额外信息：麦克风图标 + 时长 -->
+              <div v-if="message.messageType === 'voice'" class="voice-meta">
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                >
+                  <path
+                    d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"
+                  ></path>
+                  <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                </svg>
+                <span class="voice-duration">{{
+                  formatDuration(message.duration || 0)
+                }}</span>
+              </div>
             </div>
             <!-- 编辑模式 -->
             <div v-else class="edit-mode-container">
@@ -155,7 +234,7 @@
             "
           >
             <button
-              v-if="message.role === 'user'"
+              v-if="message.role === 'user' && message.messageType !== 'voice'"
               class="toolbar-icon"
               @click.stop="editMessage(message)"
               title="编辑"
@@ -291,7 +370,11 @@
               </svg>
             </button>
             <button
-              v-if="message.role === 'assistant'"
+              v-if="
+                message.role === 'assistant' &&
+                message.messageType !== 'voice-session-end' &&
+                message.noRegen !== true
+              "
               class="toolbar-icon"
               @click.stop="regenerateMessage(message)"
               title="重新生成"
@@ -801,6 +884,16 @@
       :share-url="shareDialogUrl"
       @close="showShareDialog = false"
     />
+
+    <!-- 语音模式对话框 -->
+    <VoiceModeDialog
+      ref="voiceModeDialogRef"
+      :visible="showVoiceMode"
+      @update:visible="onVoiceModeVisibleChange"
+      @message="handleVoiceMessage"
+      @voice-change="handleVoiceChange"
+      @session-end="handleVoiceSessionEnd"
+    />
   </div>
 </template>
 
@@ -822,6 +915,7 @@ import hljs from "highlight.js";
 import "katex/dist/katex.min.css";
 
 import ShareDialog from "@/components/common/ShareDialog.vue";
+import VoiceModeDialog from "@/components/voice/VoiceModeDialog.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -834,6 +928,7 @@ const isEmptyChat = computed(
 const messageInput = ref(null);
 const chatContainer = ref(null);
 const fileInput = ref(null);
+const voiceModeDialogRef = ref(null); // VoiceMode 对话框引用
 const isRecording = ref(false);
 const isVoiceMode = ref(false);
 const recognition = ref(null); // 语音识别实例
@@ -863,6 +958,9 @@ const pendingPreviewUrl = ref(null);
 const showShareDialog = ref(false);
 const shareDialogUrl = ref("");
 const shareDialogTitle = ref("分享对话");
+
+// 语音模式状态
+const showVoiceMode = ref(false);
 
 // 引用功能状态
 const quoteText = ref("");
@@ -1049,14 +1147,106 @@ watch(isTyping, (newVal, oldVal) => {
   if (oldVal && !newVal && isVoiceMode.value) {
     // AI 停止打字，且处于语音模式
     const lastMessage = messages.value[messages.value.length - 1];
-    if (lastMessage && lastMessage.role === "assistant") {
-      // 稍微延迟一点，确保内容渲染完成
-      setTimeout(() => {
-        toggleSpeak(lastMessage);
-      }, 500);
+    console.log('🔊 语音模式检测到AI回复完成:', lastMessage);
+    if (
+      lastMessage &&
+      lastMessage.role === "assistant" &&
+      lastMessage.messageType !== "voice-session-end"
+    ) {
+      console.log('🔊 准备调用 TTS(无延迟)，内容:', lastMessage.content.substring(0, 50) + '...');
+      speakAndResumeMic(lastMessage.content);
     }
   }
 });
+
+// 音色ID映射到百度TTS的person参数
+const voiceIdToPersonMap = {
+  'vale': 0,      // 度小宇（男）
+  'juniper': 1,  // 度小美（女）
+  'arbor': 3,    // 度逍遥（男）
+  'sage': 4,     // 度丫丫（女）
+};
+
+function getPersonFromVoiceId(voiceId) {
+  return voiceIdToPersonMap[voiceId] || 0;
+}
+
+// 清洗文本：去除表情、括号内情绪提示、Markdown强调、过多空白
+function cleanTtsText(raw) {
+  if (!raw) return "";
+  let txt = raw
+    .replace(/\*\*(.*?)\*\*/g, '$1')               // 去除 **bold**
+    .replace(/[_`~>*#-]/g, ' ')                       // 去除常见 Markdown 标记
+    .replace(/[\p{Extended_Pictographic}]/gu, '')     // 去除 emoji
+    .replace(/（[^）]{0,20}）/g, '')                   // 删除短括号提示
+    .replace(/\([^\)]{0,20}\)/g, '')                // 删除 () 内短提示
+    .replace(/\s+/g, ' ')                             // 压缩空白
+    .trim();
+  // 如果太短，保持原样；否则返回清洗后
+  return txt.length ? txt : raw;
+}
+
+// 语音模式下AI回复自动朗读，朗读结束后自动恢复麦克风监听
+// 语音模式下AI回复自动朗读（Baidu TTS），朗读结束后自动恢复麦克风监听
+async function speakAndResumeMic(text) {
+  console.log('🔊 speakAndResumeMic 被调用，文本长度:', text?.length);
+  stopSpeech();
+  const voiceId = localStorage.getItem("selectedVoice") || "juniper";
+  const person = getPersonFromVoiceId(voiceId);
+  console.log('🔊 使用音色ID:', voiceId, '-> person:', person);
+  const clean = cleanTtsText(text);
+  try {
+    console.log('🔊 开始请求 TTS API...');
+    const resp = await fetch("/api/voice/synthesize", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: clean, person, speed: 6, pitch: 5, volume: 3, audio_format: "mp3" }),
+    });
+    console.log('🔊 TTS API 响应状态:', resp.status);
+    if (!resp.ok) {
+      const errorText = await resp.text();
+      console.error('🔊 TTS API 错误响应(HTTP层):', errorText);
+      throw new Error("TTS 请求失败: " + resp.status);
+    }
+    const data = await resp.json();
+    const base64Audio = data.audio_base64 || data.audio; // 兼容旧字段
+    const mimeType = data.mime || data.mime_type;
+    console.log('🔊 TTS 响应数据解析:', { success: data.success, hasAudio: !!base64Audio, mimeType, len: base64Audio?.length, raw: data });
+    if (!data.success) throw new Error(data.error || '语音合成失败');
+    if (!base64Audio || !mimeType) throw new Error("TTS 响应无音频");
+    const audio = new Audio(`data:${mimeType};base64,${base64Audio}`);
+    audio.onplay = () => {
+      console.log('🔊 音频开始播放');
+      speakingMessageId.value = messages.value[messages.value.length - 1]?.id || null;
+      voiceModeDialogRef.value?.startSpeaking();
+    };
+    audio.onended = () => {
+      console.log('🔊 音频播放完成');
+      speakingMessageId.value = null;
+      voiceModeDialogRef.value?.stopSpeaking();
+      if (isVoiceMode.value && recognition.value && !isRecording.value) {
+        try {
+          recognition.value.start();
+          isRecording.value = true;
+          startVisualizer();
+        } catch (e) {}
+      }
+    };
+    audio.onerror = (e) => {
+      console.error('🔊 音频播放错误:', e);
+      speakingMessageId.value = null;
+      voiceModeDialogRef.value?.stopSpeaking();
+    };
+    currentSpeech = audio;
+    console.log('🔊 准备播放音频...');
+    await audio.play();
+    console.log('🔊 音频播放命令已发送');
+  } catch (err) {
+    speakingMessageId.value = null;
+    console.error('🔊 TTS 播放失败:', err);
+    alert('语音播放失败: ' + err.message);
+  }
+}
 
 const renderMarkdown = (content) => {
   if (!content) return "";
@@ -1124,6 +1314,8 @@ const copyMessage = async (message) => {
 const editMessage = (message) => {
   // 编辑用户消息：将消息内容填充到输入框
   if (message?.role !== "user") return;
+  // 语音消息不允许编辑
+  if (message?.messageType === "voice") return;
   editingMessageId.value = message.id;
   editingContent.value = message.content;
 
@@ -1197,55 +1389,62 @@ const isSpeaking = (messageId) => {
   return speakingMessageId.value === messageId;
 };
 
-const toggleSpeak = (message) => {
+const toggleSpeak = async (message) => {
   if (!message?.content) return;
-
-  // 如果正在朗读当前消息，则停止
   if (isSpeaking(message.id)) {
     stopSpeech();
     return;
   }
-
-  // 停止之前的朗读
   stopSpeech();
-
-  // 开始新的朗读
   try {
-    const utterance = new SpeechSynthesisUtterance(message.content);
-    utterance.lang = "zh-CN";
-    utterance.rate = 1.0;
-    utterance.pitch = 1.0;
-    utterance.volume = 1.0;
-
-    utterance.onstart = () => {
+    const voiceId = localStorage.getItem("selectedVoice") || "juniper";
+    const person = getPersonFromVoiceId(voiceId);
+    const clean = cleanTtsText(message.content);
+    const resp = await fetch("/api/voice/synthesize", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: clean, person, speed: 6, pitch: 5, volume: 3, audio_format: "mp3" }),
+    });
+    if (!resp.ok) throw new Error("TTS 请求失败");
+    const data = await resp.json();
+    const base64Audio = data.audio_base64 || data.audio;
+    const mimeType = data.mime || data.mime_type;
+    if (!data.success) throw new Error(data.error || '语音合成失败');
+    if (!base64Audio || !mimeType) throw new Error("TTS 响应无音频");
+    const audio = new Audio(`data:${mimeType};base64,${base64Audio}`);
+    audio.onplay = () => {
       speakingMessageId.value = message.id;
+      voiceModeDialogRef.value?.startSpeaking();
     };
-
-    utterance.onend = () => {
+    audio.onended = () => {
       speakingMessageId.value = null;
       currentSpeech = null;
-      // 语音模式下，朗读结束后自动开始录音
+      voiceModeDialogRef.value?.stopSpeaking();
       if (isVoiceMode.value) {
         handleVoiceInput();
       }
     };
-
-    utterance.onerror = () => {
+    audio.onerror = () => {
       speakingMessageId.value = null;
       currentSpeech = null;
+      voiceModeDialogRef.value?.stopSpeaking();
     };
-
-    currentSpeech = utterance;
-    window.speechSynthesis.speak(utterance);
+    currentSpeech = audio;
+    audio.play();
   } catch (error) {
-    console.error("朗读失败:", error);
+    console.error("TTS朗读失败:", error);
     speakingMessageId.value = null;
   }
 };
 
 const stopSpeech = () => {
   if (currentSpeech) {
-    window.speechSynthesis.cancel();
+    try {
+      if (typeof currentSpeech.pause === "function") {
+        currentSpeech.pause();
+        currentSpeech.currentTime = 0;
+      }
+    } catch (e) {}
     speakingMessageId.value = null;
     currentSpeech = null;
   }
@@ -1340,6 +1539,15 @@ const formatImagePath = (path) => {
     return "/" + path;
   }
   return path;
+};
+
+// 将秒格式化为 mm:ss 显示在语音消息上
+const formatDuration = (seconds) => {
+  const mins = Math.floor((seconds || 0) / 60);
+  const secs = Math.floor((seconds || 0) % 60);
+  return `${mins.toString().padStart(2, "0")}:${secs
+    .toString()
+    .padStart(2, "0")}`;
 };
 
 const scrollToTop = () => {
@@ -2019,13 +2227,84 @@ const handleVoiceInput = () => {
 };
 
 const toggleVoiceMode = () => {
-  isVoiceMode.value = !isVoiceMode.value;
-  // 如果开启语音模式，自动开始录音
-  if (isVoiceMode.value && !isRecording.value) {
-    handleVoiceInput();
-  } else if (!isVoiceMode.value && isRecording.value) {
-    // 关闭语音模式时停止录音
-    handleVoiceInput();
+  const next = !showVoiceMode.value;
+  onVoiceModeVisibleChange(next);
+};
+
+let totalVoiceSessionDuration = 0;
+let hasVoiceSessionEndTag = false;
+const onVoiceModeVisibleChange = (val) => {
+  showVoiceMode.value = val;
+  isVoiceMode.value = !!val;
+  if (val) {
+    // 进入语音模式，重置结束标签标志
+    hasVoiceSessionEndTag = false;
+  }
+};
+
+// 处理语音消息
+const handleVoiceMessage = async (data) => {
+  if (!data.content || isTyping.value) return;
+
+  // 添加用户语音消息
+  messages.value.push({
+    id: `temp-voice-${Date.now()}`,
+    role: "user",
+    content: data.content,
+    messageType: "voice",
+    duration: data.duration || 0,
+    timestamp: new Date().toISOString(),
+  });
+
+  shouldScrollToBottom.value = true;
+
+  try {
+    // 发送到后端（语音：即时显示 + voice_call 极简风格）
+    await chatStore.sendMessage(data.content, null, null, { instant: true, responseStyle: 'voice_call' });
+  } catch (error) {
+    console.error("发送语音消息失败:", error);
+  }
+};
+
+// 处理语音音色切换
+const handleVoiceChange = (voice) => {
+  console.log("选择语音:", voice, '-> person:', getPersonFromVoiceId(voice));
+  // 保存到本地存储（保存音色ID，使用时转换为person数字）
+  localStorage.setItem("selectedVoice", voice);
+};
+
+// 语音会话结束：插入结束标签消息
+const handleVoiceSessionEnd = ({ duration }) => {
+  try {
+    totalVoiceSessionDuration += duration || 0;
+    // 移除已有的结束标签（如果有）
+    const idx = messages.value.findIndex(
+      (m) => m.messageType === "voice-session-end"
+    );
+    if (idx !== -1) {
+      messages.value.splice(idx, 1);
+    }
+    // 只插入一次
+    if (!hasVoiceSessionEndTag) {
+      messages.value.push({
+        id: `voice-end-${Date.now()}`,
+        role: "assistant",
+        content: "语音聊天已结束",
+        messageType: "voice-session-end",
+        duration: totalVoiceSessionDuration,
+        timestamp: new Date().toISOString(),
+      });
+      hasVoiceSessionEndTag = true;
+      shouldScrollToBottom.value = true;
+    } else {
+      // 已有标签则只更新时间
+      const tag = messages.value.find(
+        (m) => m.messageType === "voice-session-end"
+      );
+      if (tag) tag.duration = totalVoiceSessionDuration;
+    }
+  } catch (e) {
+    console.error("Insert voice session end tag failed:", e);
   }
 };
 
@@ -2159,6 +2438,19 @@ onBeforeUnmount(() => {
   }
   document.removeEventListener("selectionchange", handleSelection);
 });
+
+// 语音模式期间产生的 AI 回复不可重新生成
+watch(
+  messages,
+  () => {
+    if (!isVoiceMode.value) return;
+    const last = messages.value[messages.value.length - 1];
+    if (last && last.role === "assistant" && last.noRegen !== true) {
+      last.noRegen = true;
+    }
+  },
+  { deep: true }
+);
 
 // 解析引用内容
 const extractReferences = (content) => {
@@ -2408,6 +2700,64 @@ const feedbackMessage = async (message, type) => {
 }
 .user-bubble :deep(p:last-child) {
   margin-bottom: 0;
+}
+
+/* 语音会话结束标签 */
+.voice-session-tag {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  padding: 10px 12px;
+  min-width: 260px;
+}
+.voice-session-tag .tag-left {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+}
+.voice-session-tag .tag-main {
+  display: flex;
+  flex-direction: column;
+}
+.voice-session-tag .tag-title {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.voice-session-tag .tag-sub {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+/* 语音消息样式 */
+.user-bubble.voice-message {
+  background: linear-gradient(
+    135deg,
+    rgba(102, 126, 234, 0.15) 0%,
+    rgba(118, 75, 162, 0.15) 100%
+  );
+  border-left: 3px solid #667eea;
+}
+
+.voice-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--text-tertiary);
+  opacity: 0.85;
+}
+
+.voice-duration {
+  font-variant-numeric: tabular-nums;
 }
 .scroll-to-bottom {
   position: absolute;

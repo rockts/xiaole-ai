@@ -1139,7 +1139,8 @@ class XiaoLeAgent:
             'concise': '7. 响应风格：简洁模式 - 使用1-2句话简短回答，直接切中要点',
             'balanced': '7. 响应风格：均衡模式 - 提供适中长度的回答，既清晰又完整',
             'detailed': '7. 响应风格：详细模式 - 提供详细全面的解答，包含背景信息和例子',
-            'professional': '7. 响应风格：专业模式 - 使用正式专业的语气，结构化表达'
+            'professional': '7. 响应风格：专业模式 - 使用正式专业的语气，结构化表达',
+            'voice_call': '7. 语音通话模式：像电话交谈，最多20字，避免寒暄、不要重复身份、直接回答或反问，禁止长段与列表'
         }
         return styles.get(style, styles['balanced'])
 
@@ -1155,23 +1156,28 @@ class XiaoLeAgent:
         """
         params = {
             'concise': {
-                'temperature': 0.3,  # 更确定性
-                'max_tokens': 512,   # 简短回复
+                'temperature': 0.3,
+                'max_tokens': 512,
                 'top_p': 0.8
             },
             'balanced': {
-                'temperature': 0.5,  # 适中
-                'max_tokens': 2048,  # 适中（支持长文本）
+                'temperature': 0.5,
+                'max_tokens': 2048,
                 'top_p': 0.9
             },
             'detailed': {
-                'temperature': 0.7,  # 更创造性
-                'max_tokens': 4096,  # 更长（支持长文章）
+                'temperature': 0.7,
+                'max_tokens': 4096,
                 'top_p': 0.95
             },
             'professional': {
-                'temperature': 0.4,  # 较确定性
-                'max_tokens': 3072,  # 较长（专业长文）
+                'temperature': 0.4,
+                'max_tokens': 3072,
+                'top_p': 0.85
+            },
+            'voice_call': {
+                'temperature': 0.55,  # 略口语化但不跑题
+                'max_tokens': 128,    # 极短回复
                 'top_p': 0.85
             }
         }
@@ -1423,28 +1429,83 @@ class XiaoLeAgent:
             # v0.6.0: 根据响应风格调整系统提示词
             style_instructions = self._get_style_instruction(response_style)
 
-            system_prompt = (
-                f"你是小乐AI管家，一个诚实、友好的个人助手。\n\n"
-                f"核心原则：\n"
-                f"1. **你拥有完整的工具能力**：可以查询/创建/删除提醒、任务、搜索信息、查天气、**读写文件**等\n"
-                f"   但没有连接智能设备（无手环/摄像头/传感器等物理设备）\n"
-                f"2. **数据优先级**（从高到低）：\n"
-                f"   ① 工具执行结果（最新实时数据，绝对准确）\n"
-                f"   ② 对话历史中的上下文信息\n"
-                f"   ③ 记忆库中的长期信息\n"
-                f"3. 当工具返回数据时，必须以工具数据为准，忽略任何过时的记忆或对话历史\n"
-                f"4. 记忆库按时间倒序排列，最新信息在前，优先使用最新信息\n"
-                f"5. 如果记忆库和对话历史都没有相关信息，诚实说'您还没告诉我'\n"
-                f"6. 绝不编造数据、假装有物理设备、或推测未知信息\n"
-                f"7. 【课程表回答规则】：\n"
-                f"   - 时段划分：上午=晨读+第1-4节，下午=第5-7节，晚上=课后辅导\n"
-                f"   - 只列出有课的时段，跳过\"无课\"的节次\n"
-                f"   - 格式：时段+课程名称，例如\"晨读：科学(6)、第4节：科学(5)\"\n"
-                f"   - 如果某个时间段完全没课，明确说明\n"
-                f"   - 示例：\"今天上午有晨读的科学(6)和第4节的科学(5)\"\n"
-                f"{style_instructions}\n"
-                f"当前时间：{current_datetime}（{current_weekday}）\n"
-            )
+            if response_style == 'voice_call':
+                # 极简系统提示以减少首token延迟
+                system_prompt = (
+                    "你是小乐，一个自然的语音助手。"
+                    "用简短口语回复，最多20字，直接回答或追问。"
+                    "禁止自报身份、禁止长段、禁止多句客套。"
+                    "不要主动列功能/模式/操作列表，除非用户明确询问你能做什么。"
+                    "纯确认类问题（例如是否听得见、是否在）只返回一个肯定/否定短句，可附用户昵称。"
+                    f"当前时间：{current_datetime}（{current_weekday}）"
+                )
+            else:
+                system_prompt = (
+                    f"你是小乐AI管家，一个诚实、友好的个人助手。\n\n"
+                    f"核心原则：\n"
+                    f"1. **你拥有完整的工具能力**：可以查询/创建/删除提醒、任务、搜索信息、查天气、**读写文件**等\n"
+                    f"   但没有连接智能设备（无手环/摄像头/传感器等物理设备）\n"
+                    f"2. **数据优先级**（从高到低）：\n"
+                    f"   ① 工具执行结果（最新实时数据，绝对准确）\n"
+                    f"   ② 对话历史中的上下文信息\n"
+                    f"   ③ 记忆库中的长期信息\n"
+                    f"3. 当工具返回数据时，必须以工具数据为准，忽略任何过时的记忆或对话历史\n"
+                    f"4. 记忆库按时间倒序排列，最新信息在前，优先使用最新信息\n"
+                    f"5. 如果记忆库和对话历史都没有相关信息，诚实说'您还没告诉我'\n"
+                    f"6. 绝不编造数据、假装有物理设备、或推测未知信息\n"
+                    f"7. 【课程表回答规则】：\n"
+                    f"   - 时段划分：上午=晨读+第1-4节，下午=第5-7节，晚上=课后辅导\n"
+                    f"   - 只列出有课的时段，跳过\"无课\"的节次\n"
+                    f"   - 格式：时段+课程名称，例如\"晨读：科学(6)、第4节：科学(5)\"\n"
+                    f"   - 如果某个时间段完全没课，明确说明\n"
+                    f"   - 示例：\"今天上午有晨读的科学(6)和第4节的科学(5)\"\n"
+                    f"{style_instructions}\n"
+                    f"当前时间：{current_datetime}（{current_weekday}）\n"
+                )
+
+            # voice_call特殊：直接处理“能听见我说话吗”类确认问题，跳过LLM调用
+            if response_style == 'voice_call':
+                import re
+                hearing_pattern = re.compile(
+                    r"能(不能|否|可)?听[见到]?(我)?说?话吗[?？]*",
+                    re.IGNORECASE
+                )
+                simple_prompt = (
+                    prompt.strip()
+                    .replace('。', '')
+                    .replace('?', '？')
+                )
+                if hearing_pattern.search(simple_prompt):
+                    # 尝试检索昵称
+                    nickname = None
+                    try:
+                        facts_for_name = self.memory.recall(
+                            tag="facts", limit=20
+                        )
+                        for fact in facts_for_name:
+                            for key in [
+                                "我叫", "叫我", "昵称是",
+                                "我的名字是", "可以叫我"
+                            ]:
+                                if key in fact:
+                                    idx = fact.find(key) + len(key)
+                                    nickname = (
+                                        fact[idx: idx + 10]
+                                        .split('，')[0]
+                                        .split('。')[0]
+                                        .strip()
+                                    )
+                                    nickname = re.sub(
+                                        r'^[是叫为]', '', nickname
+                                    )
+                                    break
+                            if nickname:
+                                break
+                    except Exception as e:
+                        logger.warning(f"昵称检索失败: {e}")
+                    if not nickname or len(nickname) > 8:
+                        nickname = "您"
+                    return f"能听见你说话，{nickname}!"
 
             # v0.4.0: 如果有工具执行结果，添加到系统提示词
             if tool_result:

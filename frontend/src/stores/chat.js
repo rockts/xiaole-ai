@@ -52,10 +52,13 @@ export const useChatStore = defineStore('chat', () => {
     const typingTimer = ref(null)
     const activeTypingMessageId = ref(null)
 
-    const sendMessage = async (content, imagePath = null, router = null) => {
+    const sendMessage = async (content, imagePath = null, router = null, options = {}) => {
         try {
+            const instant = !!options.instant // 语音模式：立即展示，不走打字动画
+            const responseStyle = options.responseStyle || 'balanced'
+
             // ChatView.vue 已立即插入用户消息，这里不再重复插入
-            isTyping.value = true
+            isTyping.value = !instant
 
             // 插入思考占位消息（保持对话顺序，添加到末尾）
             const placeholderId = Date.now() + 1
@@ -71,7 +74,8 @@ export const useChatStore = defineStore('chat', () => {
                 user_id: 'default_user',
                 session_id: currentSessionId.value || '',
                 prompt: content,
-                image_path: imagePath
+                image_path: imagePath,
+                response_style: responseStyle
             })
 
             // 更新 session 信息
@@ -113,29 +117,37 @@ export const useChatStore = defineStore('chat', () => {
             }
 
             if (msgIndex !== -1) {
-                messages.value[msgIndex].status = 'typing'
                 messages.value[msgIndex].fullContent = full
-                messages.value[msgIndex].content = ''
+                if (instant) {
+                    messages.value[msgIndex].content = full
+                    messages.value[msgIndex].status = 'done'
+                    isTyping.value = false
+                } else {
+                    messages.value[msgIndex].status = 'typing'
+                    messages.value[msgIndex].content = ''
+                }
 
                 // 保存搜索结果
                 if (response.search_results) {
                     messages.value[msgIndex].search_results = response.search_results
                 }
 
-                let i = 0
-                const step = Math.max(1, Math.round(full.length / 60)) // 约1秒60步
-                typingTimer.value = setInterval(() => {
-                    if (i >= full.length) {
-                        clearInterval(typingTimer.value)
-                        typingTimer.value = null
-                        messages.value[msgIndex].content = full
-                        messages.value[msgIndex].status = 'done'
-                        isTyping.value = false
-                        return
-                    }
-                    messages.value[msgIndex].content = full.slice(0, i)
-                    i += step
-                }, 16) // ~60fps
+                if (!instant) {
+                    let i = 0
+                    const step = Math.max(1, Math.round(full.length / 60)) // 约1秒60步
+                    typingTimer.value = setInterval(() => {
+                        if (i >= full.length) {
+                            clearInterval(typingTimer.value)
+                            typingTimer.value = null
+                            messages.value[msgIndex].content = full
+                            messages.value[msgIndex].status = 'done'
+                            isTyping.value = false
+                            return
+                        }
+                        messages.value[msgIndex].content = full.slice(0, i)
+                        i += step
+                    }, 16) // ~60fps
+                }
             }
 
             await loadSessions()
