@@ -337,6 +337,7 @@
       <div
         class="sidebar-footer user-profile"
         @click="toggleUserMenu"
+        @touchstart.stop="toggleUserMenu"
         ref="userMenuRef"
       >
         <div class="avatar-wrapper">
@@ -582,12 +583,15 @@ const updateUserMenuPosition = () => {
   if (!userMenuRef.value) return;
   const rect = userMenuRef.value.getBoundingClientRect();
   const isMobileView = window.innerWidth <= 768;
-  
+
+  console.log('Updating menu position, isMobile:', isMobileView, 'rect:', rect);
+
   if (isMobileView) {
-    // 移动端：固定在侧边栏底部上方
+    // 移动端：固定在侧边栏内，底部上方
+    const menuHeight = 150; // 预估菜单高度
     userMenuPosition.value = {
-      left: 16,
-      bottom: rect.height + 8,
+      left: rect.left + 8,
+      bottom: window.innerHeight - rect.top + 8,
     };
   } else {
     // 桌面端：根据实际位置计算
@@ -596,19 +600,26 @@ const updateUserMenuPosition = () => {
       bottom: window.innerHeight - rect.top + 8,
     };
   }
+  
+  console.log('Menu position set to:', userMenuPosition.value);
 };
 
 const toggleUserMenu = (event) => {
-  // 阻止事件冒泡
+  // 阻止事件冒泡和默认行为
   if (event) {
     event.stopPropagation();
+    event.preventDefault();
   }
   
+  console.log('toggleUserMenu called, current state:', showUserMenu.value);
+
   if (!showUserMenu.value) {
     updateUserMenuPosition();
     showUserMenu.value = true;
+    console.log('User menu opened, position:', userMenuPosition.value);
   } else {
     showUserMenu.value = false;
+    console.log('User menu closed');
   }
 };
 
@@ -1836,6 +1847,23 @@ watch(
     flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
+    /* 强制显示滚动条 */
+    scrollbar-width: thin; /* Firefox: thin scrollbar */
+    scrollbar-color: rgba(155, 155, 155, 0.7) transparent; /* Firefox: thumb and track color */
+  }
+  /* Chrome/Safari/Edge */
+  .sessions-list::-webkit-scrollbar {
+    width: 6px;
+  }
+  .sessions-list::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .sessions-list::-webkit-scrollbar-thumb {
+    background: rgba(155, 155, 155, 0.7);
+    border-radius: 3px;
+  }
+  .sessions-list::-webkit-scrollbar-thumb:hover {
+    background: rgba(155, 155, 155, 0.9);
   }
   .sidebar-footer {
     /* 确保footer始终在底部显示，增加足够的padding避免被系统UI遮挡 */
