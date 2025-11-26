@@ -1,7 +1,6 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException
 import os
 import time
-import shutil
 from config import UPLOADS_DIR
 
 router = APIRouter(
@@ -34,8 +33,9 @@ async def upload_image(file: UploadFile = File(...)):
         file_path = os.path.join(images_dir, filename)
 
         # Save file
-        with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
+        content = await file.read()
+        with open(file_path, "wb") as f:
+            f.write(content)
 
         # Return relative path for frontend to use
         # Assuming static mount is at /uploads
@@ -44,6 +44,7 @@ async def upload_image(file: UploadFile = File(...)):
         return {
             "success": True,
             "filename": filename,
+            "file_path": relative_path,  # Frontend expects file_path
             "path": relative_path,
             "url": relative_path  # For compatibility
         }
