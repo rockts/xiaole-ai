@@ -972,15 +972,14 @@ watch(
     position: fixed;
     top: 0;
     left: 0;
-    bottom: 0;
     height: 100vh;
+    height: 100dvh; /* 使用动态视口高度，更准确 */
     width: 245px !important; /* 移动端展开时宽度固定 */
     min-width: 245px !important;
     flex: 0 0 245px !important;
     transform: translateX(0);
     box-shadow: var(--shadow-lg);
     z-index: 1000;
-    padding-bottom: calc(16px + env(safe-area-inset-bottom));
   }
 
   .sidebar.collapsed {
@@ -1809,9 +1808,11 @@ watch(
     overflow-x: hidden;
   }
   .sidebar-footer {
-    /* 确保footer始终在底部显示 */
+    /* 确保footer始终在底部显示，增加足够的padding避免被系统UI遮挡 */
     flex-shrink: 0;
-    padding-bottom: calc(8px + env(safe-area-inset-bottom));
+    padding-bottom: calc(16px + env(safe-area-inset-bottom));
+    background: var(--bg-primary);
+    border-top: 1px solid var(--border-light);
   }
 }
 </style>

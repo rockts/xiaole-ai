@@ -2333,12 +2333,20 @@ const startPcmRecording = async () => {
     isRecording.value = false;
     stopVisualizer();
     // 根据错误类型给出不同提示
-    if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-      alert('需要麦克风权限才能使用语音输入。\n\n请点击地址栏旁的锁图标，允许此网站访问麦克风，然后刷新页面。');
-    } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
-      alert('未检测到麦克风设备，请检查设备连接。');
+    if (
+      err.name === "NotAllowedError" ||
+      err.name === "PermissionDeniedError"
+    ) {
+      alert(
+        "需要麦克风权限才能使用语音输入。\n\n请点击地址栏旁的锁图标，允许此网站访问麦克风，然后刷新页面。"
+      );
+    } else if (
+      err.name === "NotFoundError" ||
+      err.name === "DevicesNotFoundError"
+    ) {
+      alert("未检测到麦克风设备，请检查设备连接。");
     } else {
-      alert('无法访问麦克风，请检查浏览器权限和设备设置。');
+      alert("无法访问麦克风，请检查浏览器权限和设备设置。");
     }
     throw err; // 重新抛出错误，让handleVoiceInput捕获
   }
@@ -3767,7 +3775,7 @@ const feedbackMessage = async (message, type) => {
     flex-direction: column;
     gap: 0;
   }
-  
+
   .chat-view.empty .welcome-message {
     position: absolute;
     top: 36%; /* 移动端欢迎语整体上移 */
@@ -3776,13 +3784,13 @@ const feedbackMessage = async (message, type) => {
     margin-top: 0;
     white-space: nowrap; /* 防止换行 */
   }
-  
+
   .chat-view.empty .chat-container {
     visibility: hidden;
     pointer-events: none;
     position: absolute;
   }
-  
+
   .chat-view.empty .input-container {
     position: fixed;
     bottom: 0;
