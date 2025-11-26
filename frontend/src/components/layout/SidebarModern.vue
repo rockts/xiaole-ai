@@ -980,7 +980,6 @@ watch(
     transform: translateX(0);
     box-shadow: var(--shadow-lg);
     z-index: 1000;
-    overflow: hidden;
     padding-bottom: calc(16px + env(safe-area-inset-bottom));
   }
 
@@ -1514,8 +1513,6 @@ watch(
   padding-bottom: calc(2px + constant(safe-area-inset-bottom));
   border-top: 1px solid var(--border-light);
   background: var(--bg-primary);
-  position: sticky;
-  bottom: 0;
   z-index: 5;
 }
 .settings-btn {
@@ -1803,11 +1800,18 @@ watch(
     flex: 1;
     min-height: 0;
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .sessions-list {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
   }
   .sidebar-footer {
     /* 确保footer始终在底部显示 */
     flex-shrink: 0;
-    bottom: env(safe-area-inset-bottom);
+    padding-bottom: calc(8px + env(safe-area-inset-bottom));
   }
 }
 </style>

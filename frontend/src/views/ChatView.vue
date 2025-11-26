@@ -2947,13 +2947,11 @@ const feedbackMessage = async (message, type) => {
 }
 /* 欢迎消息 */
 .welcome-message {
-  position: absolute;
-  top: 45%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  flex-shrink: 0;
   text-align: center;
   z-index: 10;
   animation: fadeInUp 0.5s ease-out;
+  margin-top: -10vh; /* 桌面端稍微上移 */
 }
 @keyframes fadeInUp {
   from {
@@ -2982,23 +2980,27 @@ const feedbackMessage = async (message, type) => {
 .chat-view.empty {
   justify-content: center;
   align-items: center;
+  flex-direction: column;
+  gap: 32px; /* 欢迎语和输入框之间的间距 */
 }
 .chat-view.empty .chat-container {
   visibility: hidden;
   pointer-events: none;
+  position: absolute; /* 完全脱离布局流 */
 }
 .chat-view.empty .input-container {
   position: static;
   background: transparent;
   border-top: none;
-  padding: 12px 16px calc(16px + env(safe-area-inset-bottom));
+  padding: 0 16px;
   display: flex;
   justify-content: center;
   align-items: center;
   width: 100%;
+  flex-shrink: 0;
 }
 .chat-view.empty .input-wrapper {
-  max-width: 800px;
+  max-width: 32rem; /* PC端输入框更窄 */
   width: 90%;
   box-shadow: none;
   background: var(--bg-secondary);
@@ -3758,18 +3760,37 @@ const feedbackMessage = async (message, type) => {
 
 /* 移动端适配优化 */
 @media (max-width: 768px) {
-  /* 空状态下仍保留容器占位，使输入框保持底部位置 */
+  /* 移动端空状态：欢迎语居中偏下，输入框固定底部 */
   .chat-view.empty {
-    justify-content: flex-start;
-    align-items: stretch;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    gap: 0;
   }
+  
+  .chat-view.empty .welcome-message {
+    position: absolute;
+    top: 36%; /* 移动端欢迎语整体上移 */
+    left: 50%;
+    transform: translate(-50%, -50%);
+    margin-top: 0;
+    white-space: nowrap; /* 防止换行 */
+  }
+  
   .chat-view.empty .chat-container {
     visibility: hidden;
     pointer-events: none;
+    position: absolute;
   }
+  
   .chat-view.empty .input-container {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
     padding: 8px 10px calc(10px + env(safe-area-inset-bottom));
-    background: transparent;
+    background: var(--bg-primary);
+    border-top: 1px solid var(--border-light);
   }
 
   .chat-inner {
@@ -3796,7 +3817,7 @@ const feedbackMessage = async (message, type) => {
   }
 
   .welcome-title {
-    font-size: 20px;
+    font-size: 18px; /* 移动端字体更小，防止换行 */
   }
 
   .welcome-icon {
