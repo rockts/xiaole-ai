@@ -105,6 +105,11 @@
         </button>
         <button @click="saveSettings" class="btn-primary">💾 保存设置</button>
       </div>
+
+      <!-- 移动端额外的关闭按钮 -->
+      <div class="mobile-close-bar">
+        <button @click="$emit('close')" class="mobile-close-btn">返回</button>
+      </div>
     </div>
   </div>
 </template>
@@ -186,7 +191,7 @@ onMounted(() => {
   .modal-overlay {
     align-items: stretch;
   }
-  
+
   .modal-content {
     width: 100%;
     max-width: 100%;
@@ -195,8 +200,41 @@ onMounted(() => {
     border-radius: 0;
     margin: 0;
   }
+
+  .mobile-close-bar {
+    display: flex;
+    justify-content: center;
+    padding: 16px;
+    border-top: 1px solid var(--border-light);
+    background: var(--bg-secondary);
+  }
+
+  .mobile-close-btn {
+    width: 100%;
+    max-width: 400px;
+    padding: 14px 24px;
+    background: var(--brand-primary);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .mobile-close-btn:active {
+    transform: scale(0.98);
+    background: var(--brand-secondary);
+  }
 }
 
+/* 桌面端隐藏移动端关闭按钮 */
+@media (min-width: 769px) {
+  .mobile-close-bar {
+    display: none;
+  }
+}
 .modal-header {
   padding: 20px 24px;
   border-bottom: 1px solid var(--border-light);

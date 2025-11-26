@@ -10,15 +10,16 @@ export const useChatStore = defineStore('chat', () => {
     const isTyping = ref(false)
     const loading = ref(false)
 
-    const loadSessions = async () => {
+    const loadSessions = async (forceRefresh = false) => {
         try {
             loading.value = true
-            const data = await api.getSessions(true)
+            const data = await api.getSessions(forceRefresh)
             // 将 session_id 映射为 id，保持字段一致性
             sessions.value = (data.sessions || []).map(s => ({
                 ...s,
                 id: s.session_id || s.id
             }))
+            console.log('✅ Sessions loaded:', sessions.value.length)
         } catch (error) {
             console.error('Failed to load sessions:', error)
         } finally {
@@ -157,7 +158,8 @@ export const useChatStore = defineStore('chat', () => {
                 }
             }
 
-            await loadSessions()
+            await loadSessions(true) // 强制刷新会话列表
+            console.log('✅ Sessions refreshed after message sent')
         } catch (error) {
             console.error('Failed to send message:', error)
             // 错误时撤销占位或显示错误

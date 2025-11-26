@@ -3811,6 +3811,19 @@ const feedbackMessage = async (message, type) => {
     padding: 10px 14px;
   }
 
+  /* 确保移动端用户消息可见且正确对齐 */
+  .message.user {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 12px;
+  }
+
+  .message.user .user-bubble {
+    display: block;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+
   .message.assistant .md-content {
     font-size: 15px;
   }

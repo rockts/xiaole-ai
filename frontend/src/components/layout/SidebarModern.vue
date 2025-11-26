@@ -339,7 +339,11 @@
         @click="toggleUserMenu"
         @touchstart.stop="toggleUserMenu"
         ref="userMenuRef"
-        style="cursor: pointer; user-select: none; -webkit-tap-highlight-color: rgba(0,0,0,0.1);"
+        style="
+          cursor: pointer;
+          user-select: none;
+          -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+        "
       >
         <div class="avatar-wrapper">
           <div class="user-avatar-icon">
@@ -608,7 +612,7 @@ const toggleUserMenu = (event) => {
     event.stopPropagation();
     event.preventDefault();
   }
-  
+
   if (!showUserMenu.value) {
     updateUserMenuPosition();
     showUserMenu.value = true;
@@ -928,11 +932,11 @@ onMounted(() => {
   document.addEventListener("click", clickOutsideHandler);
   // 初次挂载后，尝试保证出现滚动条
   ensureScrollable();
-  
+
   // 强制显示移动端滚动条
   nextTick(() => {
     if (window.innerWidth <= 768) {
-      const sessionsList = document.querySelector('.sessions-list');
+      const sessionsList = document.querySelector(".sessions-list");
       if (sessionsList) {
         // 强制设置滚动条样式
         sessionsList.style.cssText += `
@@ -940,16 +944,19 @@ onMounted(() => {
           -webkit-overflow-scrolling: touch !important;
           scrollbar-width: auto !important;
         `;
-        
+
         // 添加滚动指示器（上下渐变）
-        const sessionsSection = document.querySelector('.sessions-section');
-        if (sessionsSection && sessionsList.scrollHeight > sessionsList.clientHeight) {
+        const sessionsSection = document.querySelector(".sessions-section");
+        if (
+          sessionsSection &&
+          sessionsList.scrollHeight > sessionsList.clientHeight
+        ) {
           sessionsSection.style.cssText += `
             position: relative;
           `;
           // 上渐变
-          const topGradient = document.createElement('div');
-          topGradient.className = 'scroll-indicator-top';
+          const topGradient = document.createElement("div");
+          topGradient.className = "scroll-indicator-top";
           topGradient.style.cssText = `
             position: absolute;
             top: 0;
@@ -961,8 +968,8 @@ onMounted(() => {
             z-index: 10;
           `;
           // 下渐变
-          const bottomGradient = document.createElement('div');
-          bottomGradient.className = 'scroll-indicator-bottom';
+          const bottomGradient = document.createElement("div");
+          bottomGradient.className = "scroll-indicator-bottom";
           bottomGradient.style.cssText = `
             position: absolute;
             bottom: 0;
@@ -975,13 +982,13 @@ onMounted(() => {
           `;
           sessionsSection.appendChild(topGradient);
           sessionsSection.appendChild(bottomGradient);
-          
-          console.log('Mobile scrollbar forced with indicators');
+
+          console.log("Mobile scrollbar forced with indicators");
         }
       }
     }
   });
-  
+
   // 窗口变化时关闭菜单或重算
   const onResize = () => {
     const newIsMobile = window.innerWidth <= 768;
