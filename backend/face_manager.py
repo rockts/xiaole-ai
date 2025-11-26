@@ -17,6 +17,35 @@ class FaceManager:
     def get_db(self):
         return SessionLocal()
 
+    def health_check(self, user_id: str = "default_user"):
+        """检查人脸库健康状态"""
+        db = self.get_db()
+        try:
+            faces = db.query(FaceEncoding).filter(
+                FaceEncoding.user_id == user_id
+            ).all()
+
+            issues = []
+            for face in faces:
+                # 检查是否有编码
+                if not face.encoding:
+                    issues.append(f"'{face.name}' 缺少人脸编码")
+                # 检查图片路径是否存在
+                if face.image_path and not os.path.exists(face.image_path):
+                    issues.append(f"'{face.name}' 的图片文件不存在: {face.image_path}")
+
+            return {
+                "success": True,
+                "total_faces": len(faces),
+                "registered_people": list(set(f.name for f in faces)),
+                "issues": issues,
+                "healthy": len(issues) == 0
+            }
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+        finally:
+            db.close()
+
     def register_face(
         self, image_path: str, name: str, user_id: str = "default_user"
     ):
@@ -149,14 +178,14 @@ class FaceManager:
                     for _ in face_locations
                 ]
             else:
-                # thresholds
+                # thresholds - 提高阈值以减少误识别
                 # face_recognition.compare_faces default tolerance=0.6
                 try:
                     match_threshold = float(
-                        os.getenv("FACE_MATCH_THRESHOLD", "0.5")
+                        os.getenv("FACE_MATCH_THRESHOLD", "0.45")
                     )
                 except Exception:
-                    match_threshold = 0.5
+                    match_threshold = 0.45
 
                 for face_encoding in face_encodings:
                     name = "未知人物"

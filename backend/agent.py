@@ -1503,7 +1503,8 @@ class XiaoLeAgent:
                     f"   - 示例：\"今天上午有晨读的科学(6)和第4节的科学(5)\"\n"
                     f"8. 【重要事实】：\n"
                     f"   - 必须严格区分家庭成员：女儿是【高艺瑄】，儿子是【高艺篪】\n"
-                    f"   - 涉及名字时，以【facts】记忆为最高真理，忽略任何冲突的旧对话\n"
+                    f"   - 涉及名字、小名、家庭信息时，以【关键事实】或【facts】记忆为最高真理\n"
+                    f"   - 记忆库中标记为【关键事实】的信息是最权威的，优先级高于其他所有信息\n"
                     f"{style_instructions}\n"
                     f"当前时间：{current_datetime}（{current_weekday}）\n"
                 )
@@ -1666,7 +1667,7 @@ class XiaoLeAgent:
                 semantic_memories = self.memory.semantic_recall(
                     query=prompt,
                     tag=None,  # 不限制标签，搜索所有记忆
-                    limit=20,  # v0.9.2: 增加召回数量以改善跨对话记忆
+                    limit=10,  # 减少语义搜索数量，避免淹没关键信息
                     min_score=0.05  # 降低阈值，增加召回
                 )
 
@@ -1758,11 +1759,13 @@ class XiaoLeAgent:
                     all_memories.append(mem)
                     seen.add(mem)
 
-            # 新增：家庭成员信息 - 高优先级
+            # 新增：家庭成员信息 - 高优先级，加【关键事实】标记
             for mem in family_memories:
                 if mem not in seen and not is_outdated_reminder_memory(mem):
-                    all_memories.append(mem)
-                    seen.add(mem)
+                    # 给家庭成员信息加高亮标记，提高LLM注意力
+                    highlighted_mem = f"【关键事实】{mem}"
+                    all_memories.append(highlighted_mem)
+                    seen.add(mem)  # seen中存原始内容，避免重复
 
             # 第二优先级：facts 标签（关键事实，但限制数量）
             facts_count = 0
@@ -1838,6 +1841,13 @@ class XiaoLeAgent:
                 context = "记忆库（按时间倒序，最新在前）：\n" + \
                           "\n".join(all_memories)
                 system_prompt += f"\n\n{context}"
+
+                # 🔍 调试：检查"乐儿"是否在记忆中
+                le_in_memories = [m for m in all_memories if '乐儿' in m]
+                if le_in_memories:
+                    logger.info(f"✅ 记忆中包含'乐儿': {le_in_memories[0][:100]}")
+                else:
+                    logger.warning("⚠️ 记忆中未找到'乐儿'！")
 
             # 构建消息列表（包含历史）
             messages = []

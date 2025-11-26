@@ -79,12 +79,12 @@ class VisionTool(Tool):
                     face_count = recognition_result['face_count']
                     face_details = recognition_result.get('faces', [])
 
-                    # threshold for announcing identities
+                    # threshold for announcing identities - 提高到0.75
                     try:
                         announce_threshold = float(
-                            os.getenv("FACE_ANNOUNCE_THRESHOLD", "0.6"))
+                            os.getenv("FACE_ANNOUNCE_THRESHOLD", "0.75"))
                     except Exception:
-                        announce_threshold = 0.6
+                        announce_threshold = 0.75
 
                     # Filter out unknown people
                     known_people = [
@@ -98,8 +98,15 @@ class VisionTool(Tool):
                             for d in face_details
                         )
                         if low_conf:
+                            # 低置信度时明确要求确认，不直接断言身份
+                            conf_vals = [
+                                f"{d.get('name')}({d.get('confidence', 0):.2f})"
+                                for d in face_details
+                                if d.get('name') in known_people
+                            ]
                             face_info = (
-                                f"【人脸识别结果】可能是：{', '.join(known_people)}（置信度较低，需你确认）。\n"
+                                f"【人脸识别】检测到可能的匹配：{', '.join(conf_vals)}。"
+                                f"置信度较低，**请确认身份后再告诉我这是谁**，避免记录错误。\n"
                             )
                         else:
                             face_info = f"【人脸识别结果】图中发现了以下熟人：{', '.join(known_people)}。\n"
