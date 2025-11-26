@@ -442,11 +442,13 @@
       <!-- 结束 sidebar-content -->
     </div>
 
-    <!-- 设置弹窗 -->
-    <SettingsModal
-      v-if="showSettingsModal"
-      @close="showSettingsModal = false"
-    />
+    <!-- 设置弹窗 - 使用 Teleport 渲染到 body 确保最高层级 -->
+    <teleport to="body">
+      <SettingsModal
+        v-if="showSettingsModal"
+        @close="showSettingsModal = false"
+      />
+    </teleport>
 
     <!-- 删除确认对话框 -->
     <div v-if="showDeleteConfirm" class="modal-overlay" @click="cancelDelete">
@@ -926,6 +928,60 @@ onMounted(() => {
   document.addEventListener("click", clickOutsideHandler);
   // 初次挂载后，尝试保证出现滚动条
   ensureScrollable();
+  
+  // 强制显示移动端滚动条
+  nextTick(() => {
+    if (window.innerWidth <= 768) {
+      const sessionsList = document.querySelector('.sessions-list');
+      if (sessionsList) {
+        // 强制设置滚动条样式
+        sessionsList.style.cssText += `
+          overflow-y: scroll !important;
+          -webkit-overflow-scrolling: touch !important;
+          scrollbar-width: auto !important;
+        `;
+        
+        // 添加滚动指示器（上下渐变）
+        const sessionsSection = document.querySelector('.sessions-section');
+        if (sessionsSection && sessionsList.scrollHeight > sessionsList.clientHeight) {
+          sessionsSection.style.cssText += `
+            position: relative;
+          `;
+          // 上渐变
+          const topGradient = document.createElement('div');
+          topGradient.className = 'scroll-indicator-top';
+          topGradient.style.cssText = `
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 14px;
+            height: 20px;
+            background: linear-gradient(to bottom, var(--bg-primary), transparent);
+            pointer-events: none;
+            z-index: 10;
+          `;
+          // 下渐变
+          const bottomGradient = document.createElement('div');
+          bottomGradient.className = 'scroll-indicator-bottom';
+          bottomGradient.style.cssText = `
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 14px;
+            height: 30px;
+            background: linear-gradient(to top, var(--bg-primary), transparent);
+            pointer-events: none;
+            z-index: 10;
+          `;
+          sessionsSection.appendChild(topGradient);
+          sessionsSection.appendChild(bottomGradient);
+          
+          console.log('Mobile scrollbar forced with indicators');
+        }
+      }
+    }
+  });
+  
   // 窗口变化时关闭菜单或重算
   const onResize = () => {
     const newIsMobile = window.innerWidth <= 768;
