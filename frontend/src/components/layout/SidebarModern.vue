@@ -123,11 +123,6 @@
           <span>历史对话</span>
         </div>
 
-        <!-- 测试：显示会话数量和滚动提示 -->
-        <div style="padding: 4px 8px; font-size: 12px; color: #666;">
-          共 {{ sessions.length }} 条对话 {{ sessions.length > 10 ? '(可滚动)' : '' }}
-        </div>
-
         <div class="sessions-list" @scroll="handleScroll" ref="sessionsListRef">
           <template v-if="loading && sessions.length === 0">
             <div class="loading-skeleton">
@@ -346,10 +341,6 @@
         ref="userMenuRef"
         style="cursor: pointer; user-select: none; -webkit-tap-highlight-color: rgba(0,0,0,0.1);"
       >
-        <!-- 调试提示 -->
-        <div v-if="debugInfo" style="position: fixed; top: 10px; left: 50%; transform: translateX(-50%); background: yellow; padding: 10px; z-index: 9999; border: 2px solid red; font-size: 14px; max-width: 90%; word-break: break-all;">
-          {{ debugInfo }}
-        </div>
         <div class="avatar-wrapper">
           <div class="user-avatar-icon">
             <svg
@@ -580,7 +571,6 @@ const loadSession = (id) => {
 const showSettingsModal = ref(false);
 const showUserMenu = ref(false);
 const userMenuPosition = ref({ left: 0, bottom: 0 });
-const debugInfo = ref(''); // 调试信息
 const userMenuRef = ref(null);
 const username = ref("游戏小乐乐"); // 默认值，后续从localStorage加载
 
@@ -608,15 +598,9 @@ const updateUserMenuPosition = () => {
       bottom: window.innerHeight - rect.top + 8,
     };
   }
-  
-  debugInfo.value += ` 位置: left=${userMenuPosition.value.left}px, bottom=${userMenuPosition.value.bottom}px`;
 };
 
 const toggleUserMenu = (event) => {
-  // 显示调试信息
-  debugInfo.value = `点击触发! 时间: ${new Date().toLocaleTimeString()}, 当前状态: ${showUserMenu.value}`;
-  setTimeout(() => { debugInfo.value = ''; }, 5000); // 增加到5秒
-  
   // 阻止事件冒泡和默认行为
   if (event) {
     event.stopPropagation();
@@ -626,10 +610,8 @@ const toggleUserMenu = (event) => {
   if (!showUserMenu.value) {
     updateUserMenuPosition();
     showUserMenu.value = true;
-    debugInfo.value += ` -> 菜单已打开 showUserMenu=${showUserMenu.value}`;
   } else {
     showUserMenu.value = false;
-    debugInfo.value += ` -> 菜单已关闭 showUserMenu=${showUserMenu.value}`;
   }
 };
 
@@ -1714,26 +1696,23 @@ watch(
 
 .user-dropdown-menu {
   position: fixed;
-  min-width: 200px;
+  width: 225px; /* 与侧边栏宽度保持一致 */
   background: var(--bg-primary);
   border: 1px solid var(--border-light);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-lg);
-  padding: 4px;
-  z-index: 10000 !important; /* 最高层级，确保在所有元素之上 */
+  border-radius: 12px; /* 圆角效果 */
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  padding: 8px;
+  z-index: 10000 !important;
   animation: slideUp 0.15s ease-out;
   cursor: default;
+  overflow: hidden;
 }
 
 @media (max-width: 768px) {
   .user-dropdown-menu {
-    /* 移动端增强显示 */
+    /* 移动端保持一致样式 */
     z-index: 10000 !important;
-    min-width: 220px;
-    /* 添加明显的边框和背景，确保可见 */
-    border: 3px solid #007bff;
-    background: white;
-    box-shadow: 0 0 20px rgba(0,0,0,0.5);
+    width: 225px;
   }
 }
 
@@ -1741,16 +1720,26 @@ watch(
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 12px;
+  padding: 12px 14px;
   color: var(--text-primary);
   font-size: 14px;
-  border-radius: 6px;
+  border-radius: 8px; /* 圆角 */
   cursor: pointer;
-  transition: background var(--duration-fast);
+  transition: all 0.2s ease;
 }
 
 .dropdown-item:hover {
   background: var(--bg-hover);
+  transform: translateX(2px);
+}
+
+.dropdown-item svg {
+  color: var(--icon-color);
+  transition: color 0.2s ease;
+}
+
+.dropdown-item:hover svg {
+  color: var(--text-primary);
 }
 
 .dropdown-item.danger {
@@ -1859,27 +1848,36 @@ watch(
   }
   .sessions-list {
     flex: 1;
-    overflow-y: auto;
+    overflow-y: scroll !important; /* 强制显示滚动条 */
     overflow-x: hidden;
-    /* 强制显示滚动条 - 更粗更明显 */
-    scrollbar-width: auto; /* Firefox: 使用默认宽度 */
-    scrollbar-color: rgba(100, 100, 100, 0.8) rgba(200, 200, 200, 0.3); /* Firefox: 深色滑块和浅色轨道 */
+    -webkit-overflow-scrolling: touch; /* iOS平滑滚动 */
+    /* 强制显示滚动条 - 所有浏览器 */
+    scrollbar-width: auto; /* Firefox */
+    scrollbar-color: rgba(100, 100, 100, 0.8) rgba(200, 200, 200, 0.3);
   }
-  /* Chrome/Safari/Edge - 更明显的滚动条 */
+  /* Chrome/Safari/Edge/移动端 - 强制显示 */
   .sessions-list::-webkit-scrollbar {
-    width: 8px; /* 增加宽度 */
+    width: 8px;
+    -webkit-appearance: none; /* 移除默认样式 */
   }
   .sessions-list::-webkit-scrollbar-track {
-    background: rgba(200, 200, 200, 0.3); /* 浅灰色轨道 */
+    background: rgba(200, 200, 200, 0.3);
     border-radius: 4px;
   }
   .sessions-list::-webkit-scrollbar-thumb {
-    background: rgba(100, 100, 100, 0.8); /* 深灰色滑块 */
+    background: rgba(100, 100, 100, 0.8);
     border-radius: 4px;
     border: 1px solid rgba(255, 255, 255, 0.2);
+    min-height: 30px; /* 确保滑块足够大 */
   }
   .sessions-list::-webkit-scrollbar-thumb:hover {
-    background: rgba(80, 80, 80, 1); /* 悬停时更深 */
+    background: rgba(80, 80, 80, 1);
+  }
+  /* 移动端特殊处理 */
+  @media (max-width: 768px) {
+    .sessions-list::-webkit-scrollbar {
+      width: 8px !important;
+    }
   }
   .sidebar-footer {
     /* 确保footer始终在底部显示，增加足够的padding避免被系统UI遮挡 */
