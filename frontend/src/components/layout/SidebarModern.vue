@@ -123,6 +123,11 @@
           <span>历史对话</span>
         </div>
 
+        <!-- 测试：显示会话数量和滚动提示 -->
+        <div style="padding: 4px 8px; font-size: 12px; color: #666;">
+          共 {{ sessions.length }} 条对话 {{ sessions.length > 10 ? '(可滚动)' : '' }}
+        </div>
+
         <div class="sessions-list" @scroll="handleScroll" ref="sessionsListRef">
           <template v-if="loading && sessions.length === 0">
             <div class="loading-skeleton">
@@ -610,7 +615,7 @@ const updateUserMenuPosition = () => {
 const toggleUserMenu = (event) => {
   // 显示调试信息
   debugInfo.value = `点击触发! 时间: ${new Date().toLocaleTimeString()}, 当前状态: ${showUserMenu.value}`;
-  setTimeout(() => { debugInfo.value = ''; }, 3000);
+  setTimeout(() => { debugInfo.value = ''; }, 5000); // 增加到5秒
   
   // 阻止事件冒泡和默认行为
   if (event) {
@@ -621,10 +626,10 @@ const toggleUserMenu = (event) => {
   if (!showUserMenu.value) {
     updateUserMenuPosition();
     showUserMenu.value = true;
-    debugInfo.value += ' -> 菜单已打开';
+    debugInfo.value += ` -> 菜单已打开 showUserMenu=${showUserMenu.value}`;
   } else {
     showUserMenu.value = false;
-    debugInfo.value += ' -> 菜单已关闭';
+    debugInfo.value += ` -> 菜单已关闭 showUserMenu=${showUserMenu.value}`;
   }
 };
 
@@ -1715,7 +1720,7 @@ watch(
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-lg);
   padding: 4px;
-  z-index: 1100; /* 提高z-index确保在侧边栏之上 */
+  z-index: 10000 !important; /* 最高层级，确保在所有元素之上 */
   animation: slideUp 0.15s ease-out;
   cursor: default;
 }
@@ -1723,8 +1728,12 @@ watch(
 @media (max-width: 768px) {
   .user-dropdown-menu {
     /* 移动端增强显示 */
-    z-index: 1100;
+    z-index: 10000 !important;
     min-width: 220px;
+    /* 添加明显的边框和背景，确保可见 */
+    border: 3px solid #007bff;
+    background: white;
+    box-shadow: 0 0 20px rgba(0,0,0,0.5);
   }
 }
 
