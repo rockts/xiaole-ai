@@ -588,12 +588,23 @@ const openSettingsModal = () => {
 const updateUserMenuPosition = () => {
   if (!userMenuRef.value) return;
   const rect = userMenuRef.value.getBoundingClientRect();
+  const isMobile = window.innerWidth <= 768;
 
-  // 所有设备使用相同的定位逻辑
-  userMenuPosition.value = {
-    left: rect.left + 8,
-    bottom: window.innerHeight - rect.top + 8,
-  };
+  if (isMobile) {
+    // 移动端：固定在侧边栏左侧，底部上方70px
+    userMenuPosition.value = {
+      left: 20,
+      bottom: 70,
+    };
+  } else {
+    // 桌面端：根据实际位置计算
+    userMenuPosition.value = {
+      left: rect.left + 8,
+      bottom: window.innerHeight - rect.top + 8,
+    };
+  }
+  
+  debugInfo.value += ` 位置: left=${userMenuPosition.value.left}px, bottom=${userMenuPosition.value.bottom}px`;
 };
 
 const toggleUserMenu = (event) => {
@@ -1841,23 +1852,25 @@ watch(
     flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
-    /* 强制显示滚动条 */
-    scrollbar-width: thin; /* Firefox: thin scrollbar */
-    scrollbar-color: rgba(155, 155, 155, 0.7) transparent; /* Firefox: thumb and track color */
+    /* 强制显示滚动条 - 更粗更明显 */
+    scrollbar-width: auto; /* Firefox: 使用默认宽度 */
+    scrollbar-color: rgba(100, 100, 100, 0.8) rgba(200, 200, 200, 0.3); /* Firefox: 深色滑块和浅色轨道 */
   }
-  /* Chrome/Safari/Edge */
+  /* Chrome/Safari/Edge - 更明显的滚动条 */
   .sessions-list::-webkit-scrollbar {
-    width: 6px;
+    width: 8px; /* 增加宽度 */
   }
   .sessions-list::-webkit-scrollbar-track {
-    background: transparent;
+    background: rgba(200, 200, 200, 0.3); /* 浅灰色轨道 */
+    border-radius: 4px;
   }
   .sessions-list::-webkit-scrollbar-thumb {
-    background: rgba(155, 155, 155, 0.7);
-    border-radius: 3px;
+    background: rgba(100, 100, 100, 0.8); /* 深灰色滑块 */
+    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
   }
   .sessions-list::-webkit-scrollbar-thumb:hover {
-    background: rgba(155, 155, 155, 0.9);
+    background: rgba(80, 80, 80, 1); /* 悬停时更深 */
   }
   .sidebar-footer {
     /* 确保footer始终在底部显示，增加足够的padding避免被系统UI遮挡 */
