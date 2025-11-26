@@ -332,14 +332,13 @@
           </template>
         </div>
       </div>
-    </div>
 
-    <!-- 底部：用户资料 -->
-    <div
-      class="sidebar-footer user-profile"
-      @click="toggleUserMenu"
-      ref="userMenuRef"
-    >
+      <!-- 底部：用户资料 -->
+      <div
+        class="sidebar-footer user-profile"
+        @click="toggleUserMenu"
+        ref="userMenuRef"
+      >
       <div class="avatar-wrapper">
         <div class="user-avatar-icon">
           <svg
@@ -437,6 +436,8 @@
           </div>
         </transition>
       </teleport>
+    </div>
+    <!-- 结束 sidebar-content -->
     </div>
 
     <!-- 设置弹窗 -->
