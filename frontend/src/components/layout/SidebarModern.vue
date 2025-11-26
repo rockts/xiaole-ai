@@ -586,9 +586,9 @@ const updateUserMenuPosition = () => {
   const isMobile = window.innerWidth <= 768;
 
   if (isMobile) {
-    // 移动端：固定在侧边栏左侧，底部上方70px
+    // 移动端：使用侧边栏的左侧位置，保持宽度一致
     userMenuPosition.value = {
-      left: 20,
+      left: 8, // 与侧边栏对齐
       bottom: 70,
     };
   } else {
@@ -1852,32 +1852,27 @@ watch(
     overflow-x: hidden;
     -webkit-overflow-scrolling: touch; /* iOS平滑滚动 */
     /* 强制显示滚动条 - 所有浏览器 */
-    scrollbar-width: auto; /* Firefox */
-    scrollbar-color: rgba(100, 100, 100, 0.8) rgba(200, 200, 200, 0.3);
+    scrollbar-width: auto !important; /* Firefox */
+    scrollbar-color: #888 #ddd;
   }
   /* Chrome/Safari/Edge/移动端 - 强制显示 */
   .sessions-list::-webkit-scrollbar {
-    width: 8px;
-    -webkit-appearance: none; /* 移除默认样式 */
+    width: 10px !important;
+    -webkit-appearance: none !important;
+    display: block !important;
   }
   .sessions-list::-webkit-scrollbar-track {
-    background: rgba(200, 200, 200, 0.3);
-    border-radius: 4px;
+    background: #e0e0e0;
+    border-radius: 5px;
   }
   .sessions-list::-webkit-scrollbar-thumb {
-    background: rgba(100, 100, 100, 0.8);
-    border-radius: 4px;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    min-height: 30px; /* 确保滑块足够大 */
+    background: #666 !important;
+    border-radius: 5px;
+    border: 2px solid #e0e0e0;
+    min-height: 40px !important;
   }
   .sessions-list::-webkit-scrollbar-thumb:hover {
-    background: rgba(80, 80, 80, 1);
-  }
-  /* 移动端特殊处理 */
-  @media (max-width: 768px) {
-    .sessions-list::-webkit-scrollbar {
-      width: 8px !important;
-    }
+    background: #444 !important;
   }
   .sidebar-footer {
     /* 确保footer始终在底部显示，增加足够的padding避免被系统UI遮挡 */
