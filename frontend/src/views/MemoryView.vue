@@ -10,7 +10,13 @@
         <div class="skeleton-stat" v-for="i in 4" :key="i"></div>
       </div>
       <div v-else class="stats-grid">
-        <div class="stat-card" v-for="item in aggregatedStats" :key="item.key">
+        <div
+          class="stat-card"
+          v-for="item in aggregatedStats"
+          :key="item.key"
+          :class="{ active: activeTag === item.key }"
+          @click="filterByTag(item.key)"
+        >
           <div class="stat-value">{{ item.value }}</div>
           <div class="stat-label">{{ item.label }}</div>
         </div>
@@ -351,7 +357,9 @@ const topTags = computed(() => {
   for (const e of entries) {
     const prev = merged.get(e.label);
     const nextVal = (prev?.value || 0) + e.value;
-    merged.set(e.label, { key: e.label, label: e.label, value: nextVal });
+    // 修复：使用原始 key 的前缀作为 key，而不是中文 label
+    const prefix = e.key.includes(":") ? e.key.split(":")[0] : e.key;
+    merged.set(e.label, { key: prefix, label: e.label, value: nextVal });
   }
   const arr = Array.from(merged.values());
   arr.sort((a, b) => (b.value || 0) - (a.value || 0));
@@ -508,11 +516,23 @@ onMounted(() => {
   border-radius: var(--radius-lg);
   padding: var(--space-lg);
   transition: all var(--duration-fast) var(--ease-out);
+  cursor: pointer;
 }
 
 .stat-card:hover {
   border-color: var(--border-medium);
   box-shadow: var(--shadow-sm);
+  transform: translateY(-2px);
+}
+
+.stat-card.active {
+  background: var(--brand-primary);
+  border-color: var(--brand-primary);
+}
+
+.stat-card.active .stat-value,
+.stat-card.active .stat-label {
+  color: var(--text-inverse);
 }
 
 .stat-value {

@@ -338,7 +338,7 @@ class XiaoLeAgent:
 - 职业、工作
 - 家庭成员（**特别注意**：如果是家人的信息，必须明确标注关系，如"儿子"、"女儿"、"姑娘"、"妻子"等，不要写"用户"）
 - 重要日期
-- **用户的纠正和反馈**（例如"不算晨读"、"不包括..."）
+- **用户的纠正和反馈**（例如"不算晨读"、"不包括..."、"你记错了..."）
 - **用户的偏好和规则**（例如"我不喜欢..."、"只算..."）
 - **对AI回答的补充说明**（例如"实际上..."、"其实..."）
 - **用户的观点、看法或经历**（如果包含值得记忆的个人故事或独特见解）
@@ -353,9 +353,10 @@ class XiaoLeAgent:
 
 **重要规则：**
 1. 只提取用户主动告诉的**长期有效**的信息，不要推测
-2. **特别注意用户的纠正**：如果用户指出AI的错误，这是重要信息
+2. **特别注意用户的纠正**：如果用户指出AI的错误（特别是关于名字、关系），这是最高优先级的重要信息
 3. **区分主语**：家人的信息必须标注关系（如"儿子姓名：xxx"），不要写成"用户姓名"
-4. 提取格式：简洁的陈述句，例如"用户姓名：张三"、"儿子学校：逸夫中学"、"统计课程数量时不算晨读"
+4. **名字准确性**：如果涉及名字，必须逐字确认，不要搞混
+5. 提取格式：简洁的陈述句，例如"用户姓名：张三"、"儿子学校：逸夫中学"、"统计课程数量时不算晨读"
 
 请直接返回提取结果，如果没有需要记住的信息就返回"无"。"""
 
@@ -371,11 +372,31 @@ class XiaoLeAgent:
                     user_prompt=extraction_prompt
                 )
 
-            # 如果提取到了有效信息（不是"无"），存储到记忆
+            # 如果提取到了有效信息（不是"无"），进行校验与规范化后存储到记忆
             invalid_results = ["无", "无。", "None", "none", ""]
             if result and result.strip() not in invalid_results:
-                self.memory.remember(result.strip(), tag="facts")
-                logger.info(f"✅ 提取并存储关键事实: {result.strip()}")
+                extracted = result.strip()
+
+                # 家庭成员姓名硬性保护（防止儿子/女儿姓名对调被写入facts）
+                # 权威事实：女儿=高艺瑄，儿子=高艺篪
+                conflict_patterns = [
+                    r"女儿[：:，,\s]*.*高艺篪",
+                    r"儿子[：:，,\s]*.*高艺瑄",
+                ]
+                import re as _re
+                for _p in conflict_patterns:
+                    if _re.search(_p, extracted):
+                        logger.warning(
+                            "⛔ 阻止写入冲突家庭姓名事实: %s", extracted
+                        )
+                        # 不写入冲突内容，直接返回
+                        return
+
+                # 表述规范化：将“女儿姓名：可儿”更正为“小名”以避免伪冲突
+                extracted = extracted.replace("女儿姓名：可儿", "女儿小名：可儿")
+
+                self.memory.remember(extracted, tag="facts")
+                logger.info(f"✅ 提取并存储关键事实: {extracted}")
             else:
                 logger.info(f"ℹ️ 无需存储: {user_message}")
 
@@ -643,6 +664,34 @@ class XiaoLeAgent:
                                 logger.info(f"任务执行结果: {task_result}")
             except Exception as e:
                 logger.warning(f"任务处理失败: {e}", exc_info=True)
+
+        # 如果是视觉工具的结果，保存到记忆
+        if (tool_result and tool_result.get('success') and
+                tool_result.get('tool_name') == 'vision_analysis'):
+            try:
+                data = tool_result.get('data', {})
+                description = data.get('description', '')
+                face_info = data.get('face_info', '')
+
+                # 组合完整描述
+                full_content = f"{face_info}\n{description}".strip()
+
+                if full_content:
+                    # 提取文件名作为标签的一部分
+                    filename = (
+                        os.path.basename(image_path)
+                        if image_path else 'unknown'
+                    )
+
+                    # 保存记忆，使用 image:filename 标签，并关联图片路径
+                    self.memory.remember(
+                        full_content,
+                        tag=f"image:{filename}",
+                        image_path=image_path
+                    )
+                    logger.info(f"✅ 已保存图片记忆: {filename}")
+            except Exception as e:
+                logger.warning(f"保存图片记忆失败: {e}")
 
         # v0.6.0: 调用 AI 生成回复（带上下文、工具结果和响应风格）
         reply = self._think_with_context(
@@ -1452,6 +1501,9 @@ class XiaoLeAgent:
                     f"   - 格式：时段+课程名称，例如\"晨读：科学(6)、第4节：科学(5)\"\n"
                     f"   - 如果某个时间段完全没课，明确说明\n"
                     f"   - 示例：\"今天上午有晨读的科学(6)和第4节的科学(5)\"\n"
+                    f"8. 【重要事实】：\n"
+                    f"   - 必须严格区分家庭成员：女儿是【高艺瑄】，儿子是【高艺篪】\n"
+                    f"   - 涉及名字时，以【facts】记忆为最高真理，忽略任何冲突的旧对话\n"
                     f"{style_instructions}\n"
                     f"当前时间：{current_datetime}（{current_weekday}）\n"
                 )

@@ -6,7 +6,13 @@ v0.6.1: 升级到ddgs包,改进搜索稳定性
 v0.6.2: 添加代理支持和超时优化
 """
 from tool_manager import Tool, ToolParameter
-from ddgs import DDGS  # v0.6.1: 使用新的ddgs包
+try:
+    from duckduckgo_search import DDGS
+except ImportError:
+    try:
+        from ddgs import DDGS
+    except ImportError:
+        DDGS = None
 import asyncio
 import time
 import os

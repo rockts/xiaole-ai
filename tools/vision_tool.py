@@ -68,6 +68,7 @@ class VisionTool(Tool):
 
             # Step 1: Face Recognition using FaceManager
             face_info = ""
+            face_details: List[Dict[str, Any]] = []
             try:
                 # Use FaceManager to recognize faces
                 recognition_result = self.face_manager.recognize_faces(
@@ -76,13 +77,32 @@ class VisionTool(Tool):
                 if recognition_result['success']:
                     identified_people = recognition_result['identified_people']
                     face_count = recognition_result['face_count']
+                    face_details = recognition_result.get('faces', [])
+
+                    # threshold for announcing identities
+                    try:
+                        announce_threshold = float(
+                            os.getenv("FACE_ANNOUNCE_THRESHOLD", "0.6"))
+                    except Exception:
+                        announce_threshold = 0.6
 
                     # Filter out unknown people
                     known_people = [
                         p for p in identified_people if p != "未知人物"]
 
                     if known_people:
-                        face_info = f"【人脸识别结果】图中发现了以下熟人：{', '.join(known_people)}。\n"
+                        # If low confidence, ask for confirmation
+                        low_conf = any(
+                            (d.get('name') in known_people and (
+                                d.get('confidence') or 0) < announce_threshold)
+                            for d in face_details
+                        )
+                        if low_conf:
+                            face_info = (
+                                f"【人脸识别结果】可能是：{', '.join(known_people)}（置信度较低，需你确认）。\n"
+                            )
+                        else:
+                            face_info = f"【人脸识别结果】图中发现了以下熟人：{', '.join(known_people)}。\n"
                     elif face_count > 0:
                         face_info = f"【人脸识别结果】图中发现了 {face_count} 个人，但未识别出具体身份。\n"
                     else:
@@ -111,7 +131,9 @@ class VisionTool(Tool):
                 }
 
             if not llm_result.get("success"):
-                return llm_result
+                # 模型不可用时，仍返回人脸识别结果，描述为空
+                llm_result = {"success": False,
+                              "description": "", "model": "unavailable"}
 
             # Combine results
             final_description = face_info + "\n" + \
@@ -121,7 +143,8 @@ class VisionTool(Tool):
                 "success": True,
                 "description": final_description.strip(),
                 "model": llm_result.get("model", "unknown"),
-                "face_info": face_info
+                "face_info": face_info,
+                "face_details": face_details
             }
 
         except Exception as e:

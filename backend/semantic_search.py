@@ -23,6 +23,10 @@ class SemanticSearchManager:
             '啊', '呢', '吧', '么', '什么', '这', '那', '这个'
         ])
 
+    def add_memory(self, memory_id: int, content: str, tag: str):
+        """添加记忆到索引 (轻量级版本无需持久化索引，此方法为空)"""
+        pass
+
     def tokenize(self, text: str) -> List[str]:
         """分词并过滤停用词"""
         words = jieba.lcut(text.lower())

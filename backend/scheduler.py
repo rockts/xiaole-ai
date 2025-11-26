@@ -15,6 +15,8 @@ from apscheduler.triggers.cron import CronTrigger
 from reminder_manager import get_reminder_manager
 from proactive_chat import get_proactive_chat
 from memory import MemoryManager
+from pathlib import Path
+from conflict_detector import ConflictDetector
 
 logger = logging.getLogger(__name__)
 
@@ -83,6 +85,15 @@ class ReminderScheduler:
             trigger=CronTrigger(hour=4, minute=0),
             id='cleanup_old_memories',
             name='清理旧记忆',
+            replace_existing=True
+        )
+
+        # 任务6: 每天凌晨2点运行记忆冲突检测并写入日志
+        self.scheduler.add_job(
+            self.run_conflict_detector_job,
+            trigger=CronTrigger(hour=2, minute=0),
+            id='conflict_detector_daily',
+            name='记忆冲突检测',
             replace_existing=True
         )
 
@@ -259,6 +270,35 @@ class ReminderScheduler:
 
         except Exception as e:
             logger.error(f"Error cleaning up memories: {e}")
+
+    async def run_conflict_detector_job(self):
+        """运行记忆冲突检测 - 每天凌晨2点执行，输出到日志文件"""
+        try:
+            logger.info("Running conflict detector job...")
+            detector = ConflictDetector()
+            report = detector.generate_conflict_report()
+
+            # 日志文件路径：项目根目录 logs/conflict_report.log
+            backend_dir = Path(__file__).resolve().parent
+            root_dir = backend_dir.parent
+            logs_dir = root_dir / 'logs'
+            logs_dir.mkdir(parents=True, exist_ok=True)
+            log_file = logs_dir / 'conflict_report.log'
+
+            timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            with open(log_file, 'a', encoding='utf-8') as f:
+                f.write("\n" + "=" * 80 + "\n")
+                f.write(f"[{timestamp}] 记忆冲突检测报告\n")
+                f.write("-" * 80 + "\n")
+                f.write(report.strip() + "\n")
+                f.write("=" * 80 + "\n")
+
+            logger.info(
+                "Conflict detector job finished; report written to "
+                "logs/conflict_report.log"
+            )
+        except Exception as e:
+            logger.error(f"Error running conflict detector job: {e}")
 
 
 # 全局单例

@@ -2,8 +2,8 @@ import face_recognition
 import numpy as np
 from sqlalchemy.orm import Session
 from db_setup import SessionLocal, FaceEncoding
-import os
 import logging
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +25,10 @@ class FaceManager:
         Returns: dict with success, result/error
         """
         if not os.path.exists(image_path):
-            return {"success": False, "error": f"Image file not found: {image_path}"}
+            return {
+                "success": False,
+                "error": f"Image file not found: {image_path}"
+            }
 
         db = self.get_db()
         try:
@@ -35,15 +38,27 @@ class FaceManager:
             # Detect faces
             face_locations = face_recognition.face_locations(image)
             if len(face_locations) == 0:
-                return {"success": False, "error": "No face detected in the image"}
+                return {
+                    "success": False,
+                    "error": "No face detected in the image"
+                }
             if len(face_locations) > 1:
-                return {"success": False, "error": "Multiple faces detected. Please upload an image with a single face."}
+                return {
+                    "success": False,
+                    "error": (
+                        "Multiple faces detected. Please upload an image "
+                        "with a single face."
+                    )
+                }
 
             # Extract encoding
             face_encodings = face_recognition.face_encodings(
                 image, face_locations)
             if len(face_encodings) == 0:
-                return {"success": False, "error": "Could not extract face encoding"}
+                return {
+                    "success": False,
+                    "error": "Could not extract face encoding"
+                }
 
             # Convert numpy array to list for DB storage
             encoding = face_encodings[0].tolist()
@@ -59,7 +74,10 @@ class FaceManager:
             db.add(new_face)
             db.commit()
 
-            return {"success": True, "result": f"Face registered successfully for {name}"}
+            return {
+                "success": True,
+                "result": f"Face registered successfully for {name}"
+            }
 
         except Exception as e:
             db.rollback()
@@ -91,10 +109,13 @@ class FaceManager:
     def recognize_faces(self, image_path: str, user_id: str = "default_user"):
         """
         Recognize faces in an image.
-        Returns: dict with success, identified_people, face_count
+        Returns: dict with success, identified_people, face_count, faces
         """
         if not os.path.exists(image_path):
-            return {"success": False, "error": f"Image file not found: {image_path}"}
+            return {
+                "success": False,
+                "error": f"Image file not found: {image_path}"
+            }
 
         known_encodings, known_names = self.get_known_faces(user_id)
 
@@ -106,38 +127,82 @@ class FaceManager:
                 return {
                     "success": True,
                     "identified_people": [],
-                    "face_count": 0
+                    "face_count": 0,
+                    "faces": []
                 }
 
             face_encodings = face_recognition.face_encodings(
                 image, face_locations)
-
             found_names = []
+            faces_details = []
 
             if not known_encodings:
                 # No known faces, all are unknown
                 found_names = ["未知人物"] * len(face_locations)
+                faces_details = [
+                    {
+                        "name": "未知人物",
+                        "matched": False,
+                        "best_distance": None,
+                        "confidence": 0.0
+                    }
+                    for _ in face_locations
+                ]
             else:
-                for face_encoding in face_encodings:
-                    matches = face_recognition.compare_faces(
-                        known_encodings, face_encoding, tolerance=0.6
+                # thresholds
+                # face_recognition.compare_faces default tolerance=0.6
+                try:
+                    match_threshold = float(
+                        os.getenv("FACE_MATCH_THRESHOLD", "0.5")
                     )
+                except Exception:
+                    match_threshold = 0.5
+
+                for face_encoding in face_encodings:
                     name = "未知人物"
 
                     face_distances = face_recognition.face_distance(
                         known_encodings, face_encoding
                     )
+                    best_distance = None
+                    best_match_index = None
                     if len(face_distances) > 0:
-                        best_match_index = np.argmin(face_distances)
-                        if matches[best_match_index]:
-                            name = known_names[best_match_index]
+                        best_match_index = int(np.argmin(face_distances))
+                        best_distance = float(face_distances[best_match_index])
+
+                    matched = False
+                    if (
+                        best_distance is not None and
+                        best_distance <= match_threshold
+                    ):
+                        matched = True
+                        name = known_names[best_match_index]
+
+                    # heuristic confidence from distance
+                    confidence = 0.0
+                    if best_distance is not None:
+                        # Map [0.3, 0.6] -> [1.0, 0.0]
+                        low, high = 0.3, 0.6
+                        if best_distance <= low:
+                            confidence = 1.0
+                        elif best_distance >= high:
+                            confidence = 0.0
+                        else:
+                            confidence = (high - best_distance) / (high - low)
 
                     found_names.append(name)
+                    faces_details.append({
+                        "name": name,
+                        "matched": matched,
+                        "best_distance": best_distance,
+                        "confidence": round(confidence, 3)
+                    })
 
             return {
                 "success": True,
                 "identified_people": found_names,
-                "face_count": len(face_locations)
+                "face_count": len(face_locations),
+                "faces": faces_details
             }
 
         except Exception as e:

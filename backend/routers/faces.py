@@ -1,6 +1,7 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Body, HTTPException
 from face_manager import FaceManager
 from db_setup import SessionLocal, FaceEncoding
+import os
 
 router = APIRouter(
     prefix="/api/faces",
@@ -63,3 +64,45 @@ def delete_face(name: str):
             "success": False,
             "error": str(e)
         }
+
+
+@router.post("/register")
+def register_face(payload: dict = Body(...)):
+    """注册一张人脸（用于前端确认后提交）
+
+    Body: { image_path: '/uploads/images/xxx.jpg', person_name: '张三' }
+    """
+    try:
+        image_path = payload.get('image_path')
+        person_name = payload.get('person_name')
+        if not image_path or not person_name:
+            raise HTTPException(
+                status_code=400,
+                detail="image_path 与 person_name 必填"
+            )
+
+        # 将 /uploads/images/xxx.jpg 解析为后端真实文件路径
+        # backend/uploads/images/xxx.jpg
+        # 去掉可能的前导斜杠再拼接
+        rel = image_path.lstrip('/')
+        abs_path = os.path.join(
+            os.path.dirname(__file__),  # backend/routers
+            '..',  # backend
+            rel.split('/', 1)[1] if '/' in rel else rel
+        )
+        abs_path = os.path.abspath(abs_path)
+
+        manager = FaceManager()
+        res = manager.register_face(abs_path, person_name)
+        if not res.get('success'):
+            raise HTTPException(
+                status_code=400,
+                detail=res.get('error', 'register failed')
+            )
+
+        return {"success": True, "message": res.get('result', 'ok')}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        return {"success": False, "error": str(e)}

@@ -132,7 +132,9 @@ export default {
     },
 
     getRecentMemories(hours = 24, limit = 20, tag = null) {
-        return api.get('/memory/recent', { params: { hours, limit, tag } })
+        const params = { hours, limit }
+        if (tag) params.tag = tag
+        return api.get('/memory/recent', { params })
     },
 
     searchMemories(keywords) {
