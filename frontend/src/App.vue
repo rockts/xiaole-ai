@@ -26,6 +26,7 @@ import { ref, onMounted, watch } from "vue";
 import { useWebSocket } from "@/composables/useWebSocket";
 import { useAuthStore } from "@/stores/auth";
 
+// Force rebuild comment
 const authStore = useAuthStore();
 const sidebarRef = ref(null);
 

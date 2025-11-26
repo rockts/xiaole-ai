@@ -2,6 +2,7 @@ import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import path from 'path'
 
+// Config for Vue 3 + Vite
 export default defineConfig({
     plugins: [vue()],
     resolve: {

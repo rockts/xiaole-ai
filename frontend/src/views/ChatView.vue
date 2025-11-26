@@ -1703,6 +1703,7 @@ const stopDrag = () => {
 const touchStartDistance = ref(0);
 const touchStartScale = ref(1);
 const lastTouchPos = ref({ x: 0, y: 0 });
+const lastTapTime = ref(0);
 
 const getDistance = (t1, t2) => {
   const dx = t1.clientX - t2.clientX;
@@ -1753,6 +1754,21 @@ const handleTouchMove = (e) => {
 const handleTouchEnd = (e) => {
   if (e.touches.length === 0) {
     isDragging.value = false;
+
+    // 双击缩放检测
+    const currentTime = new Date().getTime();
+    const tapLength = currentTime - lastTapTime.value;
+    if (tapLength < 300 && tapLength > 0) {
+      if (imageScale.value > 1.1) {
+        // 如果已经放大，则还原
+        imageScale.value = 1;
+        imageTranslate.value = { x: 0, y: 0 };
+      } else {
+        // 如果未放大，则放大到 2.5 倍
+        imageScale.value = 2.5;
+      }
+    }
+    lastTapTime.value = currentTime;
   }
 };
 

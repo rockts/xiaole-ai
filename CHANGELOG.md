@@ -18,6 +18,15 @@
 ## [Unreleased] - develop 分支
 
 ### 2025-11-26
+#### fix
+- 🐛 修复前端 Vite 构建错误 `[plugin:vite:import-analysis] Failed to parse source` (清理缓存并强制重建)
+
+#### feat
+- ✨ 新增人脸识别与管理功能 (Face Library)
+  - 后端 `FaceManager` 实现人脸注册与识别
+  - `VisionTool` 升级支持混合分析（人脸+场景）
+  - 新增 `RegisterFaceTool` 支持对话注册人脸
+
 #### feat
 - ✨ 2
 
