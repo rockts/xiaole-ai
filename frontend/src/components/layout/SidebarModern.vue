@@ -339,7 +339,12 @@
         @click="toggleUserMenu"
         @touchstart.stop="toggleUserMenu"
         ref="userMenuRef"
+        style="cursor: pointer; user-select: none; -webkit-tap-highlight-color: rgba(0,0,0,0.1);"
       >
+        <!-- 调试提示 -->
+        <div v-if="debugInfo" style="position: fixed; top: 10px; left: 50%; transform: translateX(-50%); background: yellow; padding: 10px; z-index: 9999; border: 2px solid red; font-size: 14px; max-width: 90%; word-break: break-all;">
+          {{ debugInfo }}
+        </div>
         <div class="avatar-wrapper">
           <div class="user-avatar-icon">
             <svg
@@ -570,6 +575,7 @@ const loadSession = (id) => {
 const showSettingsModal = ref(false);
 const showUserMenu = ref(false);
 const userMenuPosition = ref({ left: 0, bottom: 0 });
+const debugInfo = ref(''); // 调试信息
 const userMenuRef = ref(null);
 const username = ref("游戏小乐乐"); // 默认值，后续从localStorage加载
 
@@ -582,44 +588,32 @@ const openSettingsModal = () => {
 const updateUserMenuPosition = () => {
   if (!userMenuRef.value) return;
   const rect = userMenuRef.value.getBoundingClientRect();
-  const isMobileView = window.innerWidth <= 768;
 
-  console.log('Updating menu position, isMobile:', isMobileView, 'rect:', rect);
-
-  if (isMobileView) {
-    // 移动端：固定在侧边栏内，底部上方
-    const menuHeight = 150; // 预估菜单高度
-    userMenuPosition.value = {
-      left: rect.left + 8,
-      bottom: window.innerHeight - rect.top + 8,
-    };
-  } else {
-    // 桌面端：根据实际位置计算
-    userMenuPosition.value = {
-      left: rect.left + 8,
-      bottom: window.innerHeight - rect.top + 8,
-    };
-  }
-  
-  console.log('Menu position set to:', userMenuPosition.value);
+  // 所有设备使用相同的定位逻辑
+  userMenuPosition.value = {
+    left: rect.left + 8,
+    bottom: window.innerHeight - rect.top + 8,
+  };
 };
 
 const toggleUserMenu = (event) => {
+  // 显示调试信息
+  debugInfo.value = `点击触发! 时间: ${new Date().toLocaleTimeString()}, 当前状态: ${showUserMenu.value}`;
+  setTimeout(() => { debugInfo.value = ''; }, 3000);
+  
   // 阻止事件冒泡和默认行为
   if (event) {
     event.stopPropagation();
     event.preventDefault();
   }
   
-  console.log('toggleUserMenu called, current state:', showUserMenu.value);
-
   if (!showUserMenu.value) {
     updateUserMenuPosition();
     showUserMenu.value = true;
-    console.log('User menu opened, position:', userMenuPosition.value);
+    debugInfo.value += ' -> 菜单已打开';
   } else {
     showUserMenu.value = false;
-    console.log('User menu closed');
+    debugInfo.value += ' -> 菜单已关闭';
   }
 };
 
