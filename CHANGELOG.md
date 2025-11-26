@@ -18,6 +18,9 @@
 ## [Unreleased] - develop 分支
 
 ### 2025-11-26
+#### docs
+- 📝 1
+
 #### fix
 - 🐛 修复前端 Vite 构建错误 `[plugin:vite:import-analysis] Failed to parse source` (清理缓存并强制重建)
 

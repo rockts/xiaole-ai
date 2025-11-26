@@ -184,6 +184,7 @@
 <script setup>
 import { ref, onMounted } from "vue";
 import { marked } from "marked";
+import api from "@/services/api";
 
 const emit = defineEmits(["close"]);
 const props = defineProps({
@@ -295,11 +296,8 @@ onMounted(async () => {
     console.log("提取的会话ID:", id);
 
     // 拉取会话最近消息以构建预览
-    const resp = await fetch(`/session/${id}`);
-    console.log("会话数据响应状态:", resp.status);
-
-    if (resp.ok) {
-      const data = await resp.json();
+    try {
+      const data = await api.getSession(id);
       const list = (data.messages || data.history || []).slice(-5);
       console.log("获取到的消息数量:", list.length);
 
@@ -346,8 +344,8 @@ onMounted(async () => {
       } else {
         console.log("使用服务端预览图");
       }
-    } else {
-      console.log("会话数据获取失败，直接使用前端截图");
+    } catch (err) {
+      console.log("会话数据获取失败，直接使用前端截图", err);
       await htmlToImagePreview();
     }
   } catch (err) {

@@ -94,6 +94,10 @@ export default {
         return api.delete(`/api/chat/sessions/${sessionId}`)
     },
 
+    updateSession(sessionId, data) {
+        return api.patch(`/api/chat/sessions/${sessionId}`, data)
+    },
+
     deleteMessage(messageId) {
         return api.delete(`/api/messages/${messageId}`)
     },
@@ -232,14 +236,14 @@ export default {
     },
 
     // 语音合成
-    synthesizeVoice(text) {
+    synthesizeVoice(text, options = {}) {
         return api.post('/api/voice/synthesize', {
             text,
-            person: 0, // 默认度小美
-            speed: 5,
-            pitch: 5,
-            volume: 5,
-            audio_format: 'mp3'
+            person: options.person !== undefined ? options.person : 0,
+            speed: options.speed !== undefined ? options.speed : 5,
+            pitch: options.pitch !== undefined ? options.pitch : 5,
+            volume: options.volume !== undefined ? options.volume : 5,
+            audio_format: options.audio_format || 'mp3'
         })
     }
 }

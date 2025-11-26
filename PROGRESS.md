@@ -107,6 +107,12 @@
 - [x] **对话注册** - 新增 `RegisterFaceTool`，支持通过对话直接注册人脸
 - [x] **前端修复** - 解决 Vite 构建缓存导致的解析错误
 
+#### Phase 3: 架构优化与稳定性 ✅（2025-11-26）
+- [x] **API层重构** - 封装 `api.js` 统一服务层，移除组件内直接 `fetch` 调用
+- [x] **异常处理统一** - 适配后端 `HTTPException` 抛出机制，前端拦截器统一处理 4xx/5xx 错误
+- [x] **Token管理** - 统一在拦截器中注入 Authorization 头，简化组件逻辑
+- [x] **组件重构** - 完成 `ChatView`, `Sidebar`, `SidebarModern`, `TopBar`, `ShareDialog` 等核心组件的 API 调用改造
+
 ### 🗺️ 规划中
 - [x] 完善移动端触摸交互体验（图片预览双指缩放/拖拽）
 - 分享卡片智能排版（多图网格、长文分栏）

@@ -266,22 +266,14 @@ const saveTitleEdit = async () => {
   }
 
   try {
-    const response = await fetch(`/api/chat/sessions/${sessionId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title: newTitle }),
-    });
+    await api.updateSession(sessionId, { title: newTitle });
 
-    if (response.ok) {
-      // 更新当前会话信息
-      if (chatStore.sessionInfo) {
-        chatStore.sessionInfo.title = newTitle;
-      }
-      // 重新加载会话列表以更新侧边栏
-      await chatStore.loadSessions();
-    } else {
-      console.error("标题更新失败");
+    // 更新当前会话信息
+    if (chatStore.sessionInfo) {
+      chatStore.sessionInfo.title = newTitle;
     }
+    // 重新加载会话列表以更新侧边栏
+    await chatStore.loadSessions();
   } catch (error) {
     console.error("标题更新失败:", error);
   }

@@ -74,13 +74,13 @@ class ReminderTool(Tool):
             reminder_mgr = get_reminder_manager()
 
             if operation == "list":
-                return await self._handle_list(reminder_mgr, user_id, kwargs)
+                return self._handle_list(reminder_mgr, user_id, kwargs)
             elif operation == "delete":
-                return await self._handle_delete(reminder_mgr, kwargs)
+                return self._handle_delete(reminder_mgr, kwargs)
             elif operation == "update":
-                return await self._handle_update(reminder_mgr, kwargs)
+                return self._handle_update(reminder_mgr, kwargs)
             else:
-                return await self._handle_create(reminder_mgr, kwargs, user_id)
+                return self._handle_create(reminder_mgr, kwargs, user_id)
 
         except Exception as e:
             import logging
@@ -90,7 +90,7 @@ class ReminderTool(Tool):
                 "data": f"❌ 操作失败: {str(e)}"
             }
 
-    async def _handle_list(self, mgr, user_id: str, kwargs: dict) -> dict:
+    def _handle_list(self, mgr, user_id: str, kwargs: dict) -> dict:
         """处理查询请求"""
         import logging
         logger = logging.getLogger(__name__)
@@ -106,7 +106,7 @@ class ReminderTool(Tool):
             f"🔍 查询提醒: user_id={user_id}, status={status}, "
             f"enabled_only={enabled_only}"
         )
-        reminders = await mgr.get_user_reminders(
+        reminders = mgr.get_user_reminders(
             user_id, enabled_only=enabled_only
         )
         logger.info(f"📋 查询结果: 找到 {len(reminders)} 条提醒")
@@ -128,7 +128,7 @@ class ReminderTool(Tool):
         if not reminders:
             # 如果查询 active 为空，尝试检查是否有 completed 的提醒，给用户更好的反馈
             if status == "active":
-                all_reminders = await mgr.get_user_reminders(
+                all_reminders = mgr.get_user_reminders(
                     user_id, enabled_only=False
                 )
                 completed_reminders = [
@@ -210,13 +210,13 @@ class ReminderTool(Tool):
                 time_str = dt_str
         return time_str
 
-    async def _handle_delete(self, mgr, kwargs) -> dict:
+    def _handle_delete(self, mgr, kwargs) -> dict:
         """处理删除请求"""
         reminder_id = kwargs.get("reminder_id")
         if not reminder_id:
             return {"success": False, "data": "❌ 删除提醒需要提供 reminder_id"}
 
-        success = await mgr.delete_reminder(int(reminder_id))
+        success = mgr.delete_reminder(int(reminder_id))
         if success:
             return {"success": True, "data": f"✅ 提醒已删除 (ID: {reminder_id})"}
         else:
@@ -225,7 +225,7 @@ class ReminderTool(Tool):
                 "data": f"❌ 删除失败，未找到提醒 ID: {reminder_id}"
             }
 
-    async def _handle_create(self, mgr, kwargs, user_id) -> dict:
+    def _handle_create(self, mgr, kwargs, user_id) -> dict:
         """处理创建请求"""
         content = kwargs.get("content", "")
         time_desc = kwargs.get("time_desc", "")
@@ -254,7 +254,7 @@ class ReminderTool(Tool):
                 )
             }
 
-        reminder = await mgr.create_reminder(
+        reminder = mgr.create_reminder(
             user_id=user_id,
             reminder_type="time",
             trigger_condition={
@@ -275,7 +275,7 @@ class ReminderTool(Tool):
             "reminder_id": reminder['reminder_id']
         }
 
-    async def _handle_update(self, mgr, kwargs) -> dict:
+    def _handle_update(self, mgr, kwargs) -> dict:
         """处理修改请求"""
         reminder_id = kwargs.get("reminder_id")
         user_id = kwargs.get("user_id", "default_user")
@@ -286,7 +286,7 @@ class ReminderTool(Tool):
             logger = logging.getLogger(__name__)
             logger.info("🔍 修改提醒未提供ID，尝试智能查找唯一活跃提醒...")
 
-            active_reminders = await mgr.get_user_reminders(
+            active_reminders = mgr.get_user_reminders(
                 user_id, enabled_only=True
             )
 
@@ -353,7 +353,7 @@ class ReminderTool(Tool):
         if not updates:
             return {"success": False, "data": "⚠️ 未提供任何需要修改的内容"}
 
-        updated_reminder = await mgr.update_reminder(int(reminder_id), **updates)
+        updated_reminder = mgr.update_reminder(int(reminder_id), **updates)
 
         if updated_reminder:
             msg_parts = [f"✅ 提醒已修改 (ID: {reminder_id})"]

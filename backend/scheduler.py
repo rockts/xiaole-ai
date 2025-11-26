@@ -110,12 +110,12 @@ class ReminderScheduler:
 
             total_triggered = 0
             for user_id in users:
-                triggered = await self.reminder_manager.check_time_reminders(
+                triggered = self.reminder_manager.check_time_reminders(
                     user_id
                 )
 
                 for reminder in triggered:
-                    success = await self.reminder_manager.check_and_notify_reminder(
+                    success = self.reminder_manager.check_and_notify_reminder(
                         reminder['reminder_id']
                     )
                     if success:
@@ -145,12 +145,12 @@ class ReminderScheduler:
 
             total_triggered = 0
             for user_id in users:
-                triggered = await self.reminder_manager.check_behavior_reminders(
+                triggered = self.reminder_manager.check_behavior_reminders(
                     user_id
                 )
 
                 for reminder in triggered:
-                    success = await self.reminder_manager.check_and_notify_reminder(
+                    success = self.reminder_manager.check_and_notify_reminder(
                         reminder['reminder_id']
                     )
                     if success:

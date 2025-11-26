@@ -949,6 +949,7 @@ import { marked } from "marked";
 import markedKatex from "marked-katex-extension";
 import hljs from "highlight.js";
 import "katex/dist/katex.min.css";
+import api from "@/services/api";
 
 import ShareDialog from "@/components/common/ShareDialog.vue";
 import VoiceModeDialog from "@/components/voice/VoiceModeDialog.vue";
@@ -1236,35 +1237,22 @@ async function speakAndResumeMic(text) {
   const clean = cleanTtsText(text);
   try {
     console.log("🔊 开始请求 TTS API...");
-    const resp = await fetch("/api/voice/synthesize", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        text: clean,
-        person,
-        speed: 7,
-        pitch: 4,
-        volume: 3,
-        audio_format: "mp3",
-      }),
+    const data = await api.synthesizeVoice(clean, {
+      person,
+      speed: 7,
+      pitch: 4,
+      volume: 3,
+      audio_format: "mp3",
     });
-    console.log("🔊 TTS API 响应状态:", resp.status);
-    if (!resp.ok) {
-      const errorText = await resp.text();
-      console.error("🔊 TTS API 错误响应(HTTP层):", errorText);
-      throw new Error("TTS 请求失败: " + resp.status);
-    }
-    const data = await resp.json();
+
     const base64Audio = data.audio_base64 || data.audio; // 兼容旧字段
     const mimeType = data.mime || data.mime_type;
     console.log("🔊 TTS 响应数据解析:", {
-      success: data.success,
       hasAudio: !!base64Audio,
       mimeType,
       len: base64Audio?.length,
       raw: data,
     });
-    if (!data.success) throw new Error(data.error || "语音合成失败");
     if (!base64Audio || !mimeType) throw new Error("TTS 响应无音频");
     const audio = new Audio(`data:${mimeType};base64,${base64Audio}`);
     audio.onplay = () => {
@@ -1453,23 +1441,15 @@ const toggleSpeak = async (message) => {
     const voiceId = localStorage.getItem("selectedVoice") || "juniper";
     const person = getPersonFromVoiceId(voiceId);
     const clean = cleanTtsText(message.content);
-    const resp = await fetch("/api/voice/synthesize", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        text: clean,
-        person,
-        speed: 7,
-        pitch: 4,
-        volume: 3,
-        audio_format: "mp3",
-      }),
+    const data = await api.synthesizeVoice(clean, {
+      person,
+      speed: 7,
+      pitch: 4,
+      volume: 3,
+      audio_format: "mp3",
     });
-    if (!resp.ok) throw new Error("TTS 请求失败");
-    const data = await resp.json();
     const base64Audio = data.audio_base64 || data.audio;
     const mimeType = data.mime || data.mime_type;
-    if (!data.success) throw new Error(data.error || "语音合成失败");
     if (!base64Audio || !mimeType) throw new Error("TTS 响应无音频");
     const audio = new Audio(`data:${mimeType};base64,${base64Audio}`);
     audio.onplay = () => {

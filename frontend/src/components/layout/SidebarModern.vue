@@ -489,9 +489,8 @@ const incompleteTasks = computed(() =>
 
 const fetchTasks = async () => {
   try {
-    const res = await fetch("/api/tasks");
-    if (res.ok) {
-      const data = await res.json();
+    const data = await api.getTasks();
+    if (data.success) {
       tasks.value = data.tasks || [];
     }
   } catch (e) {
@@ -766,30 +765,20 @@ const saveRename = async (id) => {
   }
 
   try {
-    const response = await fetch(`/api/chat/sessions/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title: newTitle }),
-    });
+    await api.updateSession(id, { title: newTitle });
 
-    if (response.ok) {
-      const session = sessions.value.find((s) => (s.id || s.session_id) === id);
-      if (session) {
-        session.title = newTitle;
-      }
-      if (
-        chatStore.sessionInfo &&
-        (chatStore.sessionInfo.id === id ||
-          chatStore.sessionInfo.session_id === id)
-      ) {
-        chatStore.sessionInfo.title = newTitle;
-      }
-      cancelRename();
-    } else {
-      console.error("重命名失败:", await response.text());
-      alert("重命名失败,请重试");
-      cancelRename();
+    const session = sessions.value.find((s) => (s.id || s.session_id) === id);
+    if (session) {
+      session.title = newTitle;
     }
+    if (
+      chatStore.sessionInfo &&
+      (chatStore.sessionInfo.id === id ||
+        chatStore.sessionInfo.session_id === id)
+    ) {
+      chatStore.sessionInfo.title = newTitle;
+    }
+    cancelRename();
   } catch (error) {
     console.error("重命名失败:", error);
     alert("重命名失败,请重试");
@@ -828,19 +817,11 @@ const pinSession = async (id) => {
   try {
     // 切换置顶状态
     const isPinned = session.pinned || false;
-    const response = await fetch(`/api/chat/sessions/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pinned: !isPinned }),
-    });
+    await api.updateSession(id, { pinned: !isPinned });
 
-    if (response.ok) {
-      session.pinned = !isPinned;
-      // 重新排序会话列表,置顶的会话排在前面
-      await chatStore.loadSessions(true);
-    } else {
-      alert(isPinned ? "取消置顶失败" : "置顶失败");
-    }
+    session.pinned = !isPinned;
+    // 重新排序会话列表,置顶的会话排在前面
+    await chatStore.loadSessions(true);
   } catch (error) {
     console.error("置顶操作失败:", error);
     alert("操作失败,请重试");
@@ -865,25 +846,19 @@ const deleteSession = async () => {
   if (!id) return;
 
   try {
-    const response = await fetch(`/api/chat/sessions/${id}`, {
-      method: "DELETE",
-    });
+    await api.deleteSession(id);
 
-    if (response.ok) {
-      // 从列表中移除
-      const index = sessions.value.findIndex(
-        (s) => (s.id || s.session_id) === id
-      );
-      if (index > -1) {
-        sessions.value.splice(index, 1);
-      }
+    // 从列表中移除
+    const index = sessions.value.findIndex(
+      (s) => (s.id || s.session_id) === id
+    );
+    if (index > -1) {
+      sessions.value.splice(index, 1);
+    }
 
-      // 如果删除的是当前会话,跳转到新对话
-      if (route.params.sessionId == id) {
-        router.push("/chat");
-      }
-    } else {
-      alert("删除失败,请重试");
+    // 如果删除的是当前会话,跳转到新对话
+    if (route.params.sessionId == id) {
+      router.push("/chat");
     }
   } catch (error) {
     console.error("删除失败:", error);

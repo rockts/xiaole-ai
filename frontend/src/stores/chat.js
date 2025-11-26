@@ -164,7 +164,8 @@ export const useChatStore = defineStore('chat', () => {
                 const msgIndex = messages.value.findIndex(m => m.id === activeTypingMessageId.value)
                 if (msgIndex !== -1) {
                     messages.value[msgIndex].status = 'done'
-                    messages.value[msgIndex].content = '⚠️ 出错了，请稍后重试。'
+                    const errorMsg = error.response?.data?.detail || '出错了，请稍后重试。'
+                    messages.value[msgIndex].content = `⚠️ ${errorMsg}`
                 }
             }
         } finally {

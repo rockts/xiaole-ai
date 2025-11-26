@@ -113,48 +113,48 @@ class XiaoLeAgent:
         if self.api_type == "deepseek":
             if not self.deepseek_key or \
                self.deepseek_key == "your_deepseek_api_key_here":
-                print("⚠️  警告: 未配置 DEEPSEEK_API_KEY，使用占位模式")
+                logger.warning("⚠️  警告: 未配置 DEEPSEEK_API_KEY，使用占位模式")
                 return None
-            print(f"✅ 使用 DeepSeek API ({self.model})")
+            logger.info(f"✅ 使用 DeepSeek API ({self.model})")
             return "deepseek"
 
         elif self.api_type == "claude":
             if not self.claude_key or \
                self.claude_key == "your_claude_api_key_here":
-                print("⚠️  警告: 未配置 CLAUDE_API_KEY，使用占位模式")
+                logger.warning("⚠️  警告: 未配置 CLAUDE_API_KEY，使用占位模式")
                 # 尝试回退到 DeepSeek
                 if self.deepseek_key and \
                    self.deepseek_key != "your_deepseek_api_key_here":
-                    print("↩️  回退到 DeepSeek（因缺少 Claude Key）")
+                    logger.info("↩️  回退到 DeepSeek（因缺少 Claude Key）")
                     self.api_type = "deepseek"
                     self.model = self._get_model()
-                    print(f"✅ 使用 DeepSeek API ({self.model})")
+                    logger.info(f"✅ 使用 DeepSeek API ({self.model})")
                     return "deepseek"
                 return None
             try:
                 from anthropic import Anthropic
-                print(f"✅ 使用 Claude API ({self.model})")
+                logger.info(f"✅ 使用 Claude API ({self.model})")
                 return Anthropic(api_key=self.claude_key)
             except Exception as e:
-                print(f"⚠️  Claude初始化失败: {e}")
+                logger.error(f"⚠️  Claude初始化失败: {e}")
                 # 尝试回退到 DeepSeek
                 if self.deepseek_key and \
                    self.deepseek_key != "your_deepseek_api_key_here":
-                    print("↩️  回退到 DeepSeek（Claude 初始化失败）")
+                    logger.info("↩️  回退到 DeepSeek（Claude 初始化失败）")
                     self.api_type = "deepseek"
                     self.model = self._get_model()
-                    print(f"✅ 使用 DeepSeek API ({self.model})")
+                    logger.info(f"✅ 使用 DeepSeek API ({self.model})")
                     return "deepseek"
                 return None
 
-        print(f"⚠️  未知的API类型: {self.api_type}")
+        logger.warning(f"⚠️  未知的API类型: {self.api_type}")
         # 尝试回退到 DeepSeek
         if self.deepseek_key and \
            self.deepseek_key != "your_deepseek_api_key_here":
-            print("↩️  回退到 DeepSeek（未知 API 类型）")
+            logger.info("↩️  回退到 DeepSeek（未知 API 类型）")
             self.api_type = "deepseek"
             self.model = self._get_model()
-            print(f"✅ 使用 DeepSeek API ({self.model})")
+            logger.info(f"✅ 使用 DeepSeek API ({self.model})")
             return "deepseek"
         return None
 
@@ -226,7 +226,7 @@ class XiaoLeAgent:
 
         except Exception as e:
             error_msg = f"调用 AI API 时出错: {str(e)}"
-            print(f"❌ {error_msg}")
+            logger.error(f"❌ {error_msg}")
             return f"抱歉，我遇到了一些问题：{str(e)}"
 
     @retry_with_backoff(
@@ -482,9 +482,8 @@ class XiaoLeAgent:
         try:
             from reminder_manager import get_reminder_manager
             reminder_mgr = get_reminder_manager()
-            pending_reminders = asyncio.run(
-                reminder_mgr.get_pending_reminders(user_id, limit=3)
-            )
+            pending_reminders = reminder_mgr.get_pending_reminders(
+                user_id, limit=3)
         except Exception as e:
             logger.warning(f"检查提醒失败: {e}")
 
@@ -941,20 +940,14 @@ class XiaoLeAgent:
 
                 # 同步查询当前提醒数量
                 try:
-                    import asyncio
                     from reminder_manager import get_reminder_manager
                     mgr = get_reminder_manager()
 
-                    # 创建事件循环来运行异步代码
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
-                    reminders = loop.run_until_complete(
-                        mgr.get_user_reminders(
-                            user_id="default_user",
-                            enabled_only=True
-                        )
+                    # ReminderManager是同步方法，直接调用
+                    reminders = mgr.get_user_reminders(
+                        user_id="default_user",
+                        enabled_only=True
                     )
-                    loop.close()
 
                     if len(reminders) == 1:
                         # 只有1个提醒，直接删除

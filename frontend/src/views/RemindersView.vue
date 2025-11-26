@@ -198,7 +198,7 @@ const toggleReminder = async (reminder) => {
     console.error("Failed to update reminder:", error);
     // Revert on failure
     reminder.enabled = !newState;
-    alert("更新状态失败");
+    alert(`更新状态失败: ${error.response?.data?.detail || "请重试"}`);
   }
 };
 
@@ -223,7 +223,7 @@ const confirmDelete = async () => {
     deletingReminderId.value = null;
   } catch (error) {
     console.error("Failed to delete reminder:", error);
-    alert("删除失败");
+    alert(`删除失败: ${error.response?.data?.detail || "请重试"}`);
   }
 };
 
@@ -284,7 +284,7 @@ onMounted(() => {
   loadReminders();
   // 监听提醒确认事件，刷新列表
   window.addEventListener("reminder-confirmed", loadReminders);
-  window.addEventListener('refresh-reminders', loadReminders);
+  window.addEventListener("refresh-reminders", loadReminders);
 
   // 启动倒计时更新
   timerInterval = setInterval(updateTimeRemaining, 1000);
@@ -303,7 +303,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener("reminder-confirmed", loadReminders);
-  window.removeEventListener('refresh-reminders', loadReminders);
+  window.removeEventListener("refresh-reminders", loadReminders);
   if (timerInterval) clearInterval(timerInterval);
   if (wsUnsubscribe) {
     wsUnsubscribe();
