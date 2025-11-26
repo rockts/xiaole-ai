@@ -113,6 +113,10 @@
 - [x] **Token管理** - 统一在拦截器中注入 Authorization 头，简化组件逻辑
 - [x] **组件重构** - 完成 `ChatView`, `Sidebar`, `SidebarModern`, `TopBar`, `ShareDialog` 等核心组件的 API 调用改造
 
+#### Phase 4: 细节修复与优化 ✅（2025-11-27）
+- [x] **图片上传修复** - 新增 `backend/routers/vision.py` 实现 `/api/vision/upload` 接口，解决 404 错误
+- [x] **UI 宽度调整** - 将聊天窗口和输入框最大宽度从 `48rem` 调整为 `42rem`，优化视觉体验
+
 ### 🗺️ 规划中
 - [x] 完善移动端触摸交互体验（图片预览双指缩放/拖拽）
 - 分享卡片智能排版（多图网格、长文分栏）

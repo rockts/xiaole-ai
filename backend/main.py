@@ -7,7 +7,7 @@ import os
 from routers import (
     auth, chat, memories, reminders, tasks,
     tools, analytics, documents, voice,
-    schedule, feedback, faces, dashboard
+    schedule, feedback, faces, dashboard, vision
 )
 from dependencies import get_reminder_manager, get_scheduler, get_xiaole_agent
 from config import STATIC_DIR, UPLOADS_DIR, FILES_DIR
@@ -141,6 +141,7 @@ app.include_router(schedule.router)
 app.include_router(feedback.router)
 app.include_router(faces.router)
 app.include_router(dashboard.router)
+app.include_router(vision.router)
 
 
 @app.get("/")

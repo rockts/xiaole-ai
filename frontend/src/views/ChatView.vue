@@ -2720,7 +2720,7 @@ const feedbackMessage = async (message, type) => {
 }
 .chat-inner {
   width: 100%;
-  max-width: 800px;
+  max-width: 42rem;
   padding: 16px 20px;
   position: relative;
 }
@@ -2899,6 +2899,14 @@ const feedbackMessage = async (message, type) => {
 .scroll-to-bottom:active .scroll-icon-wrapper {
   transform: scale(0.98);
   box-shadow: 0 12px 20px rgba(0, 0, 0, 0.35);
+}
+.md-content :deep(ul),
+.md-content :deep(ol) {
+  padding-left: 1.5em;
+  margin: 0.5em 0;
+}
+.md-content :deep(ul) {
+  list-style-type: disc;
 }
 .md-content :deep(ol) {
   list-style-type: decimal;
@@ -3181,7 +3189,7 @@ const feedbackMessage = async (message, type) => {
   flex-shrink: 0;
 }
 .input-wrapper {
-  max-width: 800px;
+  max-width: 42rem;
   margin: 0 auto;
   display: flex;
   flex-direction: column; /* 改为纵向布局以容纳预览图 */
