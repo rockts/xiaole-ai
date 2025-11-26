@@ -164,7 +164,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 2000;
+  z-index: 99999;
   backdrop-filter: blur(4px);
   animation: fadeIn 0.2s ease-out;
 }
@@ -179,6 +179,22 @@ onMounted(() => {
   flex-direction: column;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
   animation: slideUp 0.2s ease-out;
+  z-index: 100000;
+}
+
+@media (max-width: 768px) {
+  .modal-overlay {
+    align-items: stretch;
+  }
+  
+  .modal-content {
+    width: 100%;
+    max-width: 100%;
+    height: 100vh;
+    max-height: 100vh;
+    border-radius: 0;
+    margin: 0;
+  }
 }
 
 .modal-header {

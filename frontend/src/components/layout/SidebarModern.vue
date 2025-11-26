@@ -1852,27 +1852,35 @@ watch(
     overflow-x: hidden;
     -webkit-overflow-scrolling: touch; /* iOS平滑滚动 */
     /* 强制显示滚动条 - 所有浏览器 */
-    scrollbar-width: auto !important; /* Firefox */
-    scrollbar-color: #888 #ddd;
+    scrollbar-width: auto !important; /* Firefox - auto比thin更明显 */
+    scrollbar-color: rgba(0, 0, 0, 0.5) rgba(0, 0, 0, 0.1) !important;
   }
-  /* Chrome/Safari/Edge/移动端 - 强制显示 */
+  /* Chrome/Safari/Edge/移动端 - 强制显示，使用更明显的样式 */
   .sessions-list::-webkit-scrollbar {
-    width: 10px !important;
+    width: 14px !important; /* 加宽滚动条 */
     -webkit-appearance: none !important;
     display: block !important;
+    background: rgba(0, 0, 0, 0.05) !important;
   }
   .sessions-list::-webkit-scrollbar-track {
-    background: #e0e0e0;
-    border-radius: 5px;
+    background: rgba(0, 0, 0, 0.08) !important;
+    border-radius: 7px !important;
+    margin: 4px 0 !important;
   }
   .sessions-list::-webkit-scrollbar-thumb {
-    background: #666 !important;
-    border-radius: 5px;
-    border: 2px solid #e0e0e0;
-    min-height: 40px !important;
+    background: rgba(0, 0, 0, 0.45) !important;
+    border-radius: 7px !important;
+    border: 3px solid rgba(0, 0, 0, 0.05) !important; /* 边框让滚动条更明显 */
+    background-clip: padding-box !important;
+    min-height: 50px !important;
   }
   .sessions-list::-webkit-scrollbar-thumb:hover {
-    background: #444 !important;
+    background: rgba(0, 0, 0, 0.6) !important;
+    background-clip: padding-box !important;
+  }
+  .sessions-list::-webkit-scrollbar-thumb:active {
+    background: rgba(0, 0, 0, 0.7) !important;
+    background-clip: padding-box !important;
   }
   .sidebar-footer {
     /* 确保footer始终在底部显示，增加足够的padding避免被系统UI遮挡 */
