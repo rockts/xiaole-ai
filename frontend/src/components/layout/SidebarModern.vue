@@ -956,6 +956,8 @@ watch(
   border-right: 1px solid var(--border-light);
   transition: all var(--duration-normal) var(--ease-out);
   z-index: 900;
+  box-sizing: border-box;
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 .sidebar.collapsed {
@@ -971,12 +973,15 @@ watch(
     top: 0;
     left: 0;
     bottom: 0;
+    height: 100vh;
     width: 245px !important; /* 移动端展开时宽度固定 */
     min-width: 245px !important;
     flex: 0 0 245px !important;
     transform: translateX(0);
     box-shadow: var(--shadow-lg);
     z-index: 1000;
+    overflow: hidden;
+    padding-bottom: calc(16px + env(safe-area-inset-bottom));
   }
 
   .sidebar.collapsed {
@@ -1504,8 +1509,14 @@ watch(
   flex-shrink: 0;
   flex-grow: 0;
   padding: 2px 8px;
+  /* 为 iOS/全面屏添加底部安全区内边距，避免遮挡用户栏 */
+  padding-bottom: calc(2px + env(safe-area-inset-bottom));
+  padding-bottom: calc(2px + constant(safe-area-inset-bottom));
   border-top: 1px solid var(--border-light);
   background: var(--bg-primary);
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
 }
 .settings-btn {
   display: flex;
@@ -1776,6 +1787,28 @@ watch(
   width: 40px;
   height: 40px;
   border-width: 0;
+}
+
+/* 移动端覆盖：让可滚动区域自适应，避免挤压底部用户栏 */
+@media (max-width: 768px) {
+  .sidebar-content {
+    /* 确保sidebar-content占满高度并使用flex分配 */
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+  .sessions-section {
+    /* 移除固定高度限制，让flex:1自动分配空间 */
+    max-height: none;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .sidebar-footer {
+    /* 确保footer始终在底部显示 */
+    flex-shrink: 0;
+    bottom: env(safe-area-inset-bottom);
+  }
 }
 </style>
 

@@ -326,6 +326,29 @@ class XiaoLeAgent:
         if not self.client:
             return  # 占位模式不提取
 
+        # v0.9.4: 对明显的“非事实类”请求跳过提取，避免不必要的LLM调用
+        try:
+            q = (user_message or '').strip()
+            q_lower = q.lower()
+            time_like = any(k in q for k in [
+                '现在几点', '几点了', '几点', '当前时间', '现在时间',
+                '今天几号', '今天日期', '今天星期几', '星期几', '周几'
+            ])
+            remind_like = any(k in q_lower for k in ['提醒', '闹钟'])
+            task_like = any(k in q_lower for k in ['任务', '待办'])
+            search_like = any(k in q_lower for k in [
+                              '搜索', '查一下', '搜一下', '帮我找', '帮我查', '百度', '谷歌'])
+
+            import re as _re
+            expr = q.replace('＝', '=').replace('？', '?')
+            is_math = _re.fullmatch(
+                r"[\s\d\.+\-\*/\(\)]+[=\s?]*", expr) is not None
+
+            if time_like or remind_like or task_like or search_like or is_math:
+                return
+        except Exception:
+            pass
+
         # 让AI判断是否包含需要记住的关键事实
         extraction_prompt = f"""分析用户的这句话，判断是否包含需要长期记住的关键信息。
 
@@ -510,6 +533,7 @@ class XiaoLeAgent:
 
         # 获取对话历史
         history = self.conversation.get_history(session_id, limit=5)
+        precomputed_reply = None  # v0.9.3: 若命中直答，跳过后续LLM/工具流程
 
         # v0.4.0: 智能工具调用 - 先分析是否需要调用工具
         tool_result = None
@@ -543,7 +567,28 @@ class XiaoLeAgent:
             intent_prompt = f"{prompt}\n[系统提示：用户上传了图片 {image_path}，请优先考虑使用视觉工具分析]"
             context['image_path'] = image_path
 
-        if not skip_tool_check:
+        # v0.9.3: 直答规则（如儿子/女儿小名）优先，命中则跳过工具/意图分析
+        try:
+            direct = self._try_direct_family_fact_answer(prompt)
+            if direct:
+                precomputed_reply = direct
+                skip_tool_check = True
+                tool_result = None
+        except Exception as e:
+            logger.warning(f"直答规则执行失败: {e}")
+
+        # v0.9.4: 进一步的快速直达（时间/日期/简单计算等）
+        if precomputed_reply is None:
+            try:
+                quick_reply = self._try_quick_direct_answer(prompt)
+                if quick_reply:
+                    precomputed_reply = quick_reply
+                    skip_tool_check = True
+                    tool_result = None
+            except Exception as e:
+                logger.warning(f"快速直达失败: {e}")
+
+        if not skip_tool_check and precomputed_reply is None:
             try:
                 # v0.6.0 Phase 3: 使用增强的意图识别
                 tool_calls = self.enhanced_selector.analyze_intent(
@@ -694,9 +739,12 @@ class XiaoLeAgent:
                 logger.warning(f"保存图片记忆失败: {e}")
 
         # v0.6.0: 调用 AI 生成回复（带上下文、工具结果和响应风格）
-        reply = self._think_with_context(
-            prompt, history, tool_result or task_result, response_style
-        )
+        if precomputed_reply is not None:
+            reply = precomputed_reply
+        else:
+            reply = self._think_with_context(
+                prompt, history, tool_result or task_result, response_style
+            )
 
         # v0.6.0 Phase 3 Day 4: 对话质量增强
         try:
@@ -821,6 +869,196 @@ class XiaoLeAgent:
             result["search_results"] = tool_result.get('results', [])
 
         return result
+
+    def _try_direct_family_fact_answer(self, prompt: str):
+        """
+        v0.9.3: 对“儿子/女儿的小名/昵称/乳名”类问题进行规则直答，避免在大量记忆中被LLM忽略。
+
+        命中条件：
+        - 问句包含：儿子/女儿 且 包含：小名/昵称/乳名
+        数据来源：
+        - 从 facts 标签召回（优先 family 关键词），解析类似“儿子小名：乐儿”的格式。
+        """
+        q = (prompt or '').strip()
+        if not q:
+            return None
+
+        q_lower = q.lower()
+        # 命中关键词
+        nick_words = ['小名', '昵称', '乳名']
+        target = None
+        if any(w in q for w in nick_words):
+            if '儿子' in q:
+                target = '儿子'
+            elif '女儿' in q:
+                target = '女儿'
+            elif '孩子' in q or '小孩' in q:
+                # 不明确对象时，不做直答
+                target = None
+
+        if not target:
+            return None
+
+        # 召回家庭相关facts
+        try:
+            keywords = [target, '小名', '昵称', '乳名']
+            results = self.memory.recall_by_keywords(
+                keywords, tag="facts", limit=20
+            )
+            contents = [m.get('content', '') for m in results]
+        except Exception as e:
+            logger.warning(f"直答召回失败: {e}")
+            contents = []
+
+        # 兜底：直接拉取全部facts后本地筛选
+        if not contents:
+            try:
+                facts = self.memory.recall(tag="facts", limit=50)
+                contents = facts
+            except Exception:
+                contents = []
+
+        import re
+        answer = None
+        if target == '儿子':
+            # 匹配：儿子小名：xxx 或 儿子的小名叫xxx
+            patterns = [
+                r"儿子小名[:：]\s*([\S ]{1,20})",
+                r"儿子的?小名[叫是为][:：]?\s*([\S ]{1,20})"
+            ]
+        else:  # 女儿
+            patterns = [
+                r"女儿小名[:：]\s*([\S ]{1,20})",
+                r"女儿的?小名[叫是为][:：]?\s*([\S ]{1,20})"
+            ]
+
+        for text in contents:
+            t = (text or '').strip()
+            if not t:
+                continue
+            for p in patterns:
+                m = re.search(p, t)
+                if m:
+                    name = m.group(1).strip().replace(
+                        '。', '').replace('\n', ' ')
+                    # 剔除噪声占位
+                    if any(bad in name for bad in ['未明确', '未知', '不详']):
+                        continue
+                    answer = name
+                    break
+            if answer:
+                break
+
+        if not answer:
+            return None
+
+        if target == '儿子':
+            return f"根据我的记忆，您的儿子小名叫**{answer}**。"
+        else:
+            return f"根据我的记忆，您的女儿小名叫**{answer}**。"
+
+    def _try_quick_direct_answer(self, prompt: str):
+        """
+        v0.9.4: 快速直答（绕过工具与LLM），进一步降低延迟。
+
+        - 时间/日期/星期：本地计算后直接返回
+        - 简单四则运算：本地安全求值（仅 + - * / () 和整数/小数）
+
+        返回：命中则返回字符串答复，否则返回 None。
+        """
+        q = (prompt or '').strip()
+        if not q:
+            return None
+
+        q_lower = q.lower()
+
+        # 1) 时间/日期/星期快速直答
+        time_keywords = [
+            '现在几点', '几点了', '几点', '当前时间', '现在时间',
+            '今天几号', '今天日期', '日期', '今天星期几', '星期几', '周几'
+        ]
+        if any(kw in q for kw in time_keywords):
+            now = datetime.now()
+            date_str = now.strftime('%Y年%m月%d日')
+            time_str = now.strftime('%H:%M')
+            weekday_names = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
+            weekday = weekday_names[now.weekday()]
+
+            # 判定用户更关心时间/日期/星期
+            if any(kw in q for kw in ['几点', '时间']):
+                return f"现在是 {time_str}（{date_str}，{weekday}）。"
+            if any(kw in q for kw in ['星期几', '周几']):
+                return f"今天是{weekday}（{date_str} {time_str}）。"
+            # 默认日期
+            return f"今天是 {date_str}（{weekday}）{time_str}。"
+
+        # 2) 简单计算器（安全求值）
+        import re as _re
+        expr = q.replace('＝', '=').replace('？', '?').replace('，', ',')
+        # 识别可能的运算表达式
+        # 仅允许数字、空格、小数点、()+-*/ 和末尾可选的 = 或 ?
+        if _re.fullmatch(r"[\s\d\.+\-\*/\(\)]+[=\s?]*", expr) and any(op in expr for op in ['+', '-', '*', '/', '×', '÷']):
+            safe = expr.replace('×', '*').replace('÷', '/')
+            # 去掉尾部 = 或 ?
+            safe = safe.rstrip('=? ').strip()
+
+            try:
+                import ast
+
+                def _safe_eval(node):
+                    if isinstance(node, ast.Expression):
+                        return _safe_eval(node.body)
+                    if isinstance(node, ast.BinOp) and isinstance(node.op, (ast.Add, ast.Sub, ast.Mult, ast.Div)):
+                        left = _safe_eval(node.left)
+                        right = _safe_eval(node.right)
+                        if isinstance(node.op, ast.Add):
+                            return left + right
+                        if isinstance(node.op, ast.Sub):
+                            return left - right
+                        if isinstance(node.op, ast.Mult):
+                            return left * right
+                        if isinstance(node.op, ast.Div):
+                            return left / right
+                    if isinstance(node, ast.UnaryOp) and isinstance(node.op, (ast.UAdd, ast.USub)):
+                        operand = _safe_eval(node.operand)
+                        return +operand if isinstance(node.op, ast.UAdd) else -operand
+                    if isinstance(node, ast.Num):
+                        return node.n
+                    if hasattr(ast, 'Constant') and isinstance(node, ast.Constant) and isinstance(node.value, (int, float)):
+                        return node.value
+                    if isinstance(node, ast.Expr):
+                        return _safe_eval(node.value)
+                    raise ValueError('不支持的表达式')
+
+                tree = ast.parse(safe, mode='eval')
+                value = _safe_eval(tree)
+                # 结果格式化：尽量简洁
+                if isinstance(value, float):
+                    # 去除无意义的小数位
+                    text = f"{value:.10g}"
+                else:
+                    text = str(value)
+                return f"结果：{text}"
+            except Exception:
+                # 失败则不拦截，交给工具/LLM
+                return None
+
+        return None
+
+        # 3) 身份/版本/能力自述（极简直答）
+        about_kws = ['你是谁', '关于你', '关于小乐', '你能做什么', '能做什么', '版本']
+        if any(kw in q for kw in about_kws):
+            try:
+                tool_count = len(self.tool_registry.get_tool_names())
+            except Exception:
+                tool_count = 0
+            app_ver = os.getenv('APP_VERSION', '0.8.0')
+            model_name = self.model or 'unknown-model'
+            # 简短直答，避免长段
+            return (
+                f"我是小乐 AI 管家。后端版本 {app_ver}，"
+                f"可用工具 {tool_count} 个，当前模型 {model_name}。"
+            )
 
     def _quick_intent_match(self, prompt):
         """
@@ -1778,7 +2016,7 @@ class XiaoLeAgent:
 
             # 第三优先级：对话摘要（了解之前的对话上下文）
             for mem in conversation_memories:
-                if (mem not in seen and len(all_memories) < 40 and
+                if (mem not in seen and len(all_memories) < 20 and
                         not is_outdated_reminder_memory(mem)):
                     all_memories.append(mem)
                     seen.add(mem)
@@ -1790,7 +2028,7 @@ class XiaoLeAgent:
                     mem if isinstance(mem, str)
                     else mem.get('content', str(mem))
                 )
-                if (mem_content not in seen and len(all_memories) < 40 and
+                if (mem_content not in seen and len(all_memories) < 20 and
                         not is_outdated_reminder_memory(mem_content)):
                     all_memories.append(mem_content)
                     seen.add(mem_content)

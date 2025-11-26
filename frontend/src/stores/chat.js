@@ -51,6 +51,7 @@ export const useChatStore = defineStore('chat', () => {
 
     const typingTimer = ref(null)
     const activeTypingMessageId = ref(null)
+    const activeStreamAbort = ref(null)
 
     const sendMessage = async (content, imagePath = null, router = null, options = {}) => {
         try {
@@ -176,6 +177,111 @@ export const useChatStore = defineStore('chat', () => {
         }
     }
 
+    // 流式发送消息（SSE 切片流）
+    const sendMessageStreamed = async (content, imagePath = null, router = null, options = {}) => {
+        const responseStyle = options.responseStyle || 'balanced'
+        try {
+            // 插入思考占位消息
+            isTyping.value = true
+            const placeholderId = Date.now() + 1
+            activeTypingMessageId.value = placeholderId
+            messages.value.push({
+                id: placeholderId,
+                role: 'assistant',
+                content: '',
+                status: 'thinking'
+            })
+
+            // 构建中止控制器
+            const controller = new AbortController()
+            activeStreamAbort.value = controller
+
+            // 首次 start 时切换为 typing
+            let msgIndex = -1
+            let accumulated = ''
+
+            const onStart = () => {
+                if (msgIndex === -1) {
+                    msgIndex = messages.value.findIndex(m => m.id === placeholderId)
+                }
+                if (msgIndex !== -1) {
+                    messages.value[msgIndex].status = 'typing'
+                }
+            }
+
+            const onDelta = (chunk) => {
+                if (msgIndex === -1) {
+                    msgIndex = messages.value.findIndex(m => m.id === placeholderId)
+                }
+                accumulated += chunk || ''
+                if (msgIndex !== -1) {
+                    messages.value[msgIndex].content = accumulated
+                }
+            }
+
+            const onEnd = async (payload) => {
+                if (msgIndex === -1) {
+                    msgIndex = messages.value.findIndex(m => m.id === placeholderId)
+                }
+                if (msgIndex !== -1) {
+                    // 同步 ID
+                    if (payload?.assistant_message_id) {
+                        messages.value[msgIndex].id = payload.assistant_message_id
+                    }
+                    // 同步前一条用户消息 ID
+                    if (payload?.user_message_id) {
+                        for (let i = msgIndex - 1; i >= 0; i--) {
+                            const msg = messages.value[i]
+                            if (msg.role === 'user' && String(msg.id).startsWith('temp-')) {
+                                messages.value[i].id = payload.user_message_id
+                                break
+                            }
+                        }
+                    }
+                    messages.value[msgIndex].status = 'done'
+                }
+
+                // 更新会话并路由
+                if (payload?.session_id) {
+                    const isNew = !currentSessionId.value
+                    currentSessionId.value = payload.session_id
+                    if (isNew) {
+                        sessionInfo.value = {
+                            id: payload.session_id,
+                            title: content.substring(0, 30) + (content.length > 30 ? '...' : '')
+                        }
+                        if (router) router.push(`/chat/${payload.session_id}`)
+                    }
+                }
+
+                isTyping.value = false
+                activeStreamAbort.value = null
+                await loadSessions()
+            }
+
+            await api.streamChat({
+                user_id: 'default_user',
+                session_id: currentSessionId.value || '',
+                prompt: content,
+                image_path: imagePath,
+                response_style: responseStyle
+            }, { onStart, onDelta, onEnd, signal: controller.signal })
+        } catch (error) {
+            console.error('Failed to send message (stream):', error)
+            if (activeTypingMessageId.value) {
+                const msgIndex = messages.value.findIndex(m => m.id === activeTypingMessageId.value)
+                if (msgIndex !== -1) {
+                    messages.value[msgIndex].status = 'done'
+                    const errText = error?.message || '出错了，请稍后重试。'
+                    messages.value[msgIndex].content = `⚠️ ${errText}`
+                }
+            }
+        } finally {
+            isTyping.value = false
+            activeStreamAbort.value = null
+        }
+    }
+
     const stopGeneration = () => {
         if (typingTimer.value && activeTypingMessageId.value) {
             clearInterval(typingTimer.value)
@@ -186,6 +292,11 @@ export const useChatStore = defineStore('chat', () => {
                 messages.value[msgIndex].content = full
                 messages.value[msgIndex].status = 'done'
             }
+        }
+        // 取消流式
+        if (activeStreamAbort.value) {
+            try { activeStreamAbort.value.abort() } catch (_) { }
+            activeStreamAbort.value = null
         }
         isTyping.value = false
     }
@@ -260,6 +371,7 @@ export const useChatStore = defineStore('chat', () => {
         loadSessions,
         loadSession,
         sendMessage,
+        sendMessageStreamed,
         stopGeneration,
         uploadImage,
         uploadDocument,

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
-from typing import Dict, Any, Optional, List
-from pydantic import BaseModel
+from fastapi.responses import StreamingResponse
+from typing import Dict, Any, Optional
 from dependencies import get_xiaole_agent, get_proactive_qa
 from agent import XiaoLeAgent
 from proactive_qa import ProactiveQA
@@ -43,7 +43,8 @@ def chat(
 
         try:
             # 智能选择识别prompt
-            if prompt and any(kw in prompt for kw in ['课程表', '课表', '时间表', '上课']):
+            important_kw = ['课程表', '课表', '时间表', '上课']
+            if prompt and any(kw in prompt for kw in important_kw):
                 ocr_prompt = '''这是一张学生课程表。请仔细识别表格中的内容：
 1. 表头有：星期一、星期二、星期三、星期四、星期五
 2. 左侧行标题有：晨读、第1节、第2节...第7节、午休、课后辅导
@@ -55,14 +56,14 @@ def chat(
 周二：...
 依此类推。不要省略任何信息。'''
             else:
-                ocr_prompt = '''请详细描述这张图片的内容，包括：
-1. 主体物品或场景是什么
-2. 图片中的文字信息（如有）- 特别注意识别品牌标识，如果看到部分文字如"ckin"、"ickin"等，请推测完整品牌名（如Luckin瑞幸咖啡、Starbucks星巴克等）
-3. 颜色、品牌、标识等细节
-4. 其他值得注意的特征
-
-常见咖啡品牌参考：Luckin(瑞幸)、Starbucks(星巴克)、Costa、瑞幸咖啡等。
-请尽可能详细和准确地描述，如识别出品牌请直接说明。'''
+                ocr_prompt = (
+                    '请详细描述这张图片的内容，包括：\n'
+                    '1. 主体物品或场景是什么\n'
+                    '2. 图片中的文字信息（如有），如看到片段“ckin/ickin”等，可推测完整品牌名\n'
+                    '3. 颜色、品牌、标识等细节\n'
+                    '4. 其他值得注意的特征\n\n'
+                    '如能识别品牌请直接说明。'
+                )
 
             vision_result = vision_tool.analyze_image(
                 image_path=image_path,
@@ -154,6 +155,140 @@ def chat(
         logger.error(f"⚠️ 追问模块异常: {e}")
 
     return result
+
+
+@router.post("/chat/stream")
+def chat_stream(
+    prompt: str,
+    session_id: Optional[str] = None,
+    user_id: str = "default_user",
+    response_style: str = "balanced",
+    image_path: Optional[str] = None,
+    memorize: bool = False,
+    current_user: str = Depends(get_current_user),
+    agent: XiaoLeAgent = Depends(get_agent),
+    qa: ProactiveQA = Depends(get_qa)
+):
+    """流式对话接口（SSE 兼容）。
+
+    说明：
+    - 为尽快上线体验，当前实现为“切片流”：先生成完整回复，再按块推送；
+      命中直达规则（时间/日期/计算/小名等）时能即时返回；
+    - 后续可改为直连模型原生流式（DeepSeek/Claude）。
+    """
+    user_id = current_user
+
+    def event_stream():
+        import json
+        # 起始事件，便于前端建立状态
+        start_payload = {"type": "start"}
+        yield f"data: {json.dumps(start_payload, ensure_ascii=False)}\n\n"
+
+        # 处理图片（沿用同步路径，保持稳定）
+        if image_path:
+            from tools.vision_tool import VisionTool
+            vision_tool = VisionTool()
+            try:
+                important_kw = ['课程表', '课表', '时间表', '上课']
+                if prompt and any(kw in prompt for kw in important_kw):
+                    ocr_prompt = '这是一张课程表，请识别并按天/节次列出。'
+                else:
+                    ocr_prompt = '请详细描述这张图片的内容（主体/文字/颜色/品牌等）。'
+
+                vision_result = vision_tool.analyze_image(
+                    image_path=image_path,
+                    prompt=ocr_prompt,
+                    prefer_model="auto"
+                )
+
+                if vision_result.get('success'):
+                    desc = vision_result.get('description', '')
+                    if prompt:
+                        combined_prompt = (
+                            f"<vision_result>\n{desc}\n</vision_result>\n\n"
+                            f"用户问题：{prompt}\n\n请基于识别结果作答。"
+                        )
+                    else:
+                        combined_prompt = (
+                            f"<vision_result>\n{desc}\n</vision_result>\n\n"
+                            f"请分析并解释图片内容。"
+                        )
+
+                    try:
+                        if memorize:
+                            agent.memory.remember(
+                                content=desc,
+                                tag=f"image:{image_path.split('/')[-1]}"
+                            )
+                    except Exception:
+                        pass
+
+                    result = agent.chat(
+                        combined_prompt, session_id, user_id,
+                        response_style, image_path=image_path,
+                        original_user_prompt=prompt
+                    )
+                else:
+                    err = vision_result.get('error', '未知错误')
+                    result = {
+                        'reply': f"❌ 图片识别失败: {err}",
+                        'session_id': session_id or 'error'
+                    }
+            except Exception as e:
+                result = {
+                    'reply': f'❌ 图片处理出错: {str(e)}',
+                    'session_id': session_id or 'error'
+                }
+        else:
+            # 常规对话
+            result = agent.chat(prompt, session_id, user_id, response_style)
+
+        # 追问分析（异步重要性不高，这里保持与同步一致）
+        try:
+            actual_session_id = (
+                result.get('session_id')
+                if isinstance(result, dict) else session_id
+            )
+            if actual_session_id:
+                try:
+                    qa.analyze_conversation(actual_session_id, user_id)
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+        reply = (
+            result.get('reply') if isinstance(result, dict)
+            else str(result)
+        )
+        # 切片流式输出
+        chunk_size = 120
+        idx = 0
+        while idx < len(reply):
+            part = reply[idx: idx + chunk_size]
+            idx += chunk_size
+            payload = {"type": "delta", "data": part}
+            yield f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
+
+        # 完成事件，带上元信息
+        end_payload = {
+            "type": "end",
+            "session_id": (
+                result.get('session_id')
+                if isinstance(result, dict) else session_id
+            ),
+            "user_message_id": (
+                result.get('user_message_id')
+                if isinstance(result, dict) else None
+            ),
+            "assistant_message_id": (
+                result.get('assistant_message_id')
+                if isinstance(result, dict) else None
+            ),
+        }
+        yield f"data: {json.dumps(end_payload, ensure_ascii=False)}\n\n"
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
 
 
 @router.get("/sessions")

@@ -42,7 +42,13 @@
     </div>
 
     <div class="top-bar-right">
-      <button class="icon-btn" @click="toggleTheme" aria-label="切换主题">
+      <!-- 桌面端：保留主题切换和提醒；移动端：隐藏这些重复/次要功能 -->
+      <button
+        class="icon-btn"
+        @click="toggleTheme"
+        aria-label="切换主题"
+        v-if="!isMobile"
+      >
         <svg
           v-if="isDark"
           width="20"
@@ -75,8 +81,31 @@
         </svg>
       </button>
 
-      <!-- 提醒按钮 -->
-      <div class="reminder-container">
+      <!-- 移动端：仅保留“分享”按钮（避免与侧边栏重复） -->
+      <button
+        v-if="isMobile && hasSharableSession"
+        class="icon-btn"
+        @click="shareCurrent"
+        aria-label="分享当前对话"
+      >
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <circle cx="18" cy="5" r="3"></circle>
+          <circle cx="6" cy="12" r="3"></circle>
+          <circle cx="18" cy="19" r="3"></circle>
+          <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+          <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+        </svg>
+      </button>
+
+      <!-- 提醒按钮：仅桌面端显示 -->
+      <div class="reminder-container" v-if="!isMobile">
         <button
           class="icon-btn reminder-btn"
           @click="toggleReminders"
@@ -116,15 +145,49 @@
 
 <script setup>
 import { computed, ref, onMounted, onBeforeUnmount, watch } from "vue";
-import { useRoute } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import { useChatStore } from "@/stores/chat";
+import { storeToRefs } from "pinia";
 import api from "@/services/api";
 import { useWebSocket } from "@/composables/useWebSocket";
 import ReminderListPopup from "@/components/common/ReminderListPopup.vue";
 
 const route = useRoute();
+const router = useRouter();
 const chatStore = useChatStore();
+const { messages, currentSessionId } = storeToRefs(chatStore);
 const emit = defineEmits(["toggle-sidebar"]);
+// 移动端判断
+const isMobile = ref(window.innerWidth <= 768);
+const showMore = ref(false);
+const moreBtnRef = ref(null);
+const moreDropdownRef = ref(null);
+
+const toggleMore = () => {
+  showMore.value = !showMore.value;
+};
+const closeMore = () => {
+  showMore.value = false;
+};
+const openSidebar = () => {
+  emit("toggle-sidebar");
+  closeMore();
+};
+const goto = (path) => {
+  router.push(path);
+  closeMore();
+};
+
+const shareCurrent = () => {
+  const sessionId = route.params.sessionId;
+  if (sessionId) {
+    const url = `${window.location.origin}/share/${sessionId}`;
+    window.open(url, "_blank");
+    closeMore();
+  } else {
+    alert("当前没有可分享的对话");
+  }
+};
 
 const isDark = ref(false);
 const isEditingTitle = ref(false);
@@ -139,6 +202,18 @@ const timeRemainingMap = ref({});
 let timerInterval = null;
 
 const activeRemindersCount = computed(() => reminders.value.length);
+
+// 判断当前回话是否有可分享内容
+const hasMessages = computed(() => (messages.value?.length || 0) > 0);
+const hasSharableSession = computed(() => {
+  if (!isChatPage.value) return false;
+  const routeSessionId = route.params.sessionId;
+  if (!routeSessionId) return false;
+  if (currentSessionId.value && currentSessionId.value !== routeSessionId) {
+    return false;
+  }
+  return hasMessages.value;
+});
 
 const toggleReminders = () => {
   showReminders.value = !showReminders.value;
@@ -303,12 +378,22 @@ const handleOutsideClick = (e) => {
   if (!e.target.closest(".reminder-container")) {
     showReminders.value = false;
   }
+  // 点击到更多之外则关闭
+  const inMore =
+    e.target.closest &&
+    (e.target.closest(".more-container") || e.target.closest(".more-dropdown"));
+  if (!inMore) showMore.value = false;
 };
 
 const { on } = useWebSocket();
 let wsUnsubscribe = null;
 
 onMounted(() => {
+  const onResize = () => {
+    isMobile.value = window.innerWidth <= 768;
+  };
+  window.addEventListener("resize", onResize);
+  window.__topbar_onResize = onResize;
   const savedTheme = localStorage.getItem("theme");
   isDark.value = savedTheme === "dark";
   document.documentElement.setAttribute("data-theme", savedTheme || "light");
@@ -351,6 +436,10 @@ onBeforeUnmount(() => {
   window.removeEventListener("refresh-reminders", loadReminders);
   if (timerInterval) clearInterval(timerInterval);
   if (wsUnsubscribe) wsUnsubscribe();
+  if (window.__topbar_onResize) {
+    window.removeEventListener("resize", window.__topbar_onResize);
+    delete window.__topbar_onResize;
+  }
 });
 </script>
 
@@ -386,6 +475,10 @@ onBeforeUnmount(() => {
 
   .top-bar {
     padding: 0 var(--space-md);
+    position: fixed;
+    left: 0;
+    right: 0;
+    top: 0;
   }
 
   .mobile-menu-btn {
@@ -461,6 +554,40 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: var(--space-md);
+}
+
+.more-container {
+  position: relative;
+}
+
+.more-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 160px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  box-shadow: var(--shadow-lg);
+  padding: 6px;
+  z-index: 1000;
+}
+
+.more-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+.more-item:hover {
+  background: var(--bg-hover);
 }
 
 .icon-btn {

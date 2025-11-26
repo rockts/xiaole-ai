@@ -120,6 +120,90 @@ export default {
         })
     },
 
+    // 流式聊天（SSE 兼容，切片流）
+    async streamChat(data, { onStart, onDelta, onEnd, signal } = {}) {
+        // 使用 fetch 以支持 ReadableStream
+        const params = new URLSearchParams()
+        params.append('prompt', data.prompt || '')
+        if (data.session_id) params.append('session_id', data.session_id)
+        if (data.user_id) params.append('user_id', data.user_id)
+        if (data.response_style) params.append('response_style', data.response_style)
+        if (data.image_path) params.append('image_path', data.image_path)
+
+        const authStore = useAuthStore()
+        const headers = { 'Accept': 'text/event-stream' }
+        if (authStore.token) headers['Authorization'] = `Bearer ${authStore.token}`
+
+        const url = `${API_BASE_URL}/chat/stream?${params.toString()}`
+        const res = await fetch(url, { method: 'POST', headers, signal })
+        if (!res.ok || !res.body) {
+            const text = await res.text().catch(() => '')
+            throw new Error(text || `HTTP ${res.status}`)
+        }
+
+        const reader = res.body.getReader()
+        const decoder = new TextDecoder('utf-8')
+        let buffer = ''
+
+        // 先通知开始
+        if (typeof onStart === 'function') onStart()
+
+        try {
+            while (true) {
+                const { value, done } = await reader.read()
+                if (done) break
+                buffer += decoder.decode(value, { stream: true })
+
+                // SSE 按空行分隔事件
+                let idx
+                while ((idx = buffer.indexOf('\n\n')) !== -1) {
+                    const raw = buffer.slice(0, idx).trim()
+                    buffer = buffer.slice(idx + 2)
+                    if (!raw) continue
+                    // 仅处理以 data: 开头的行
+                    const lines = raw.split('\n')
+                    for (const line of lines) {
+                        const prefix = 'data: '
+                        if (line.startsWith(prefix)) {
+                            try {
+                                const payload = JSON.parse(line.slice(prefix.length))
+                                if (payload.type === 'delta' && typeof onDelta === 'function') {
+                                    onDelta(payload.data || '')
+                                } else if (payload.type === 'start') {
+                                    if (typeof onStart === 'function') onStart(payload)
+                                } else if (payload.type === 'end') {
+                                    if (typeof onEnd === 'function') onEnd(payload)
+                                }
+                            } catch (_) {
+                                // 忽略解析错误
+                            }
+                        }
+                    }
+                }
+            }
+            // 处理残留缓冲
+            const rest = buffer.trim()
+            if (rest) {
+                const lines = rest.split('\n')
+                for (const line of lines) {
+                    const prefix = 'data: '
+                    if (line.startsWith(prefix)) {
+                        try {
+                            const payload = JSON.parse(line.slice(prefix.length))
+                            if (payload.type === 'delta' && typeof onDelta === 'function') {
+                                onDelta(payload.data || '')
+                            } else if (payload.type === 'end') {
+                                if (typeof onEnd === 'function') onEnd(payload)
+                            }
+                        } catch (_) { }
+                    }
+                }
+            }
+        } finally {
+            try { reader.releaseLock() } catch (_) { }
+        }
+    },
+
     uploadImage(formData) {
         return api.post('/api/vision/upload', formData, {
             headers: { 'Content-Type': 'multipart/form-data' }
@@ -246,6 +330,17 @@ export default {
             pitch: options.pitch !== undefined ? options.pitch : 5,
             volume: options.volume !== undefined ? options.volume : 5,
             audio_format: options.audio_format || 'mp3'
+        })
+    },
+
+    // 语音识别（上传音频文件：wav/pcm/m4a/amr）
+    recognizeVoice(fileOrBlob, filename = 'voice.wav') {
+        const formData = new FormData()
+        const file = fileOrBlob instanceof File ? fileOrBlob : new File([fileOrBlob], filename, { type: 'audio/wav' })
+        formData.append('file', file)
+        return api.post('/api/voice/recognize', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+            timeout: 60000
         })
     }
 }

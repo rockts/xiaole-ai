@@ -1,6 +1,7 @@
 <template>
   <div
     class="chat-view"
+    ref="chatViewRoot"
     :class="{ empty: isEmptyChat }"
     @dragover.prevent
     @dragenter.prevent="handleDragEnter"
@@ -754,22 +755,25 @@
           <button
             class="icon-btn voice-mode-btn"
             :class="{
-              active: isVoiceMode && buttonMode === 'voice-mode',
-              'send-mode': buttonMode === 'send',
-              'stop-mode': buttonMode === 'stop',
+              active: isVoiceMode && effectiveButtonMode === 'voice-mode',
+              'send-mode': effectiveButtonMode === 'send',
+              'stop-mode': effectiveButtonMode === 'stop',
             }"
             @click="handleMainButton"
+            :disabled="
+              isMobile && effectiveButtonMode === 'send' && !hasInputContent
+            "
             :title="
-              buttonMode === 'send'
+              effectiveButtonMode === 'send'
                 ? '发送消息'
-                : buttonMode === 'stop'
+                : effectiveButtonMode === 'stop'
                 ? '停止生成'
                 : '语音模式'
             "
           >
             <!-- 发送图标 (向上箭头) -->
             <svg
-              v-if="buttonMode === 'send'"
+              v-if="effectiveButtonMode === 'send'"
               width="24"
               height="24"
               viewBox="0 0 24 24"
@@ -785,7 +789,7 @@
 
             <!-- 停止图标 -->
             <svg
-              v-else-if="buttonMode === 'stop'"
+              v-else-if="effectiveButtonMode === 'stop'"
               width="20"
               height="20"
               viewBox="0 0 24 24"
@@ -963,7 +967,9 @@ const isEmptyChat = computed(
 );
 
 const messageInput = ref(null);
+const isMobile = ref(window.innerWidth <= 768);
 const chatContainer = ref(null);
+const chatViewRoot = ref(null);
 const fileInput = ref(null);
 const voiceModeDialogRef = ref(null); // VoiceMode 对话框引用
 const isRecording = ref(false);
@@ -1010,6 +1016,7 @@ const inputContent = ref("");
 const shouldScrollToBottom = ref(false); // 标志位：是否需要滚动到底部
 const isLoadingSession = ref(true); // 初始就设置为 true，默认隐藏
 let currentSpeech = null;
+let autoStickRaf = null;
 
 // 反馈相关状态
 const showFeedbackDialog = ref(false);
@@ -1035,6 +1042,14 @@ const buttonMode = computed(() => {
   if (isTyping.value) return "stop";
   if (hasInputContent.value) return "send";
   return "voice-mode";
+});
+
+// 移动端强制为发送/停止模式（无输入时禁用发送按钮）
+const effectiveButtonMode = computed(() => {
+  if (isMobile.value) {
+    return isTyping.value ? "stop" : "send";
+  }
+  return buttonMode.value;
 });
 
 // 随机选择问候语
@@ -1155,6 +1170,37 @@ watch(
   { immediate: true }
 );
 
+// 是否接近底部
+const isNearBottom = () => {
+  const el = chatContainer.value;
+  if (!el) return true;
+  return el.scrollHeight - el.scrollTop - el.clientHeight < 140;
+};
+
+// 立即粘到底部（无平滑动画，避免频繁重绘卡顿）
+const stickToBottomImmediate = () => {
+  const el = chatContainer.value;
+  if (!el) return;
+  el.scrollTop = el.scrollHeight;
+};
+
+// 在 AI 打字期间，使用 rAF 持续粘底（仅在接近底部时）
+const startAutoStick = () => {
+  if (autoStickRaf) return;
+  const step = () => {
+    if (chatContainer.value && isNearBottom()) {
+      stickToBottomImmediate();
+    }
+    autoStickRaf = requestAnimationFrame(step);
+  };
+  autoStickRaf = requestAnimationFrame(step);
+};
+
+const stopAutoStick = () => {
+  if (autoStickRaf) cancelAnimationFrame(autoStickRaf);
+  autoStickRaf = null;
+};
+
 watch(
   messages,
   () => {
@@ -1164,15 +1210,9 @@ watch(
     nextTick(() => {
       // 只在用户发送消息后或 AI 正在打字时才滚动
       if (shouldScrollToBottom.value || isTyping.value) {
-        setTimeout(() => {
-          scrollToBottom();
-          // AI 打字过程中持续滚动到底部
-          if (isTyping.value) {
-            shouldScrollToBottom.value = true;
-          } else {
-            shouldScrollToBottom.value = false;
-          }
-        }, 50); // 减少延迟，更快响应
+        // 对于流式生成，用即时粘底减少抖动
+        stickToBottomImmediate();
+        shouldScrollToBottom.value = !!isTyping.value;
       }
     });
   },
@@ -1181,6 +1221,10 @@ watch(
 
 // 监听 AI 打字状态，用于语音模式自动朗读
 watch(isTyping, (newVal, oldVal) => {
+  // 流式期间启用 rAF 粘底
+  if (newVal) startAutoStick();
+  else stopAutoStick();
+
   if (oldVal && !newVal && isVoiceMode.value) {
     // AI 停止打字，且处于语音模式
     const lastMessage = messages.value[messages.value.length - 1];
@@ -1611,7 +1655,7 @@ const onScroll = () => {
   const el = chatContainer.value;
   if (!el) return;
   // 检查是否接近底部
-  const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 140;
+  const nearBottom = isNearBottom();
   showScrollToBottom.value = !nearBottom;
 
   // 滚动时隐藏引用按钮，避免位置错乱
@@ -2030,8 +2074,8 @@ const sendMessage = async () => {
       }
     }
 
-    // 发送到后端
-    await chatStore.sendMessage(content, imagePath, router);
+    // 发送到后端（默认走流式）
+    await chatStore.sendMessageStreamed(content, imagePath, router);
   } catch (e) {
     console.error("Send message failed:", e);
     messages.value.push({
@@ -2067,9 +2111,9 @@ const stopGeneration = () => {
 };
 
 const handleMainButton = () => {
-  if (buttonMode.value === "send") {
+  if (effectiveButtonMode.value === "send") {
     sendMessage();
-  } else if (buttonMode.value === "stop") {
+  } else if (effectiveButtonMode.value === "stop") {
     stopGeneration();
   } else {
     toggleVoiceMode();
@@ -2259,25 +2303,206 @@ const handleVoice = () => {
   console.log("语音输入");
 };
 
-const handleVoiceInput = () => {
-  if (!recognition.value) {
-    alert("您的浏览器不支持语音识别功能，请使用 Chrome 或 Edge 浏览器。");
-    return;
-  }
+// PCM/WAV 录音缓冲
+let pcmBuffers = [];
+let inputSampleRate = 44100;
+let scriptNode = null;
 
-  if (isRecording.value) {
-    recognition.value.stop();
+const startPcmRecording = async () => {
+  try {
+    if (!mediaStream) {
+      mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    }
+    if (!audioContext) {
+      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    const source = audioContext.createMediaStreamSource(mediaStream);
+    inputSampleRate = audioContext.sampleRate || 44100;
+    scriptNode = audioContext.createScriptProcessor(4096, 1, 1);
+    pcmBuffers = [];
+    scriptNode.onaudioprocess = (e) => {
+      if (!isRecording.value) return;
+      const channelData = e.inputBuffer.getChannelData(0);
+      pcmBuffers.push(new Float32Array(channelData));
+    };
+    source.connect(scriptNode);
+    scriptNode.connect(audioContext.destination);
+    startVisualizer();
+  } catch (err) {
+    console.error("启动PCM录音失败:", err);
     isRecording.value = false;
     stopVisualizer();
-  } else {
-    try {
-      recognition.value.start();
-      isRecording.value = true;
-      startVisualizer();
-    } catch (e) {
-      console.error("无法启动语音识别:", e);
+    // 根据错误类型给出不同提示
+    if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+      alert('需要麦克风权限才能使用语音输入。\n\n请点击地址栏旁的锁图标，允许此网站访问麦克风，然后刷新页面。');
+    } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+      alert('未检测到麦克风设备，请检查设备连接。');
+    } else {
+      alert('无法访问麦克风，请检查浏览器权限和设备设置。');
+    }
+    throw err; // 重新抛出错误，让handleVoiceInput捕获
+  }
+};
+
+const stopPcmRecording = async () => {
+  try {
+    if (scriptNode) {
+      try {
+        scriptNode.disconnect();
+      } catch (_) {}
+      scriptNode.onaudioprocess = null;
+      scriptNode = null;
+    }
+    const length = pcmBuffers.reduce((sum, arr) => sum + arr.length, 0);
+    const merged = new Float32Array(length);
+    let offset = 0;
+    for (const buf of pcmBuffers) {
+      merged.set(buf, offset);
+      offset += buf.length;
+    }
+    const targetRate = 16000;
+    const downsampled = downsampleBuffer(merged, inputSampleRate, targetRate);
+    const wavBlob = encodeWAV(downsampled, targetRate);
+    return wavBlob;
+  } catch (err) {
+    console.error("停止PCM录音失败:", err);
+    return null;
+  } finally {
+    pcmBuffers = [];
+  }
+};
+
+function downsampleBuffer(buffer, sampleRate, outSampleRate) {
+  if (outSampleRate === sampleRate) return floatTo16BitPCM(buffer);
+  const ratio = sampleRate / outSampleRate;
+  const newLen = Math.round(buffer.length / ratio);
+  const result = new Int16Array(newLen);
+  let offsetResult = 0;
+  let offsetBuffer = 0;
+  while (offsetResult < result.length) {
+    const nextOffsetBuffer = Math.round((offsetResult + 1) * ratio);
+    let accum = 0,
+      count = 0;
+    for (let i = offsetBuffer; i < nextOffsetBuffer && i < buffer.length; i++) {
+      accum += buffer[i];
+      count++;
+    }
+    const sample = Math.max(-1, Math.min(1, accum / (count || 1)));
+    result[offsetResult] = sample < 0 ? sample * 0x8000 : sample * 0x7fff;
+    offsetResult++;
+    offsetBuffer = nextOffsetBuffer;
+  }
+  return result;
+}
+
+function floatTo16BitPCM(float32Array) {
+  const out = new Int16Array(float32Array.length);
+  for (let i = 0; i < float32Array.length; i++) {
+    const s = Math.max(-1, Math.min(1, float32Array[i]));
+    out[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
+  }
+  return out;
+}
+
+function encodeWAV(samples, sampleRate) {
+  const buffer = new ArrayBuffer(44 + samples.length * 2);
+  const view = new DataView(buffer);
+  writeString(view, 0, "RIFF");
+  view.setUint32(4, 36 + samples.length * 2, true);
+  writeString(view, 8, "WAVE");
+  writeString(view, 12, "fmt ");
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  writeString(view, 36, "data");
+  view.setUint32(40, samples.length * 2, true);
+  let index = 44;
+  for (let i = 0; i < samples.length; i++, index += 2) {
+    view.setInt16(index, samples[i], true);
+  }
+  return new Blob([view], { type: "audio/wav" });
+}
+
+function writeString(view, offset, string) {
+  for (let i = 0; i < string.length; i++) {
+    view.setUint8(offset + i, string.charCodeAt(i));
+  }
+}
+
+const handleVoiceInput = async () => {
+  if (recognition.value) {
+    if (isRecording.value) {
+      recognition.value.stop();
       isRecording.value = false;
       stopVisualizer();
+    } else {
+      try {
+        recognition.value.start();
+        isRecording.value = true;
+        startVisualizer();
+      } catch (e) {
+        console.error("无法启动语音识别:", e);
+        isRecording.value = false;
+        stopVisualizer();
+        if (e.name === "NotAllowedError") {
+          alert(
+            "需要麦克风权限才能使用语音输入。请在浏览器设置中允许麦克风访问。"
+          );
+        } else {
+          alert("语音输入启动失败，请检查麦克风权限或刷新页面重试。");
+        }
+      }
+    }
+    return;
+  }
+  if (!isRecording.value) {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      alert(
+        "当前浏览器不支持麦克风访问。请通过 HTTPS 方式打开或使用支持麦克风权限的浏览器。"
+      );
+      return;
+    }
+    try {
+      isRecording.value = true;
+      await startPcmRecording();
+    } catch (e) {
+      console.error("启动录音失败:", e);
+      isRecording.value = false;
+      if (e.name === "NotAllowedError" || e.message?.includes("permission")) {
+        alert(
+          "需要麦克风权限才能使用语音输入。请在浏览器设置中允许麦克风访问。"
+        );
+      } else {
+        alert("无法启动录音，请检查麦克风是否正常工作。");
+      }
+    }
+  } else {
+    isRecording.value = false;
+    stopVisualizer();
+    const wavBlob = await stopPcmRecording();
+    if (!wavBlob) {
+      alert("录音数据为空，请重试。");
+      return;
+    }
+    try {
+      const res = await api.recognizeVoice(wavBlob, "voice.wav");
+      if (res && res.success && res.text) {
+        if (messageInput.value) {
+          messageInput.value.innerText =
+            (messageInput.value.innerText || "") + res.text;
+          handleInput();
+          messageInput.value.focus();
+        }
+      } else {
+        alert("语音识别失败: " + (res?.message || "无法识别语音内容"));
+      }
+    } catch (err) {
+      console.error("语音识别请求失败:", err);
+      alert("语音识别服务异常，请稍后重试。");
     }
   }
 };
@@ -2374,6 +2599,48 @@ const canSend = computed(() => {
 });
 
 onMounted(() => {
+  const onResize = () => {
+    isMobile.value = window.innerWidth <= 768;
+  };
+  window.addEventListener("resize", onResize);
+  window.__chat_onResize = onResize;
+  // 设置可视高度 CSS 变量，适配移动端键盘
+  const applyViewportHeight = () => {
+    try {
+      const vh = window.visualViewport?.height || window.innerHeight;
+      document.documentElement.style.setProperty("--app-vh", `${vh}px`);
+    } catch (_) {}
+  };
+  applyViewportHeight();
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener("resize", applyViewportHeight);
+    window.visualViewport.addEventListener("scroll", applyViewportHeight);
+    // 保存引用以便卸载时移除
+    window.__chat_applyViewportHeight = applyViewportHeight;
+  }
+
+  // 监听输入框 focus/blur，避免移动端键盘遮挡
+  const onFocus = () => {
+    try {
+      chatViewRoot.value?.classList.add("keyboard-open");
+      // 聚焦时立即粘底，确保输入可见
+      setTimeout(() => stickToBottomImmediate(), 0);
+    } catch (_) {}
+  };
+  const onBlur = () => {
+    try {
+      chatViewRoot.value?.classList.remove("keyboard-open");
+    } catch (_) {}
+  };
+
+  if (messageInput.value) {
+    messageInput.value.addEventListener("focus", onFocus);
+    messageInput.value.addEventListener("blur", onBlur);
+  }
+  // 保存引用以便卸载时移除
+  window.__chat_onFocus = onFocus;
+  window.__chat_onBlur = onBlur;
+
   // 监听即时语音助手回复事件（voice_call模式下 isTyping 为 false）
   const voiceAssistantHandler = (e) => {
     if (!isVoiceMode.value) return;
@@ -2499,6 +2766,7 @@ onBeforeUnmount(() => {
   // 停止朗读
   stopSpeech();
   stopVisualizer();
+  stopAutoStick();
 
   if (observer.value) {
     observer.value.disconnect();
@@ -2509,12 +2777,39 @@ onBeforeUnmount(() => {
     chatContainer.value.removeEventListener("scroll", onScroll);
   }
   document.removeEventListener("selectionchange", handleSelection);
+  // 移除 viewport 监听
+  if (window.visualViewport && window.__chat_applyViewportHeight) {
+    try {
+      window.visualViewport.removeEventListener(
+        "resize",
+        window.__chat_applyViewportHeight
+      );
+      window.visualViewport.removeEventListener(
+        "scroll",
+        window.__chat_applyViewportHeight
+      );
+      delete window.__chat_applyViewportHeight;
+    } catch (_) {}
+  }
+  // 移除输入框 focus/blur 监听
+  if (messageInput.value && window.__chat_onFocus && window.__chat_onBlur) {
+    try {
+      messageInput.value.removeEventListener("focus", window.__chat_onFocus);
+      messageInput.value.removeEventListener("blur", window.__chat_onBlur);
+      delete window.__chat_onFocus;
+      delete window.__chat_onBlur;
+    } catch (_) {}
+  }
   if (chatStore.__voiceAssistantHandler) {
     window.removeEventListener(
       "voiceAssistantReply",
       chatStore.__voiceAssistantHandler
     );
     delete chatStore.__voiceAssistantHandler;
+  }
+  if (window.__chat_onResize) {
+    window.removeEventListener("resize", window.__chat_onResize);
+    delete window.__chat_onResize;
   }
 });
 
@@ -2653,7 +2948,7 @@ const feedbackMessage = async (message, type) => {
 /* 欢迎消息 */
 .welcome-message {
   position: absolute;
-  top: 35%;
+  top: 45%;
   left: 50%;
   transform: translate(-50%, -50%);
   text-align: center;
@@ -2689,13 +2984,14 @@ const feedbackMessage = async (message, type) => {
   align-items: center;
 }
 .chat-view.empty .chat-container {
-  display: none;
+  visibility: hidden;
+  pointer-events: none;
 }
 .chat-view.empty .input-container {
   position: static;
   background: transparent;
   border-top: none;
-  padding: 0;
+  padding: 12px 16px calc(16px + env(safe-area-inset-bottom));
   display: flex;
   justify-content: center;
   align-items: center;
@@ -2717,6 +3013,10 @@ const feedbackMessage = async (message, type) => {
   background: var(--bg-primary);
   margin-bottom: 100px;
   scroll-behavior: auto; /* 确保初始滚动是瞬间的 */
+}
+/* 键盘弹出时，减少底部间距以避免过多空白 */
+.chat-view.keyboard-open .chat-container {
+  margin-bottom: 8px;
 }
 .chat-inner {
   width: 100%;
@@ -2839,66 +3139,41 @@ const feedbackMessage = async (message, type) => {
   font-variant-numeric: tabular-nums;
 }
 .scroll-to-bottom {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  bottom: 120px;
-  border: none;
-  background: transparent;
-  padding: 0;
+  position: fixed;
+  right: 32px;
+  bottom: calc(120px + env(safe-area-inset-bottom));
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.25);
+  background: rgba(32, 32, 32, 0.92);
+  color: #fff;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
-  z-index: 100;
-  transition: transform 0.2s ease, opacity 0.2s ease;
+  z-index: 1200;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
   animation: fadeIn 0.3s ease;
 }
-.scroll-icon-wrapper {
-  width: 54px;
-  height: 54px;
-  border-radius: 50%;
-  border: 1.5px solid rgba(255, 255, 255, 0.14);
-  background: rgba(15, 15, 15, 0.85);
-  box-shadow: 0 18px 32px rgba(0, 0, 0, 0.45), 0 4px 12px rgba(0, 0, 0, 0.35);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.25s ease;
+.scroll-icon {
+  width: 20px;
+  height: 20px;
+  position: relative;
+  z-index: 1;
+  color: inherit;
 }
-.scroll-icon-inner {
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: radial-gradient(
-    circle at 30% 30%,
-    rgba(255, 255, 255, 0.08),
-    rgba(20, 20, 20, 0.9)
-  );
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: #fdfdfd;
-}
-.scroll-icon-inner svg {
-  width: 22px;
-  height: 22px;
-  display: block;
+.scroll-icon * {
   stroke: currentColor;
 }
-.scroll-icon-inner svg circle {
-  stroke: rgba(255, 255, 255, 0.45);
+.scroll-to-bottom:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.4);
 }
-.scroll-icon-inner svg polyline,
-.scroll-icon-inner svg line {
-  stroke: #ffffff;
-}
-.scroll-to-bottom:hover .scroll-icon-wrapper {
-  border-color: rgba(255, 255, 255, 0.35);
-  transform: scale(1.03);
-  box-shadow: 0 22px 38px rgba(0, 0, 0, 0.55);
-}
-.scroll-to-bottom:active .scroll-icon-wrapper {
-  transform: scale(0.98);
-  box-shadow: 0 12px 20px rgba(0, 0, 0, 0.35);
+.scroll-to-bottom:active {
+  transform: translateY(0) scale(0.96);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.35);
 }
 .md-content :deep(ul),
 .md-content :deep(ol) {
@@ -3183,7 +3458,7 @@ const feedbackMessage = async (message, type) => {
   color: var(--text-primary);
 }
 .input-container {
-  padding: 12px 16px 16px;
+  padding: 12px 16px calc(16px + env(safe-area-inset-bottom));
   border-top: none;
   background: transparent;
   flex-shrink: 0;
@@ -3439,44 +3714,15 @@ const feedbackMessage = async (message, type) => {
     transform: scale(1.05);
   }
 }
-.scroll-to-bottom {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  bottom: 120px;
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  border: 1.5px solid rgba(255, 255, 255, 0.25);
-  background: rgba(32, 32, 32, 0.92);
-  color: #fff;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  z-index: 100;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  animation: fadeIn 0.3s ease;
+@media (max-width: 900px) {
+  .scroll-to-bottom {
+    right: 16px;
+    bottom: calc(100px + env(safe-area-inset-bottom));
+  }
 }
-.scroll-icon {
-  width: 20px;
-  height: 20px;
-  position: relative;
-  z-index: 1;
-  color: inherit;
-}
-.scroll-icon * {
-  stroke: currentColor;
-}
-.scroll-to-bottom:hover {
-  transform: translateX(-50%) translateY(-2px);
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.3);
-  background: rgba(36, 36, 36, 0.96);
-}
-.scroll-to-bottom:active {
-  transform: translateX(-50%) translateY(0);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+
+.chat-view.keyboard-open .scroll-to-bottom {
+  bottom: calc(80px + env(safe-area-inset-bottom));
 }
 @keyframes fadeIn {
   from {
@@ -3512,6 +3758,20 @@ const feedbackMessage = async (message, type) => {
 
 /* 移动端适配优化 */
 @media (max-width: 768px) {
+  /* 空状态下仍保留容器占位，使输入框保持底部位置 */
+  .chat-view.empty {
+    justify-content: flex-start;
+    align-items: stretch;
+  }
+  .chat-view.empty .chat-container {
+    visibility: hidden;
+    pointer-events: none;
+  }
+  .chat-view.empty .input-container {
+    padding: 8px 10px calc(10px + env(safe-area-inset-bottom));
+    background: transparent;
+  }
+
   .chat-inner {
     padding: 12px 12px;
   }
@@ -3568,6 +3828,11 @@ const feedbackMessage = async (message, type) => {
   .message-image {
     max-width: 100%;
     max-height: 240px;
+  }
+
+  /* 移动端隐藏“语音模式”图标态，仅保留发送/停止两种态 */
+  .voice-mode-btn:not(.send-mode):not(.stop-mode) {
+    display: none;
   }
 }
 

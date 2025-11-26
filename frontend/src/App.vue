@@ -76,5 +76,17 @@ watch(
   flex: 1;
   overflow: auto;
   background: var(--bg-secondary);
+  /* 为移动设备添加底部安全区内边距 */
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-bottom: constant(safe-area-inset-bottom);
+}
+
+@media (max-width: 768px) {
+  .main-content {
+    padding-top: 52px; /* 顶部栏固定后，所有页面都给内容留出空间 */
+  }
+  .content-wrapper {
+    padding-top: 0;
+  }
 }
 </style>
