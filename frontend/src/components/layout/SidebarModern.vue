@@ -1792,12 +1792,22 @@ watch(
   .sidebar-content {
     /* 确保sidebar-content占满高度并使用flex分配 */
     height: 100%;
+    max-height: 100vh;
+    max-height: 100dvh;
     display: flex;
     flex-direction: column;
+    overflow-y: auto; /* 允许整体滚动 */
+    /* 隐藏滚动条 */
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .sidebar-content::-webkit-scrollbar {
+    display: none;
   }
   .sessions-section {
-    /* 移除固定高度限制，让flex:1自动分配空间 */
-    max-height: none;
+    /* 限制最大高度，为footer预留空间 */
+    max-height: calc(100vh - 200px); /* 为顶部logo+nav+footer预留空间 */
+    max-height: calc(100dvh - 200px);
     flex: 1;
     min-height: 0;
     overflow: hidden;
@@ -1808,6 +1818,12 @@ watch(
     flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
+    /* 隐藏滚动条 */
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE/Edge */
+  }
+  .sessions-list::-webkit-scrollbar {
+    display: none; /* Chrome/Safari/Opera */
   }
   .sidebar-footer {
     /* 确保footer始终在底部显示，增加足够的padding避免被系统UI遮挡 */
@@ -1815,7 +1831,7 @@ watch(
     padding: 12px 8px;
     padding-bottom: calc(20px + env(safe-area-inset-bottom));
     background: var(--bg-primary);
-    border-top: 2px solid var(--border-light);
+    border-top: 1px solid var(--border-light);
     min-height: 60px;
     box-sizing: border-box;
   }
