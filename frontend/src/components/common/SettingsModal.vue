@@ -205,6 +205,7 @@ onMounted(() => {
     display: flex;
     justify-content: center;
     padding: 16px;
+    padding-bottom: calc(16px + env(safe-area-inset-bottom) + 60px); /* 额外加60px避开浏览器底部菜单 */
     border-top: 1px solid var(--border-light);
     background: var(--bg-secondary);
   }
@@ -268,6 +269,7 @@ onMounted(() => {
 
 .modal-body {
   padding: 24px;
+  padding-bottom: 12px; /* 减少底部padding给按钮区留空间 */
   overflow-y: auto;
   flex: 1;
 }
@@ -341,10 +343,12 @@ onMounted(() => {
 
 .modal-footer {
   padding: 16px 24px;
+  padding-bottom: 20px; /* 增加底部边距 */
   border-top: 1px solid var(--border-light);
   display: flex;
   justify-content: flex-end;
   gap: 12px;
+  flex-shrink: 0; /* 防止被压缩 */
 }
 
 .btn-primary,

@@ -2046,13 +2046,16 @@ const sendMessage = async () => {
   pendingPreviewUrl.value = null;
 
   // 立即添加用户消息到界面末尾（保持对话顺序）
-  messages.value.push({
+  const userMsg = {
     id: `temp-${Date.now()}`,
     role: "user",
     content: content,
     image_path: currentPreview, // 临时显示本地预览图
     timestamp: new Date().toISOString(),
-  });
+  };
+  messages.value.push(userMsg);
+  
+  console.log('✅ 用户消息已添加:', userMsg);
 
   // 设置标志位：需要滚动到底部
   shouldScrollToBottom.value = true;

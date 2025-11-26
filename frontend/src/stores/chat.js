@@ -187,12 +187,14 @@ export const useChatStore = defineStore('chat', () => {
             isTyping.value = true
             const placeholderId = Date.now() + 1
             activeTypingMessageId.value = placeholderId
-            messages.value.push({
+            const thinkingMsg = {
                 id: placeholderId,
                 role: 'assistant',
                 content: '',
                 status: 'thinking'
-            })
+            }
+            messages.value.push(thinkingMsg)
+            console.log('💭 Thinking message added:', thinkingMsg)
 
             // 构建中止控制器
             const controller = new AbortController()
@@ -258,7 +260,8 @@ export const useChatStore = defineStore('chat', () => {
 
                 isTyping.value = false
                 activeStreamAbort.value = null
-                await loadSessions()
+                await loadSessions(true) // 强制刷新会话列表
+                console.log('✅ Sessions refreshed after streamed message')
             }
 
             await api.streamChat({
