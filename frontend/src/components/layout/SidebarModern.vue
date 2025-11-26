@@ -581,13 +581,29 @@ const openSettingsModal = () => {
 const updateUserMenuPosition = () => {
   if (!userMenuRef.value) return;
   const rect = userMenuRef.value.getBoundingClientRect();
-  userMenuPosition.value = {
-    left: rect.left + 8,
-    bottom: window.innerHeight - rect.top + 8,
-  };
+  const isMobileView = window.innerWidth <= 768;
+  
+  if (isMobileView) {
+    // 移动端：固定在侧边栏底部上方
+    userMenuPosition.value = {
+      left: 16,
+      bottom: rect.height + 8,
+    };
+  } else {
+    // 桌面端：根据实际位置计算
+    userMenuPosition.value = {
+      left: rect.left + 8,
+      bottom: window.innerHeight - rect.top + 8,
+    };
+  }
 };
 
-const toggleUserMenu = () => {
+const toggleUserMenu = (event) => {
+  // 阻止事件冒泡
+  if (event) {
+    event.stopPropagation();
+  }
+  
   if (!showUserMenu.value) {
     updateUserMenuPosition();
     showUserMenu.value = true;
@@ -1683,9 +1699,17 @@ watch(
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-lg);
   padding: 4px;
-  z-index: 1000;
+  z-index: 1100; /* 提高z-index确保在侧边栏之上 */
   animation: slideUp 0.15s ease-out;
   cursor: default;
+}
+
+@media (max-width: 768px) {
+  .user-dropdown-menu {
+    /* 移动端增强显示 */
+    z-index: 1100;
+    min-width: 220px;
+  }
 }
 
 .dropdown-item {
@@ -1797,12 +1821,6 @@ watch(
     display: flex;
     flex-direction: column;
     overflow-y: auto; /* 允许整体滚动 */
-    /* 隐藏滚动条 */
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-  }
-  .sidebar-content::-webkit-scrollbar {
-    display: none;
   }
   .sessions-section {
     /* 限制最大高度，为footer预留空间 */
@@ -1818,12 +1836,6 @@ watch(
     flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
-    /* 隐藏滚动条 */
-    scrollbar-width: none; /* Firefox */
-    -ms-overflow-style: none; /* IE/Edge */
-  }
-  .sessions-list::-webkit-scrollbar {
-    display: none; /* Chrome/Safari/Opera */
   }
   .sidebar-footer {
     /* 确保footer始终在底部显示，增加足够的padding避免被系统UI遮挡 */
