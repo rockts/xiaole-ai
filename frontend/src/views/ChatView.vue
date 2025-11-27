@@ -486,14 +486,12 @@
       <svg
         class="scroll-icon"
         viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"
+        fill="currentColor"
+        xmlns="http://www.w3.org/2000/svg"
       >
-        <line x1="12" y1="6" x2="12" y2="16" />
-        <polyline points="8 12 12 16 16 12" />
+        <!-- 向下的实心箭头 -->
+        <path d="M12 4L12 16M12 16L8 12M12 16L16 12" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        <path d="M12 16L12 20" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
       </svg>
     </button>
 
@@ -3209,11 +3207,9 @@ const feedbackMessage = async (message, type) => {
   position: relative;
   z-index: 1;
   color: inherit;
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.15));
 }
 .scroll-icon * {
-  stroke: currentColor;
-  stroke-width: 3.5;
+  stroke: currentColor !important;
 }
 .scroll-to-bottom:hover {
   transform: translateX(-50%) translateY(-4px) scale(1.05);
