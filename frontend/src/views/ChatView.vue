@@ -65,9 +65,24 @@
           />
           <template v-if="message.role === 'assistant'">
             <template v-if="message.status === 'thinking'">
-              <div class="thinking-wrapper" style="background: rgba(59, 130, 246, 0.1); padding: 12px; border-radius: 12px; min-width: 80px;">
+              <div
+                class="thinking-wrapper"
+                style="
+                  background: rgba(59, 130, 246, 0.1);
+                  padding: 12px;
+                  border-radius: 12px;
+                  min-width: 80px;
+                "
+              >
                 <div class="thinking-dot"></div>
-                <span style="margin-left: 8px; color: var(--text-secondary); font-size: 13px;">思考中</span>
+                <span
+                  style="
+                    margin-left: 8px;
+                    color: var(--text-secondary);
+                    font-size: 13px;
+                  "
+                  >思考中</span
+                >
               </div>
             </template>
             <template v-else>
@@ -2058,7 +2073,12 @@ const sendMessage = async () => {
 
   console.log("✅ 用户消息已添加:", userMsg);
   console.log("📊 当前消息总数:", messages.value.length);
-  console.log("📝 最后3条消息:", messages.value.slice(-3).map(m => ({ role: m.role, content: m.content?.substring(0, 30) })));
+  console.log(
+    "📝 最后3条消息:",
+    messages.value
+      .slice(-3)
+      .map((m) => ({ role: m.role, content: m.content?.substring(0, 30) }))
+  );
 
   // 设置标志位：需要滚动到底部
   shouldScrollToBottom.value = true;
@@ -3156,40 +3176,44 @@ const feedbackMessage = async (message, type) => {
 }
 .scroll-to-bottom {
   position: fixed;
-  right: 32px;
-  bottom: calc(120px + env(safe-area-inset-bottom));
-  width: 48px;
-  height: 48px;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(100px + env(safe-area-inset-bottom));
+  width: 56px;
+  height: 56px;
   border-radius: 50%;
-  border: 1.5px solid rgba(255, 255, 255, 0.25);
-  background: rgba(32, 32, 32, 0.92);
+  border: none;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: #fff;
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 8px 24px rgba(102, 126, 234, 0.4), 0 4px 8px rgba(0, 0, 0, 0.2);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   z-index: 1200;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
-  animation: fadeIn 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: fadeInUp 0.3s ease;
 }
 .scroll-icon {
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
   position: relative;
   z-index: 1;
   color: inherit;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2));
 }
 .scroll-icon * {
   stroke: currentColor;
+  stroke-width: 2.5;
 }
 .scroll-to-bottom:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.4);
+  transform: translateX(-50%) translateY(-4px) scale(1.05);
+  box-shadow: 0 12px 32px rgba(102, 126, 234, 0.5),
+    0 8px 16px rgba(0, 0, 0, 0.25);
 }
 .scroll-to-bottom:active {
-  transform: translateY(0) scale(0.96);
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.35);
+  transform: translateX(-50%) translateY(-2px) scale(0.98);
+  box-shadow: 0 6px 18px rgba(102, 126, 234, 0.4), 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 .md-content :deep(ul),
 .md-content :deep(ol) {
@@ -3735,18 +3759,24 @@ const feedbackMessage = async (message, type) => {
 }
 @media (max-width: 900px) {
   .scroll-to-bottom {
-    right: 16px;
-    bottom: calc(100px + env(safe-area-inset-bottom));
+    width: 52px;
+    height: 52px;
+    bottom: calc(90px + env(safe-area-inset-bottom));
+  }
+
+  .scroll-icon {
+    width: 22px;
+    height: 22px;
   }
 }
 
 .chat-view.keyboard-open .scroll-to-bottom {
-  bottom: calc(80px + env(safe-area-inset-bottom));
+  bottom: calc(70px + env(safe-area-inset-bottom));
 }
-@keyframes fadeIn {
+@keyframes fadeInUp {
   from {
     opacity: 0;
-    transform: translateX(-50%) translateY(10px);
+    transform: translateX(-50%) translateY(20px);
   }
   to {
     opacity: 1;
@@ -3838,7 +3868,7 @@ const feedbackMessage = async (message, type) => {
     opacity: 1 !important;
     background: #2f2f2f !important;
   }
-  
+
   [data-theme="light"] .message.user .user-bubble {
     background: #f3f4f6 !important;
     color: #1f2937 !important;
