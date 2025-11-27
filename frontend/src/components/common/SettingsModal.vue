@@ -205,7 +205,9 @@ onMounted(() => {
     display: flex;
     justify-content: center;
     padding: 16px;
-    padding-bottom: calc(16px + env(safe-area-inset-bottom) + 60px); /* 额外加60px避开浏览器底部菜单 */
+    padding-bottom: calc(
+      16px + env(safe-area-inset-bottom) + 60px
+    ); /* 额外加60px避开浏览器底部菜单 */
     border-top: 1px solid var(--border-light);
     background: var(--bg-secondary);
   }

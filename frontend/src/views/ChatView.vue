@@ -65,8 +65,9 @@
           />
           <template v-if="message.role === 'assistant'">
             <template v-if="message.status === 'thinking'">
-              <div class="thinking-wrapper">
+              <div class="thinking-wrapper" style="background: rgba(59, 130, 246, 0.1); padding: 12px; border-radius: 12px; min-width: 80px;">
                 <div class="thinking-dot"></div>
+                <span style="margin-left: 8px; color: var(--text-secondary); font-size: 13px;">思考中</span>
               </div>
             </template>
             <template v-else>
@@ -2054,8 +2055,10 @@ const sendMessage = async () => {
     timestamp: new Date().toISOString(),
   };
   messages.value.push(userMsg);
-  
-  console.log('✅ 用户消息已添加:', userMsg);
+
+  console.log("✅ 用户消息已添加:", userMsg);
+  console.log("📊 当前消息总数:", messages.value.length);
+  console.log("📝 最后3条消息:", messages.value.slice(-3).map(m => ({ role: m.role, content: m.content?.substring(0, 30) })));
 
   // 设置标志位：需要滚动到底部
   shouldScrollToBottom.value = true;
@@ -3668,18 +3671,21 @@ const feedbackMessage = async (message, type) => {
 
 /* 思考与打字效果 */
 .thinking-wrapper {
-  display: flex;
+  display: flex !important;
   align-items: center;
   min-height: 24px;
   padding: 2px 4px;
+  visibility: visible !important;
+  opacity: 1 !important;
 }
 .thinking-dot {
-  width: 12px;
-  height: 12px;
+  width: 16px !important;
+  height: 16px !important;
   border-radius: 50%;
-  background: var(--text-primary);
-  box-shadow: 0 0 8px var(--text-primary);
-  animation: thinkingPulse 1s ease-in-out infinite;
+  background: #3b82f6 !important;
+  box-shadow: 0 0 12px #3b82f6 !important;
+  animation: thinkingPulse 0.8s ease-in-out infinite !important;
+  flex-shrink: 0;
 }
 @keyframes thinkingPulse {
   0% {
@@ -3816,15 +3822,26 @@ const feedbackMessage = async (message, type) => {
 
   /* 确保移动端用户消息可见且正确对齐 */
   .message.user {
-    display: flex;
-    justify-content: flex-end;
+    display: flex !important;
+    justify-content: flex-end !important;
     margin-bottom: 12px;
+    width: 100%;
+    visibility: visible !important;
+    opacity: 1 !important;
   }
 
   .message.user .user-bubble {
-    display: block;
+    display: block !important;
     word-wrap: break-word;
     overflow-wrap: break-word;
+    visibility: visible !important;
+    opacity: 1 !important;
+    background: #2f2f2f !important;
+  }
+  
+  [data-theme="light"] .message.user .user-bubble {
+    background: #f3f4f6 !important;
+    color: #1f2937 !important;
   }
 
   .message.assistant .md-content {
