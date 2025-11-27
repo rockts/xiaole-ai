@@ -3179,12 +3179,12 @@ const feedbackMessage = async (message, type) => {
   left: 50%;
   transform: translateX(-50%);
   bottom: calc(100px + env(safe-area-inset-bottom));
-  width: 56px;
-  height: 56px;
+  width: 64px;
+  height: 64px;
   border-radius: 50%;
-  border: none;
+  border: 2px solid rgba(0, 0, 0, 0.08);
   background: #ffffff;
-  color: #1f2937;
+  color: #000000;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15), 0 4px 8px rgba(0, 0, 0, 0.1);
   display: flex;
   align-items: center;
@@ -3199,20 +3199,21 @@ const feedbackMessage = async (message, type) => {
 [data-theme="dark"] .scroll-to-bottom {
   background: #2d2d2d;
   color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.1);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), 0 4px 8px rgba(0, 0, 0, 0.3);
 }
 
 .scroll-icon {
-  width: 32px;
-  height: 32px;
+  width: 40px;
+  height: 40px;
   position: relative;
   z-index: 1;
   color: inherit;
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.15));
 }
 .scroll-icon * {
   stroke: currentColor;
-  stroke-width: 3;
+  stroke-width: 3.5;
 }
 .scroll-to-bottom:hover {
   transform: translateX(-50%) translateY(-4px) scale(1.05);
@@ -3775,14 +3776,14 @@ const feedbackMessage = async (message, type) => {
 }
 @media (max-width: 900px) {
   .scroll-to-bottom {
-    width: 52px;
-    height: 52px;
+    width: 56px;
+    height: 56px;
     bottom: calc(90px + env(safe-area-inset-bottom));
   }
 
   .scroll-icon {
-    width: 28px;
-    height: 28px;
+    width: 32px;
+    height: 32px;
   }
 }
 
