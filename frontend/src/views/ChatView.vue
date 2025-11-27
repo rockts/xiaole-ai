@@ -3183,9 +3183,9 @@ const feedbackMessage = async (message, type) => {
   height: 56px;
   border-radius: 50%;
   border: none;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: #fff;
-  box-shadow: 0 8px 24px rgba(102, 126, 234, 0.4), 0 4px 8px rgba(0, 0, 0, 0.2);
+  background: #ffffff;
+  color: #1f2937;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15), 0 4px 8px rgba(0, 0, 0, 0.1);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3194,26 +3194,42 @@ const feedbackMessage = async (message, type) => {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   animation: fadeInUp 0.3s ease;
 }
+
+/* 深色主题 - 白色圆圈 */
+[data-theme="dark"] .scroll-to-bottom {
+  background: #2d2d2d;
+  color: #ffffff;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
 .scroll-icon {
-  width: 24px;
-  height: 24px;
+  width: 32px;
+  height: 32px;
   position: relative;
   z-index: 1;
   color: inherit;
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2));
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
 }
 .scroll-icon * {
   stroke: currentColor;
-  stroke-width: 2.5;
+  stroke-width: 3;
 }
 .scroll-to-bottom:hover {
   transform: translateX(-50%) translateY(-4px) scale(1.05);
-  box-shadow: 0 12px 32px rgba(102, 126, 234, 0.5),
-    0 8px 16px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2), 0 8px 16px rgba(0, 0, 0, 0.15);
 }
+
+[data-theme="dark"] .scroll-to-bottom:hover {
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5), 0 8px 16px rgba(0, 0, 0, 0.35);
+}
+
 .scroll-to-bottom:active {
   transform: translateX(-50%) translateY(-2px) scale(0.98);
-  box-shadow: 0 6px 18px rgba(102, 126, 234, 0.4), 0 4px 8px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.15), 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="dark"] .scroll-to-bottom:active {
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4), 0 4px 8px rgba(0, 0, 0, 0.3);
 }
 .md-content :deep(ul),
 .md-content :deep(ol) {
@@ -3765,8 +3781,8 @@ const feedbackMessage = async (message, type) => {
   }
 
   .scroll-icon {
-    width: 22px;
-    height: 22px;
+    width: 28px;
+    height: 28px;
   }
 }
 
