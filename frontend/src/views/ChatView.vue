@@ -3999,7 +3999,7 @@ const feedbackMessage = async (message, type) => {
     right: 0;
     padding: 8px 10px calc(10px + env(safe-area-inset-bottom));
     background: var(--bg-primary);
-    border-top: 1px solid var(--border-light);
+    /* border-top: 1px solid var(--border-light); */
   }
 
   .chat-inner {
@@ -4048,7 +4048,7 @@ const feedbackMessage = async (message, type) => {
     z-index: 100;
     background: var(--bg-primary);
     padding: 8px 10px calc(10px + env(safe-area-inset-bottom));
-    border-top: 1px solid var(--border-light);
+    /* border-top: 1px solid var(--border-light); */
   }
 
   .input-wrapper {
