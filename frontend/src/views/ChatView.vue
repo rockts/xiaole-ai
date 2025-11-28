@@ -3576,7 +3576,7 @@ const feedbackMessage = async (message, type) => {
   color: var(--text-primary);
 }
 .input-container {
-  position: fixed;
+  position: absolute;
   bottom: 0;
   left: 0;
   right: 0;
