@@ -81,8 +81,10 @@
                     width="8"
                     height="8"
                     viewBox="0 0 8 8"
+                    xmlns="http://www.w3.org/2000/svg"
                     style="
                       display: block;
+                      box-sizing: content-box;
                       overflow: visible;
                       animation: thinkingBounce 1.4s ease-in-out 0s infinite;
                     "
@@ -93,8 +95,10 @@
                     width="8"
                     height="8"
                     viewBox="0 0 8 8"
+                    xmlns="http://www.w3.org/2000/svg"
                     style="
                       display: block;
+                      box-sizing: content-box;
                       overflow: visible;
                       animation: thinkingBounce 1.4s ease-in-out 0.2s infinite;
                     "
@@ -105,8 +109,10 @@
                     width="8"
                     height="8"
                     viewBox="0 0 8 8"
+                    xmlns="http://www.w3.org/2000/svg"
                     style="
                       display: block;
+                      box-sizing: content-box;
                       overflow: visible;
                       animation: thinkingBounce 1.4s ease-in-out 0.4s infinite;
                     "
@@ -4601,6 +4607,16 @@ span.thinking-dot {
   30% {
     transform: translateY(-10px);
   }
+}
+
+/* 强制思考动画 SVG 正常渲染，不受全局 box-sizing 影响 */
+svg[viewBox="0 0 8 8"] {
+  box-sizing: content-box !important;
+  display: block !important;
+}
+
+svg[viewBox="0 0 8 8"] circle {
+  vector-effect: non-scaling-stroke;
 }
 </style>
 
