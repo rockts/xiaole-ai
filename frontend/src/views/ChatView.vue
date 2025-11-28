@@ -76,8 +76,14 @@
               >
                 <div class="thinking-dots">
                   <span class="thinking-dot" style="animation-delay: 0s"></span>
-                  <span class="thinking-dot" style="animation-delay: 0.2s"></span>
-                  <span class="thinking-dot" style="animation-delay: 0.4s"></span>
+                  <span
+                    class="thinking-dot"
+                    style="animation-delay: 0.2s"
+                  ></span>
+                  <span
+                    class="thinking-dot"
+                    style="animation-delay: 0.4s"
+                  ></span>
                 </div>
                 <span
                   style="
@@ -4537,15 +4543,24 @@ const feedbackMessage = async (message, type) => {
   gap: 6px !important;
 }
 
-.thinking-dot {
+/* 使用多重选择器提高优先级，强制覆盖全局reset */
+.thinking-dot,
+.thinking-dot[style],
+span.thinking-dot {
   display: inline-block !important;
   width: 8px !important;
   height: 8px !important;
   min-width: 8px !important;
   min-height: 8px !important;
-  background: #3b82f6 !important;
+  background-color: #3b82f6 !important;
   border-radius: 50% !important;
+  -webkit-border-radius: 50% !important;
+  -moz-border-radius: 50% !important;
+  overflow: hidden !important;
+  /* 使用box-shadow模拟圆形作为后备方案 */
+  box-shadow: 0 0 0 1px #3b82f6 !important;
   animation: thinkingBounce 1.4s ease-in-out infinite !important;
+  -webkit-animation: thinkingBounce 1.4s ease-in-out infinite !important;
 }
 
 @keyframes thinkingBounce {
