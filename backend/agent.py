@@ -514,6 +514,10 @@ class XiaoLeAgent:
             user_id: 用户ID
             response_style: 响应风格 (concise/balanced/detailed/professional)
         """
+        # 性能监控
+        import time
+        start_time = time.time()
+
         # 如果没有session_id，创建新会话
         logger.info(
             f"💬 chat() 开始 - session_id参数: {session_id}, type: {type(session_id)}")
@@ -527,18 +531,22 @@ class XiaoLeAgent:
         else:
             logger.info(f"📖 使用现有会话: {session_id}")
 
-        # v0.5.0: 检查未读提醒
+        # v0.5.0: 检查未读提醒 (仅在有相关关键词时执行)
         pending_reminders = []
-        try:
-            from reminder_manager import get_reminder_manager
-            reminder_mgr = get_reminder_manager()
-            pending_reminders = reminder_mgr.get_pending_reminders(
-                user_id, limit=3)
-        except Exception as e:
-            logger.warning(f"检查提醒失败: {e}")
+        reminder_keywords = ['提醒', 'remind', '任务', 'task', '待办']
+        if any(kw in prompt.lower() for kw in reminder_keywords):
+            try:
+                from reminder_manager import get_reminder_manager
+                reminder_mgr = get_reminder_manager()
+                pending_reminders = reminder_mgr.get_pending_reminders(
+                    user_id, limit=3)
+                logger.info(f"⏰ 检查提醒耗时: {time.time() - start_time:.2f}s")
+            except Exception as e:
+                logger.warning(f"检查提醒失败: {e}")
 
         # 获取对话历史
         history = self.conversation.get_history(session_id, limit=5)
+        logger.info(f"📚 加载历史耗时: {time.time() - start_time:.2f}s")
         precomputed_reply = None  # v0.9.3: 若命中直答，跳过后续LLM/工具流程
 
         # v0.4.0: 智能工具调用 - 先分析是否需要调用工具
@@ -873,6 +881,12 @@ class XiaoLeAgent:
         if (tool_result and tool_result.get('success') and
                 tool_result.get('tool_name') == 'search'):
             result["search_results"] = tool_result.get('results', [])
+
+        # 性能监控：记录总耗时
+        total_time = time.time() - start_time
+        logger.info(f"⏱️ 响应完成，总耗时: {total_time:.2f}秒")
+        if total_time > 3:
+            logger.warning(f"⚠️ 响应较慢({total_time:.2f}s)，建议优化")
 
         return result
 

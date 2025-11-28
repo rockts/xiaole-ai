@@ -68,14 +68,13 @@
           <template v-if="message.role === 'assistant'">
             <template v-if="message.status === 'thinking'">
               <div class="thinking-wrapper">
-                <div class="typing-indicator thinking" aria-live="polite">
-                  <span></span>
-                  <span></span>
-                  <span></span>
+                <div class="thinking-animation">
+                  <div class="thinking-bar"></div>
+                  <div class="thinking-bar"></div>
+                  <div class="thinking-bar"></div>
+                  <div class="thinking-bar"></div>
                 </div>
-                <span class="thinking-label">思考中...</span>
-                <!-- Debug info -->
-                <!-- <span style="font-size: 10px; color: #999; margin-left: 5px;">(status: {{ message.status }})</span> -->
+                <span class="thinking-label">思考中</span>
               </div>
             </template>
             <template v-else>
@@ -3617,9 +3616,11 @@ const feedbackMessage = async (message, type) => {
 }
 .message-toolbar {
   display: flex;
-  gap: 2px;
-  margin-top: 4px;
+  gap: 4px;
+  margin-top: 6px;
+  padding: 4px 0;
   transition: opacity 0.2s;
+  flex-wrap: wrap;
 }
 .message.assistant .message-toolbar {
   opacity: 1;
@@ -3634,20 +3635,22 @@ const feedbackMessage = async (message, type) => {
 .toolbar-icon {
   background: none;
   border: none;
-  padding: 5px;
+  padding: 6px;
   cursor: pointer;
   color: var(--text-tertiary);
-  border-radius: 5px;
+  border-radius: 6px;
   transition: all 0.15s;
-  width: 26px;
-  height: 26px;
+  width: 28px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 .toolbar-icon svg {
   width: 15px;
   height: 15px;
+  flex-shrink: 0;
 }
 .toolbar-icon:hover {
   background: var(--bg-hover);
@@ -3687,7 +3690,8 @@ const feedbackMessage = async (message, type) => {
   z-index: 50;
   background: var(--bg-primary);
   padding: 12px 16px calc(16px + env(safe-area-inset-bottom));
-  /* border-top: 1px solid var(--border-light); */
+  border-top: none !important;
+  box-shadow: none !important;
   flex-shrink: 0;
 }
 .input-wrapper {
@@ -3698,7 +3702,7 @@ const feedbackMessage = async (message, type) => {
   gap: 8px;
   align-items: stretch;
   background: var(--bg-secondary);
-  /* border: 1px solid var(--border-light); */
+  border: none !important;
   border-radius: 22px;
   padding: 8px 10px;
   transition: all 0.2s ease;
@@ -3951,45 +3955,97 @@ const feedbackMessage = async (message, type) => {
 }
 
 .thinking-wrapper {
-  background: var(--bg-secondary);
-  /* remove visual border to avoid horizontal lines */
-  /* border: 1px solid var(--border-light); */
-  padding: 12px 16px;
-  border-radius: 16px;
+  background: linear-gradient(
+    135deg,
+    var(--bg-secondary) 0%,
+    var(--bg-tertiary, var(--bg-secondary)) 100%
+  );
+  padding: 14px 18px;
+  border-radius: 18px;
   border-bottom-left-radius: 4px;
-  min-width: 80px;
+  min-width: 90px;
   display: flex !important;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
   visibility: visible !important;
   opacity: 1 !important;
-  min-height: 44px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  min-height: 48px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
   margin-top: 4px;
-  margin-bottom: 80px; /* 增加底部外边距，避免被输入框遮挡 */
+  margin-bottom: 80px;
   scroll-margin-bottom: 120px;
   position: relative;
-  z-index: 999 !important; /* 大幅提高层级，确保不被输入框遮住 */
+  z-index: 999 !important;
+  border: 1px solid rgba(99, 102, 241, 0.1);
 }
 
-.thinking-wrapper .typing-indicator span {
-  background-color: #3b82f6 !important; /* 强制显示蓝色，防止变量失效 */
-  width: 6px;
-  height: 6px;
-  opacity: 1 !important;
+.thinking-animation {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 20px;
+}
+
+.thinking-bar {
+  width: 3px;
+  height: 100%;
+  background: linear-gradient(
+    180deg,
+    var(--brand-primary),
+    var(--brand-secondary, var(--brand-primary))
+  );
+  border-radius: 2px;
+  animation: thinkingWave 1.2s ease-in-out infinite;
+}
+
+.thinking-bar:nth-child(1) {
+  animation-delay: 0s;
+}
+
+.thinking-bar:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.thinking-bar:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+.thinking-bar:nth-child(4) {
+  animation-delay: 0.45s;
+}
+
+@keyframes thinkingWave {
+  0%,
+  100% {
+    height: 30%;
+    opacity: 0.5;
+  }
+  50% {
+    height: 100%;
+    opacity: 1;
+  }
 }
 
 .thinking-label {
   color: var(--text-secondary);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
-  animation: pulseText 2s infinite ease-in-out;
+  letter-spacing: 0.3px;
+  background: linear-gradient(
+    90deg,
+    var(--brand-primary),
+    var(--brand-secondary, var(--brand-primary))
+  );
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: thinkingTextShimmer 2s ease-in-out infinite;
 }
 
-@keyframes pulseText {
+@keyframes thinkingTextShimmer {
   0%,
   100% {
-    opacity: 0.6;
+    opacity: 0.7;
   }
   50% {
     opacity: 1;
@@ -4152,7 +4208,8 @@ const feedbackMessage = async (message, type) => {
     z-index: 50;
     background: var(--bg-primary);
     padding: 8px 10px calc(10px + env(safe-area-inset-bottom));
-    /* border-top: 1px solid var(--border-light); */
+    border-top: none !important;
+    box-shadow: none !important;
   }
 
   .input-wrapper {
@@ -4171,12 +4228,19 @@ const feedbackMessage = async (message, type) => {
   /* 移动端始终显示工具栏，避免无法操作 */
   .message-toolbar {
     opacity: 1 !important;
-    margin-top: 6px;
+    margin-top: 8px;
+    gap: 6px;
   }
 
-  /* 最后一条消息的工具栏添加底部间距，避免被输入框遮挡 */
+  /* 最后一条消息的工具栏添加更多底部间距，确保不被输入框遮挡 */
   .message:last-child .message-toolbar {
-    margin-bottom: 16px;
+    margin-bottom: 32px;
+    padding-bottom: 8px;
+  }
+
+  /* 助手消息的工具栏，增加额外底部空间 */
+  .message.assistant:last-child {
+    padding-bottom: 100px;
   }
 
   .message.user .message-toolbar {
