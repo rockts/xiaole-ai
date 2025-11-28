@@ -1264,8 +1264,14 @@ watch(
       try {
         const lastFive = messages.value
           .slice(-5)
-          .map((m) => ({ id: m.id, role: m.role, status: m.status, len: (m.content || '').length, preview: (m.content || '').slice(0, 80) }));
-        console.log('📋 Last 5 messages summary:', lastFive);
+          .map((m) => ({
+            id: m.id,
+            role: m.role,
+            status: m.status,
+            len: (m.content || "").length,
+            preview: (m.content || "").slice(0, 80),
+          }));
+        console.log("📋 Last 5 messages summary:", lastFive);
       } catch (e) {}
     }
 
@@ -1277,6 +1283,20 @@ watch(
         // 双重保险：确保渲染完成后再次滚动，防止内容撑开导致未到底
         setTimeout(stickToBottomImmediate, 50);
         shouldScrollToBottom.value = !!isTyping.value;
+          // 额外补偿：如果输入框覆盖了底部消息，向上偏移一个输入框高度
+          try {
+            const inputEl = document.querySelector('.input-container');
+            const container = chatContainer.value;
+            if (inputEl && container) {
+              const inputH = inputEl.getBoundingClientRect().height || 0;
+              // 在下一帧再次调整，确保元素渲染完成
+              requestAnimationFrame(() => {
+                const maxScrollTop = container.scrollHeight - container.clientHeight;
+                const desired = Math.max(0, Math.min(maxScrollTop, container.scrollHeight - container.clientHeight + inputH + 8));
+                container.scrollTop = desired;
+              });
+            }
+          } catch (e) {}
       }
     });
   },
@@ -3113,7 +3133,7 @@ const feedbackMessage = async (message, type) => {
   width: 100%;
   max-width: 42rem;
   padding: 16px 20px;
-  padding-bottom: 180px; /* 增加底部内边距，防止被输入框遮挡 */
+  padding-bottom: 260px; /* 增加底部内边距，防止被输入框遮挡（加大以适配较高输入区） */
   position: relative;
 }
 .message {
@@ -3865,7 +3885,8 @@ const feedbackMessage = async (message, type) => {
 
 .thinking-wrapper {
   background: var(--bg-secondary);
-  border: 1px solid var(--border-light);
+  /* remove visual border to avoid horizontal lines */
+  /* border: 1px solid var(--border-light); */
   padding: 12px 16px;
   border-radius: 16px;
   border-bottom-left-radius: 4px;
@@ -3880,7 +3901,7 @@ const feedbackMessage = async (message, type) => {
   margin-top: 4px;
   scroll-margin-bottom: 120px;
   position: relative;
-  z-index: 10; /* 提高层级 */
+  z-index: 220 !important; /* 提高层级，确保不被输入框遮住 */
 }
 
 .thinking-wrapper .typing-indicator span {
@@ -4012,7 +4033,7 @@ const feedbackMessage = async (message, type) => {
   }
 
   .chat-inner {
-    padding: 12px 12px 160px 12px;
+    padding: 12px 12px 220px 12px;
   }
 
   .user-bubble {
