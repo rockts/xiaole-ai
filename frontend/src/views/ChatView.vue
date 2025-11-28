@@ -77,18 +77,9 @@
                 <div
                   style="display: inline-flex; align-items: center; gap: 6px"
                 >
-                  <div
-                    class="thinking-circle"
-                    style="animation-delay: 0s; border-radius: 50% !important"
-                  ></div>
-                  <div
-                    class="thinking-circle"
-                    style="animation-delay: 0.2s; border-radius: 50% !important"
-                  ></div>
-                  <div
-                    class="thinking-circle"
-                    style="animation-delay: 0.4s; border-radius: 50% !important"
-                  ></div>
+                  <i class="dot dot-1"></i>
+                  <i class="dot dot-2"></i>
+                  <i class="dot dot-3"></i>
                 </div>
                 <span
                   style="
@@ -3754,20 +3745,25 @@ const feedbackMessage = async (message, type) => {
 }
 
 /* 思考动画 - 三个圆点跳动效果 */
-.thinking-circle {
-  display: block !important;
+.dot {
+  display: inline-block !important;
   width: 8px !important;
   height: 8px !important;
-  min-width: 8px !important;
-  min-height: 8px !important;
-  max-width: 8px !important;
-  max-height: 8px !important;
-  border-radius: 50% !important;
   background: #3b82f6 !important;
-  flex-shrink: 0 !important;
-  overflow: hidden !important;
-  box-shadow: 0 0 0 0 #3b82f6 !important;
+  border-radius: 50% !important;
   animation: thinkingBounce 1.4s ease-in-out infinite !important;
+}
+
+.dot-1 {
+  animation-delay: 0s !important;
+}
+
+.dot-2 {
+  animation-delay: 0.2s !important;
+}
+
+.dot-3 {
+  animation-delay: 0.4s !important;
 }
 
 @keyframes thinkingBounce {

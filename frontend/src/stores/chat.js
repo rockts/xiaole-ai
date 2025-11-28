@@ -134,11 +134,11 @@ export const useChatStore = defineStore('chat', () => {
                     // 先保持 thinking 状态至少 800ms，让用户看到思考动画
                     const thinkingStartTime = Date.now()
                     const minThinkingTime = 800
-                    
+
                     const startTyping = () => {
                         messages.value[msgIndex].status = 'typing'
                         messages.value[msgIndex].content = ''
-                        
+
                         let i = 0
                         const step = Math.max(1, Math.round(full.length / 60)) // 约1秒60步
                         typingTimer.value = setInterval(() => {
@@ -154,10 +154,10 @@ export const useChatStore = defineStore('chat', () => {
                             i += step
                         }, 16) // ~60fps
                     }
-                    
+
                     const elapsed = Date.now() - thinkingStartTime
                     const remainingTime = Math.max(0, minThinkingTime - elapsed)
-                    
+
                     setTimeout(startTyping, remainingTime)
                 }
 
