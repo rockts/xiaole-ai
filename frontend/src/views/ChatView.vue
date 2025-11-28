@@ -3752,18 +3752,25 @@ const feedbackMessage = async (message, type) => {
   opacity: 1 !important;
 }
 .thinking-dots {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  height: 12px !important;
+  vertical-align: middle !important;
 }
 
 .thinking-dot {
   width: 8px !important;
   height: 8px !important;
-  border-radius: 50%;
+  min-width: 8px !important;
+  min-height: 8px !important;
+  max-width: 8px !important;
+  max-height: 8px !important;
+  border-radius: 50% !important;
   background: #3b82f6 !important;
   animation: thinkingBounce 1.4s ease-in-out infinite !important;
-  flex-shrink: 0;
+  flex-shrink: 0 !important;
+  display: block !important;
 }
 
 .thinking-dot:nth-child(1) {
