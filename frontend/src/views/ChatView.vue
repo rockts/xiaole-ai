@@ -1262,15 +1262,13 @@ watch(
       );
       // 打印最近 5 条消息的简要信息，帮助排查渲染/内容问题
       try {
-        const lastFive = messages.value
-          .slice(-5)
-          .map((m) => ({
-            id: m.id,
-            role: m.role,
-            status: m.status,
-            len: (m.content || "").length,
-            preview: (m.content || "").slice(0, 80),
-          }));
+        const lastFive = messages.value.slice(-5).map((m) => ({
+          id: m.id,
+          role: m.role,
+          status: m.status,
+          len: (m.content || "").length,
+          preview: (m.content || "").slice(0, 80),
+        }));
         console.log("📋 Last 5 messages summary:", lastFive);
       } catch (e) {}
     }
@@ -1283,41 +1281,57 @@ watch(
         // 双重保险：确保渲染完成后再次滚动，防止内容撑开导致未到底
         setTimeout(stickToBottomImmediate, 50);
         shouldScrollToBottom.value = !!isTyping.value;
-          // 额外补偿：如果输入框覆盖了底部消息，向上偏移一个输入框高度
-          try {
-            const inputEl = document.querySelector('.input-container');
-            const container = chatContainer.value;
-            if (inputEl && container) {
-              const inputH = inputEl.getBoundingClientRect().height || 0;
-              // 在下一帧再次调整，确保元素渲染完成
-              requestAnimationFrame(() => {
-                const maxScrollTop = container.scrollHeight - container.clientHeight;
-                const desired = Math.max(0, Math.min(maxScrollTop, container.scrollHeight - container.clientHeight + inputH + 8));
-                container.scrollTop = desired;
+        // 额外补偿：如果输入框覆盖了底部消息，向上偏移一个输入框高度
+        try {
+          const inputEl = document.querySelector(".input-container");
+          const container = chatContainer.value;
+          if (inputEl && container) {
+            const inputH = inputEl.getBoundingClientRect().height || 0;
+            // 在下一帧再次调整，确保元素渲染完成
+            requestAnimationFrame(() => {
+              const maxScrollTop =
+                container.scrollHeight - container.clientHeight;
+              const desired = Math.max(
+                0,
+                Math.min(
+                  maxScrollTop,
+                  container.scrollHeight - container.clientHeight + inputH + 8
+                )
+              );
+              container.scrollTop = desired;
 
-                // 进一步确保最后消息元素完全可见（避免思考气泡出现在输入框后面）
-                try {
-                  const lastMsg = messages.value[messages.value.length - 1];
-                  if (lastMsg && lastMsg.id) {
-                    const msgEl = container.querySelector(`[data-msg-id="${lastMsg.id}"]`);
-                    if (msgEl) {
-                      const msgRect = msgEl.getBoundingClientRect();
-                      const containerRect = container.getBoundingClientRect();
-                      const safeMargin = 120; // 安全边距：确保消息底部距离输入框顶部至少120px
-                      const overlap = msgRect.bottom - (containerRect.bottom - inputH - safeMargin);
-                      if (overlap > 0) {
-                        // 向上滚动 overlap，确保消息底部位于输入框上方足够距离处
-                        container.scrollTop += overlap + safeMargin;
-                        console.log('🔧 Adjusted scroll to keep last message above input, overlap:', overlap, 'margin:', safeMargin);
-                      }
+              // 进一步确保最后消息元素完全可见（避免思考气泡出现在输入框后面）
+              try {
+                const lastMsg = messages.value[messages.value.length - 1];
+                if (lastMsg && lastMsg.id) {
+                  const msgEl = container.querySelector(
+                    `[data-msg-id="${lastMsg.id}"]`
+                  );
+                  if (msgEl) {
+                    const msgRect = msgEl.getBoundingClientRect();
+                    const containerRect = container.getBoundingClientRect();
+                    const safeMargin = 120; // 安全边距：确保消息底部距离输入框顶部至少120px
+                    const overlap =
+                      msgRect.bottom -
+                      (containerRect.bottom - inputH - safeMargin);
+                    if (overlap > 0) {
+                      // 向上滚动 overlap，确保消息底部位于输入框上方足够距离处
+                      container.scrollTop += overlap + safeMargin;
+                      console.log(
+                        "🔧 Adjusted scroll to keep last message above input, overlap:",
+                        overlap,
+                        "margin:",
+                        safeMargin
+                      );
                     }
                   }
-                } catch (e) {
-                  console.error('Error ensuring last message visibility', e);
                 }
-              });
-            }
-          } catch (e) {}
+              } catch (e) {
+                console.error("Error ensuring last message visibility", e);
+              }
+            });
+          }
+        } catch (e) {}
       }
     });
   },
@@ -3177,10 +3191,6 @@ const feedbackMessage = async (message, type) => {
   animation: none !important;
   opacity: 1 !important;
   transform: none !important;
-}
-.message:last-child {
-  padding-bottom: 60px; /* 只给最后一条消息增加安全距离 */
-  scroll-margin-bottom: 150px;
 }
 .message.new-group {
   margin-top: 8px;
