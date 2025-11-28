@@ -74,10 +74,10 @@
                   min-width: 80px;
                 "
               >
-                <div style="display: inline-flex; align-items: center; gap: 6px;">
-                  <span style="display:inline-block;width:8px;height:8px;min-width:8px;min-height:8px;background:#3b82f6;border-radius:4px;animation:thinkingBounce 1.4s ease-in-out 0s infinite"></span>
-                  <span style="display:inline-block;width:8px;height:8px;min-width:8px;min-height:8px;background:#3b82f6;border-radius:4px;animation:thinkingBounce 1.4s ease-in-out 0.2s infinite"></span>
-                  <span style="display:inline-block;width:8px;height:8px;min-width:8px;min-height:8px;background:#3b82f6;border-radius:4px;animation:thinkingBounce 1.4s ease-in-out 0.4s infinite"></span>
+                <div class="thinking-dots">
+                  <span class="thinking-dot" style="animation-delay: 0s"></span>
+                  <span class="thinking-dot" style="animation-delay: 0.2s"></span>
+                  <span class="thinking-dot" style="animation-delay: 0.4s"></span>
                 </div>
                 <span
                   style="
@@ -4531,8 +4531,27 @@ const feedbackMessage = async (message, type) => {
   }
 }
 
+.thinking-dots {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+}
+
+.thinking-dot {
+  display: inline-block !important;
+  width: 8px !important;
+  height: 8px !important;
+  min-width: 8px !important;
+  min-height: 8px !important;
+  background: #3b82f6 !important;
+  border-radius: 50% !important;
+  animation: thinkingBounce 1.4s ease-in-out infinite !important;
+}
+
 @keyframes thinkingBounce {
-  0%, 60%, 100% {
+  0%,
+  60%,
+  100% {
     transform: translateY(0);
   }
   30% {
