@@ -65,11 +65,13 @@ export const useChatStore = defineStore('chat', () => {
             // 插入思考占位消息（保持对话顺序，添加到末尾）
             const placeholderId = Date.now() + 1
             activeTypingMessageId.value = placeholderId
+            const initialStatus = instant ? 'typing' : 'thinking'
+            console.log('💭 创建占位消息，status:', initialStatus, 'instant:', instant)
             messages.value.push({
                 id: placeholderId,
                 role: 'assistant',
                 content: instant ? '…' : '', // 语音模式先占位省时反馈
-                status: instant ? 'typing' : 'thinking'
+                status: initialStatus
             })
 
             const response = await api.sendMessage({
@@ -132,10 +134,12 @@ export const useChatStore = defineStore('chat', () => {
                     }
                 } else {
                     // 先保持 thinking 状态至少 500ms，让用户看到思考动画
+                    console.log('💭 收到响应，当前status:', messages.value[msgIndex]?.status)
                     const thinkingStartTime = Date.now()
                     const minThinkingTime = 500
 
                     const startTyping = () => {
+                        console.log('⌨️ 开始打字动画')
                         messages.value[msgIndex].status = 'typing'
                         messages.value[msgIndex].content = ''
 
