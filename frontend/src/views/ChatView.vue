@@ -1303,7 +1303,7 @@ watch(
                     if (msgEl) {
                       const msgRect = msgEl.getBoundingClientRect();
                       const containerRect = container.getBoundingClientRect();
-                      const safeMargin = 80; // 安全边距：确保消息底部距离输入框顶部至少80px
+                      const safeMargin = 120; // 安全边距：确保消息底部距离输入框顶部至少120px
                       const overlap = msgRect.bottom - (containerRect.bottom - inputH - safeMargin);
                       if (overlap > 0) {
                         // 向上滚动 overlap，确保消息底部位于输入框上方足够距离处
@@ -3154,7 +3154,7 @@ const feedbackMessage = async (message, type) => {
   width: 100%;
   max-width: 42rem;
   padding: 16px 20px;
-  padding-bottom: 320px; /* 增加底部内边距，防止被输入框遮挡（加大以适配较高输入区） */
+  padding-bottom: 400px; /* 增加底部内边距，防止被输入框遮挡（加大以适配较高输入区） */
   position: relative;
 }
 .message {
@@ -3920,9 +3920,10 @@ const feedbackMessage = async (message, type) => {
   min-height: 44px;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
   margin-top: 4px;
+  margin-bottom: 80px; /* 增加底部外边距，避免被输入框遮挡 */
   scroll-margin-bottom: 120px;
   position: relative;
-  z-index: 220 !important; /* 提高层级，确保不被输入框遮住 */
+  z-index: 999 !important; /* 大幅提高层级，确保不被输入框遮住 */
 }
 
 .thinking-wrapper .typing-indicator span {
@@ -4054,7 +4055,7 @@ const feedbackMessage = async (message, type) => {
   }
 
   .chat-inner {
-    padding: 12px 12px 280px 12px;
+    padding: 12px 12px 350px 12px;
   }
 
   .user-bubble {
