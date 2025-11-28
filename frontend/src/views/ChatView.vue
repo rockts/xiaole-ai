@@ -4078,7 +4078,7 @@ const feedbackMessage = async (message, type) => {
 
   /* 移动端最后一条消息添加额外底部空间，确保工具栏可见 */
   .message:last-child {
-    padding-bottom: 150px !important; /* 增加到150px,确保工具栏和输入框之间有足够空间 */
+    padding-bottom: 80px !important; /* 减少到80px,刚好足够显示工具栏 */
   }
 
   .user-bubble {
