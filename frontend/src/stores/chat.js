@@ -305,6 +305,7 @@ export const useChatStore = defineStore('chat', () => {
                 image_path: imagePath,
                 response_style: responseStyle
             }, { onStart, onDelta, onEnd, signal: controller.signal })
+            console.log('📤 Sent message with session_id:', currentSessionId.value || null)
         } catch (error) {
             console.error('Failed to send message (stream):', error)
             if (activeTypingMessageId.value) {
@@ -372,9 +373,11 @@ export const useChatStore = defineStore('chat', () => {
     }
 
     const clearCurrentSession = () => {
+        console.log('🆕 Clearing current session, was:', currentSessionId.value)
         messages.value = []
         sessionInfo.value = null
         currentSessionId.value = null
+        console.log('✅ Session cleared, now:', currentSessionId.value)
     }
 
     const deleteMessage = (messageId) => {
