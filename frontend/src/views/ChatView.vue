@@ -4071,6 +4071,11 @@ const feedbackMessage = async (message, type) => {
   .chat-inner {
     padding: 12px 12px 200px 12px; /* 减小到200px，配合滚动逻辑处理 */
   }
+  
+  /* 移动端最后一条消息添加额外底部空间，确保工具栏可见 */
+  .message:last-child {
+    padding-bottom: 120px !important;
+  }
 
   .user-bubble {
     max-width: 88%;
