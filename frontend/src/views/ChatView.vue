@@ -1294,6 +1294,26 @@ watch(
                 const maxScrollTop = container.scrollHeight - container.clientHeight;
                 const desired = Math.max(0, Math.min(maxScrollTop, container.scrollHeight - container.clientHeight + inputH + 8));
                 container.scrollTop = desired;
+
+                // 进一步确保最后消息元素完全可见（避免思考气泡出现在输入框后面）
+                try {
+                  const lastMsg = messages.value[messages.value.length - 1];
+                  if (lastMsg && lastMsg.id) {
+                    const msgEl = container.querySelector(`[data-msg-id="${lastMsg.id}"]`);
+                    if (msgEl) {
+                      const msgRect = msgEl.getBoundingClientRect();
+                      const containerRect = container.getBoundingClientRect();
+                      const overlap = msgRect.bottom - (containerRect.bottom - inputH - 12);
+                      if (overlap > 0) {
+                        // 向上滚动 overlap，确保消息底部位于输入框上方12px处
+                        container.scrollTop += overlap + 12;
+                        console.log('🔧 Adjusted scroll to keep last message above input, overlap:', overlap);
+                      }
+                    }
+                  }
+                } catch (e) {
+                  console.error('Error ensuring last message visibility', e);
+                }
               });
             }
           } catch (e) {}
