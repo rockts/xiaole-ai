@@ -74,16 +74,39 @@
                   min-width: 80px;
                 "
               >
-                <div class="thinking-dots">
-                  <span class="thinking-dot" style="animation-delay: 0s"></span>
-                  <span
-                    class="thinking-dot"
-                    style="animation-delay: 0.2s"
-                  ></span>
-                  <span
-                    class="thinking-dot"
-                    style="animation-delay: 0.4s"
-                  ></span>
+                <div
+                  style="display: inline-flex; align-items: center; gap: 6px"
+                >
+                  <svg
+                    width="8"
+                    height="8"
+                    viewBox="0 0 8 8"
+                    style="
+                      animation: thinkingBounce 1.4s ease-in-out 0s infinite;
+                    "
+                  >
+                    <circle cx="4" cy="4" r="4" fill="#3b82f6" />
+                  </svg>
+                  <svg
+                    width="8"
+                    height="8"
+                    viewBox="0 0 8 8"
+                    style="
+                      animation: thinkingBounce 1.4s ease-in-out 0.2s infinite;
+                    "
+                  >
+                    <circle cx="4" cy="4" r="4" fill="#3b82f6" />
+                  </svg>
+                  <svg
+                    width="8"
+                    height="8"
+                    viewBox="0 0 8 8"
+                    style="
+                      animation: thinkingBounce 1.4s ease-in-out 0.4s infinite;
+                    "
+                  >
+                    <circle cx="4" cy="4" r="4" fill="#3b82f6" />
+                  </svg>
                 </div>
                 <span
                   style="
