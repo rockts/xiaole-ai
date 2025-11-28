@@ -3094,7 +3094,7 @@ const feedbackMessage = async (message, type) => {
   width: 100%;
   max-width: 42rem;
   padding: 16px 20px;
-  padding-bottom: 100px; /* 增加底部内边距，防止被输入框遮挡 */
+  padding-bottom: 160px; /* 增加底部内边距，防止被输入框遮挡 */
   position: relative;
 }
 .message {
@@ -3576,9 +3576,14 @@ const feedbackMessage = async (message, type) => {
   color: var(--text-primary);
 }
 .input-container {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  background: var(--bg-primary);
   padding: 12px 16px calc(16px + env(safe-area-inset-bottom));
-  border-top: none;
-  background: transparent;
+  border-top: 1px solid var(--border-light);
   flex-shrink: 0;
 }
 .input-wrapper {
