@@ -3159,11 +3159,9 @@ const feedbackMessage = async (message, type) => {
 }
 .message {
   margin-bottom: 8px;
-  padding-bottom: 60px; /* 为工具栏预留安全空间 */
   display: flex;
   flex-direction: column;
   animation: messageSlideIn 0.3s ease-out forwards;
-  scroll-margin-bottom: 150px; /* 确保滚动时留有空间 */
 }
 @keyframes messageSlideIn {
   from {
@@ -3179,6 +3177,10 @@ const feedbackMessage = async (message, type) => {
   animation: none !important;
   opacity: 1 !important;
   transform: none !important;
+}
+.message:last-child {
+  padding-bottom: 60px; /* 只给最后一条消息增加安全距离 */
+  scroll-margin-bottom: 150px;
 }
 .message.new-group {
   margin-top: 8px;
@@ -3575,10 +3577,6 @@ const feedbackMessage = async (message, type) => {
   display: flex;
   gap: 2px;
   margin-top: 4px;
-  margin-bottom: 80px; /* 确保不被输入框遮挡 */
-  scroll-margin-bottom: 150px;
-  position: relative;
-  z-index: 100; /* 提高层级 */
   transition: opacity 0.2s;
 }
 .message.assistant .message-toolbar {
