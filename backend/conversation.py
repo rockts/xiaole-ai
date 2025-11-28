@@ -56,7 +56,12 @@ class ConversationManager:
         try:
             session.add(conversation)
             session.commit()
+            print(f"✅ 会话已创建: {session_id} - {title}")
             return session_id
+        except Exception as e:
+            session.rollback()
+            print(f"❌ 会话创建失败: {e}")
+            raise
         finally:
             session.close()
 
