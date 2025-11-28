@@ -74,12 +74,10 @@
                   min-width: 80px;
                 "
               >
-                <div
-                  style="display: inline-flex; align-items: center; gap: 6px"
-                >
-                  <i class="dot dot-1"></i>
-                  <i class="dot dot-2"></i>
-                  <i class="dot dot-3"></i>
+                <div style="display: inline-flex; align-items: center; gap: 6px;">
+                  <span style="display:inline-block;width:8px;height:8px;min-width:8px;min-height:8px;background:#3b82f6;border-radius:4px;animation:thinkingBounce 1.4s ease-in-out 0s infinite"></span>
+                  <span style="display:inline-block;width:8px;height:8px;min-width:8px;min-height:8px;background:#3b82f6;border-radius:4px;animation:thinkingBounce 1.4s ease-in-out 0.2s infinite"></span>
+                  <span style="display:inline-block;width:8px;height:8px;min-width:8px;min-height:8px;background:#3b82f6;border-radius:4px;animation:thinkingBounce 1.4s ease-in-out 0.4s infinite"></span>
                 </div>
                 <span
                   style="
