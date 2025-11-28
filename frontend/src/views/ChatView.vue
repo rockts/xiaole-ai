@@ -3129,7 +3129,7 @@ const feedbackMessage = async (message, type) => {
   transform: none !important;
 }
 .message.new-group {
-  margin-top: 16px;
+  margin-top: 8px;
 }
 .message.user {
   align-items: flex-end;
