@@ -3192,6 +3192,10 @@ const feedbackMessage = async (message, type) => {
   opacity: 1 !important;
   transform: none !important;
 }
+/* PC端最后一条消息添加底部空间，确保工具栏可见 */
+.message:last-child {
+  padding-bottom: 100px;
+}
 .message.new-group {
   margin-top: 8px;
 }
@@ -4071,7 +4075,7 @@ const feedbackMessage = async (message, type) => {
   .chat-inner {
     padding: 12px 12px 200px 12px; /* 减小到200px，配合滚动逻辑处理 */
   }
-  
+
   /* 移动端最后一条消息添加额外底部空间，确保工具栏可见 */
   .message:last-child {
     padding-bottom: 120px !important;
@@ -4141,7 +4145,7 @@ const feedbackMessage = async (message, type) => {
     margin-top: 6px;
     margin-bottom: 100px; /* 确保最后一条消息的工具栏不被输入框遮挡 */
   }
-  
+
   /* 非最后一条消息的工具栏不需要额外边距 */
   .message:not(:last-child) .message-toolbar {
     margin-bottom: 0;
