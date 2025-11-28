@@ -1252,7 +1252,12 @@ watch(
 
     const lastMsg = messages.value[messages.value.length - 1];
     if (lastMsg) {
-      console.log('📨 Messages updated. Last message status:', lastMsg.status, 'Role:', lastMsg.role);
+      console.log(
+        "📨 Messages updated. Last message status:",
+        lastMsg.status,
+        "Role:",
+        lastMsg.role
+      );
     }
 
     nextTick(() => {
@@ -3103,11 +3108,9 @@ const feedbackMessage = async (message, type) => {
   position: relative;
 }
 .message {
-  margin-bottom: 16px;
+  margin-bottom: 8px;
   display: flex;
   flex-direction: column;
-  /* 移除初始 opacity: 0，避免动画延迟导致不可见 */
-  /* opacity: 0; */
   animation: messageSlideIn 0.3s ease-out forwards;
 }
 @keyframes messageSlideIn {
@@ -3126,7 +3129,7 @@ const feedbackMessage = async (message, type) => {
   transform: none !important;
 }
 .message.new-group {
-  margin-top: 24px;
+  margin-top: 16px;
 }
 .message.user {
   align-items: flex-end;
@@ -3521,9 +3524,6 @@ const feedbackMessage = async (message, type) => {
   gap: 2px;
   margin-top: 4px;
   transition: opacity 0.2s;
-  opacity: 1 !important; /* 强制显示工具栏 */
-  position: relative;
-  z-index: 2;
 }
 .message.assistant .message-toolbar {
   opacity: 1;
