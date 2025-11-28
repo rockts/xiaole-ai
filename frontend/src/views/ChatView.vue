@@ -53,6 +53,7 @@
             {
               'new-group':
                 idx === 0 || messages[idx - 1]?.role !== message.role,
+              'thinking-message': message.status === 'thinking',
             },
           ]"
         >
@@ -65,69 +66,15 @@
           />
           <template v-if="message.role === 'assistant'">
             <template v-if="message.status === 'thinking'">
-              <div
-                class="thinking-wrapper"
-                style="
-                  background: rgba(59, 130, 246, 0.1);
-                  padding: 12px;
-                  border-radius: 12px;
-                  min-width: 80px;
-                "
-              >
-                <div
-                  style="display: inline-flex; align-items: center; gap: 6px"
-                >
-                  <svg
-                    width="8"
-                    height="8"
-                    viewBox="0 0 8 8"
-                    xmlns="http://www.w3.org/2000/svg"
-                    style="
-                      display: block;
-                      box-sizing: content-box;
-                      overflow: visible;
-                      animation: thinkingBounce 1.4s ease-in-out 0s infinite;
-                    "
-                  >
-                    <circle cx="4" cy="4" r="4" fill="#3b82f6" />
-                  </svg>
-                  <svg
-                    width="8"
-                    height="8"
-                    viewBox="0 0 8 8"
-                    xmlns="http://www.w3.org/2000/svg"
-                    style="
-                      display: block;
-                      box-sizing: content-box;
-                      overflow: visible;
-                      animation: thinkingBounce 1.4s ease-in-out 0.2s infinite;
-                    "
-                  >
-                    <circle cx="4" cy="4" r="4" fill="#3b82f6" />
-                  </svg>
-                  <svg
-                    width="8"
-                    height="8"
-                    viewBox="0 0 8 8"
-                    xmlns="http://www.w3.org/2000/svg"
-                    style="
-                      display: block;
-                      box-sizing: content-box;
-                      overflow: visible;
-                      animation: thinkingBounce 1.4s ease-in-out 0.4s infinite;
-                    "
-                  >
-                    <circle cx="4" cy="4" r="4" fill="#3b82f6" />
-                  </svg>
+              <div class="thinking-wrapper">
+                <div class="typing-indicator thinking" aria-live="polite">
+                  <span></span>
+                  <span></span>
+                  <span></span>
                 </div>
-                <span
-                  style="
-                    margin-left: 12px;
-                    color: var(--text-secondary);
-                    font-size: 13px;
-                  "
-                  >思考中...</span
-                >
+                <span class="thinking-label">思考中...</span>
+                <!-- Debug info -->
+                <!-- <span style="font-size: 10px; color: #999; margin-left: 5px;">(status: {{ message.status }})</span> -->
               </div>
             </template>
             <template v-else>
@@ -189,6 +136,31 @@
                   :class="{ typing: message.status === 'typing' }"
                   v-html="renderMarkdown(getDisplayContent(message))"
                 ></div>
+
+                <div
+                  v-if="message.status === 'typing'"
+                  class="typing-indicator"
+                  aria-live="polite"
+                >
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </div>
+                <!-- Fallback for empty content when done -->
+                <div
+                  v-if="
+                    message.status === 'done' &&
+                    !getDisplayContent(message) &&
+                    !message.image_path
+                  "
+                  style="
+                    color: var(--text-tertiary);
+                    font-style: italic;
+                    font-size: 13px;
+                  "
+                >
+                  (无内容)
+                </div>
 
                 <!-- 相关阅读卡片 -->
                 <div v-if="hasRelatedReadings(message)" class="related-reading">
@@ -1283,6 +1255,8 @@ watch(
       if (shouldScrollToBottom.value || isTyping.value) {
         // 对于流式生成，用即时粘底减少抖动
         stickToBottomImmediate();
+        // 双重保险：确保渲染完成后再次滚动，防止内容撑开导致未到底
+        setTimeout(stickToBottomImmediate, 50);
         shouldScrollToBottom.value = !!isTyping.value;
       }
     });
@@ -2156,7 +2130,14 @@ const sendMessage = async () => {
     }
 
     // 发送到后端（默认走流式）
-    await chatStore.sendMessageStreamed(content, imagePath, router);
+    // 使用 setTimeout 0 将请求放入下一个宏任务，确保 UI 先渲染用户消息和思考气泡
+    setTimeout(async () => {
+      try {
+        await chatStore.sendMessageStreamed(content, imagePath, router);
+      } catch (e) {
+        console.error("Async send failed:", e);
+      }
+    }, 0);
   } catch (e) {
     console.error("Send message failed:", e);
     messages.value.push({
@@ -3102,24 +3083,26 @@ const feedbackMessage = async (message, type) => {
   display: flex;
   justify-content: center;
   background: var(--bg-primary);
-  margin-bottom: 100px;
+  /* margin-bottom: 100px; Removed to prevent layout jump on focus */
   scroll-behavior: auto; /* 确保初始滚动是瞬间的 */
 }
 /* 键盘弹出时，减少底部间距以避免过多空白 */
-.chat-view.keyboard-open .chat-container {
+/* .chat-view.keyboard-open .chat-container {
   margin-bottom: 8px;
-}
+} */
 .chat-inner {
   width: 100%;
   max-width: 42rem;
   padding: 16px 20px;
+  padding-bottom: 100px; /* 增加底部内边距，防止被输入框遮挡 */
   position: relative;
 }
 .message {
   margin-bottom: 16px;
   display: flex;
   flex-direction: column;
-  opacity: 0;
+  /* 移除初始 opacity: 0，避免动画延迟导致不可见 */
+  /* opacity: 0; */
   animation: messageSlideIn 0.3s ease-out forwards;
 }
 @keyframes messageSlideIn {
@@ -3131,6 +3114,11 @@ const feedbackMessage = async (message, type) => {
     opacity: 1;
     transform: translateY(0);
   }
+}
+.message.thinking-message {
+  animation: none !important;
+  opacity: 1 !important;
+  transform: none !important;
 }
 .message.new-group {
   margin-top: 24px;
@@ -3816,25 +3804,82 @@ const feedbackMessage = async (message, type) => {
   }
 }
 
-.md-content.typing:after {
-  content: "";
-  display: inline-block;
-  width: 6px;
-  height: 16px;
-  background: var(--text-primary);
-  margin-left: 2px;
-  animation: caretBlink 0.9s steps(2, start) infinite;
-  vertical-align: bottom;
+.typing-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
 }
-@keyframes caretBlink {
+
+.typing-indicator span {
+  display: block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #3b82f6;
+  animation: typingDotBounce 1.2s ease-in-out infinite;
+}
+
+.typing-indicator span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.typing-indicator span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes typingDotBounce {
   0%,
-  49% {
+  80%,
+  100% {
+    transform: translateY(0);
     opacity: 1;
   }
-  50%,
-  100% {
-    opacity: 0;
+  40% {
+    transform: translateY(-6px);
+    opacity: 0.5;
   }
+}
+
+.thinking-wrapper {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-light);
+  padding: 12px 16px;
+  border-radius: 16px;
+  border-bottom-left-radius: 4px;
+  min-width: 80px;
+  display: flex !important;
+  align-items: center;
+  gap: 12px;
+  visibility: visible !important;
+  opacity: 1 !important;
+  min-height: 44px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  margin-top: 4px;
+  scroll-margin-bottom: 120px; /* 确保滚动时不会被遮挡 */
+}
+
+.thinking-label {
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+  animation: pulseText 2s infinite ease-in-out;
+}
+
+@keyframes pulseText {
+  0%,
+  100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.typing-indicator span {
+  background-color: var(--brand-primary);
+  width: 6px;
+  height: 6px;
 }
 
 @keyframes pulse {
@@ -3898,6 +3943,10 @@ const feedbackMessage = async (message, type) => {
 
 /* 移动端适配优化 */
 @media (max-width: 768px) {
+  .chat-view {
+    height: 100dvh; /* 适配移动端动态视口高度 */
+  }
+
   /* 移动端空状态：欢迎语居中偏下，输入框固定底部 */
   .chat-view.empty {
     justify-content: center;
@@ -3932,7 +3981,7 @@ const feedbackMessage = async (message, type) => {
   }
 
   .chat-inner {
-    padding: 12px 12px;
+    padding: 12px 12px 100px 12px;
   }
 
   .user-bubble {
@@ -4613,10 +4662,6 @@ span.thinking-dot {
 svg[viewBox="0 0 8 8"] {
   box-sizing: content-box !important;
   display: block !important;
-}
-
-svg[viewBox="0 0 8 8"] circle {
-  vector-effect: non-scaling-stroke;
 }
 </style>
 

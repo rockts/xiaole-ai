@@ -49,8 +49,8 @@ export const healthCheck = {
 
       // 使用后端API路径而不是前端根路径
       const apiBase = import.meta.env.VITE_API_BASE || ''
-      // 使用 /api/scheduler/status 作为健康检查端点，因为它被代理且返回JSON
-      const response = await fetch(`${apiBase}/api/scheduler/status`, {
+      // 调整为 reminders 调度器端点，避免 404
+      const response = await fetch(`${apiBase}/api/reminders/scheduler/status`, {
         method: 'GET',
         signal: controller.signal
       })

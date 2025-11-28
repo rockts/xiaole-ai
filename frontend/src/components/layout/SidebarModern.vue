@@ -484,6 +484,7 @@ import { storeToRefs } from "pinia";
 import logoImage from "@/assets/logo-xiaole.png";
 import ShareDialog from "@/components/common/ShareDialog.vue";
 import SettingsModal from "@/components/common/SettingsModal.vue";
+import api from "@/services/api";
 
 const router = useRouter();
 const route = useRoute();

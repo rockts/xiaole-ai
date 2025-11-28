@@ -240,7 +240,7 @@ export default {
 
     // 任务相关
     getTasks(userId = 'default_user', status = '', limit = 50) {
-        return api.get(`/api/users/${userId}/tasks`, { params: { status, limit } })
+        return api.get('/api/tasks', { params: { user_id: userId, status, limit } })
     },
 
     getTask(taskId) {

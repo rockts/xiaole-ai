@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, nextTick } from 'vue'
 import api from '@/services/api'
 
 export const useChatStore = defineStore('chat', () => {
@@ -71,7 +71,8 @@ export const useChatStore = defineStore('chat', () => {
                 id: placeholderId,
                 role: 'assistant',
                 content: instant ? '…' : '', // 语音模式先占位省时反馈
-                status: initialStatus
+                status: initialStatus,
+                thinkingStartedAt: instant ? null : Date.now()
             })
 
             const response = await api.sendMessage({
@@ -125,6 +126,7 @@ export const useChatStore = defineStore('chat', () => {
                 if (instant) {
                     messages.value[msgIndex].content = full
                     messages.value[msgIndex].status = 'done'
+                    delete messages.value[msgIndex].thinkingStartedAt
                     isTyping.value = false
                     // 语音模式：派发事件供 ChatView 触发TTS朗读
                     if (typeof window !== 'undefined') {
@@ -133,10 +135,16 @@ export const useChatStore = defineStore('chat', () => {
                         }))
                     }
                 } else {
-                    // 先保持 thinking 状态至少 500ms，让用户看到思考动画
+                    // 让思考阶段自然呈现：动态计算最少展示时间，兼顾真实耗时
                     console.log('💭 收到响应，当前status:', messages.value[msgIndex]?.status)
-                    const thinkingStartTime = Date.now()
-                    const minThinkingTime = 500
+                    const thinkingStartedAt = messages.value[msgIndex].thinkingStartedAt || Date.now()
+                    const baseThinking = 350
+                    const perCharMs = 4
+                    const maxThinking = 2000
+                    const adaptiveThinking = Math.min(
+                        maxThinking,
+                        baseThinking + Math.min(full.length, 400) * perCharMs
+                    )
 
                     const startTyping = () => {
                         console.log('⌨️ 开始打字动画')
@@ -151,6 +159,8 @@ export const useChatStore = defineStore('chat', () => {
                                 typingTimer.value = null
                                 messages.value[msgIndex].content = full
                                 messages.value[msgIndex].status = 'done'
+                                delete messages.value[msgIndex].thinkingStartedAt
+                                delete messages.value[msgIndex].thinkingStartedAt
                                 isTyping.value = false
                                 return
                             }
@@ -159,8 +169,8 @@ export const useChatStore = defineStore('chat', () => {
                         }, 16) // ~60fps
                     }
 
-                    const elapsed = Date.now() - thinkingStartTime
-                    const remainingTime = Math.max(0, minThinkingTime - elapsed)
+                    const elapsed = Date.now() - thinkingStartedAt
+                    const remainingTime = Math.max(0, adaptiveThinking - elapsed)
 
                     setTimeout(startTyping, remainingTime)
                 }
@@ -180,6 +190,7 @@ export const useChatStore = defineStore('chat', () => {
                 const msgIndex = messages.value.findIndex(m => m.id === activeTypingMessageId.value)
                 if (msgIndex !== -1) {
                     messages.value[msgIndex].status = 'done'
+                    delete messages.value[msgIndex].thinkingStartedAt
                     const errorMsg = error.response?.data?.detail || '出错了，请稍后重试。'
                     messages.value[msgIndex].content = `⚠️ ${errorMsg}`
                 }
@@ -209,6 +220,10 @@ export const useChatStore = defineStore('chat', () => {
             messages.value.push(thinkingMsg)
             console.log('💭 Thinking message added:', thinkingMsg)
 
+            // 移除人为延迟，依赖 CSS 强制显示
+            // await nextTick()
+            // await new Promise(resolve => setTimeout(resolve, 16))
+
             // 构建中止控制器
             const controller = new AbortController()
             activeStreamAbort.value = controller
@@ -221,16 +236,22 @@ export const useChatStore = defineStore('chat', () => {
                 if (msgIndex === -1) {
                     msgIndex = messages.value.findIndex(m => m.id === placeholderId)
                 }
-                if (msgIndex !== -1) {
-                    messages.value[msgIndex].status = 'typing'
-                }
+                // 保持 thinking 状态，直到收到第一个字符 (onDelta) 再切换为 typing
+                // 这样可以确保在连接建立但未生成内容时显示"思考中..."
             }
 
             const onDelta = (chunk) => {
                 if (msgIndex === -1) {
                     msgIndex = messages.value.findIndex(m => m.id === placeholderId)
                 }
+
                 accumulated += chunk || ''
+
+                // 收到有效内容时才切换为 typing
+                if (msgIndex !== -1 && messages.value[msgIndex].status === 'thinking' && accumulated.trim().length > 0) {
+                    messages.value[msgIndex].status = 'typing'
+                }
+
                 if (msgIndex !== -1) {
                     messages.value[msgIndex].content = accumulated
                 }
@@ -309,6 +330,7 @@ export const useChatStore = defineStore('chat', () => {
                 const full = messages.value[msgIndex].fullContent || ''
                 messages.value[msgIndex].content = full
                 messages.value[msgIndex].status = 'done'
+                delete messages.value[msgIndex].thinkingStartedAt
             }
         }
         // 取消流式
