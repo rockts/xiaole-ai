@@ -1250,6 +1250,11 @@ watch(
     // 如果正在加载会话，不触发自动滚动（由 loadSession 负责初始定位）
     if (isLoadingSession.value) return;
 
+    const lastMsg = messages.value[messages.value.length - 1];
+    if (lastMsg) {
+      console.log('📨 Messages updated. Last message status:', lastMsg.status, 'Role:', lastMsg.role);
+    }
+
     nextTick(() => {
       // 只在用户发送消息后或 AI 正在打字时才滚动
       if (shouldScrollToBottom.value || isTyping.value) {
@@ -3094,7 +3099,7 @@ const feedbackMessage = async (message, type) => {
   width: 100%;
   max-width: 42rem;
   padding: 16px 20px;
-  padding-bottom: 160px; /* 增加底部内边距，防止被输入框遮挡 */
+  padding-bottom: 180px; /* 增加底部内边距，防止被输入框遮挡 */
   position: relative;
 }
 .message {
@@ -3862,6 +3867,8 @@ const feedbackMessage = async (message, type) => {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
   margin-top: 4px;
   scroll-margin-bottom: 120px; /* 确保滚动时不会被遮挡 */
+  position: relative;
+  z-index: 5;
 }
 
 .thinking-label {
