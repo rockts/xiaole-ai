@@ -483,15 +483,9 @@
       @click="scrollToBottomSmooth"
       aria-label="回到底部"
     >
-      <svg
-        class="scroll-icon"
-        viewBox="0 0 24 24"
-        fill="currentColor"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <!-- 向下的实心箭头 -->
-        <path d="M12 4L12 16M12 16L8 12M12 16L16 12" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-        <path d="M12 16L12 20" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+      <!-- 简洁的向下V形箭头 -->
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M6 9L12 15L18 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
     </button>
 
@@ -3174,15 +3168,16 @@ const feedbackMessage = async (message, type) => {
 }
 .scroll-to-bottom {
   position: fixed;
-  left: 50%;
+  left: calc(50% + 130px);
   transform: translateX(-50%);
   bottom: calc(100px + env(safe-area-inset-bottom));
-  width: 64px;
-  height: 64px;
+  width: 56px;
+  height: 56px;
   border-radius: 50%;
-  border: 2px solid rgba(0, 0, 0, 0.08);
-  background: #ffffff;
-  color: #000000;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(10px);
+  color: #ffffff;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15), 0 4px 8px rgba(0, 0, 0, 0.1);
   display: flex;
   align-items: center;
@@ -3193,11 +3188,11 @@ const feedbackMessage = async (message, type) => {
   animation: fadeInUp 0.3s ease;
 }
 
-/* 深色主题 - 白色圆圈 */
+/* 深色主题 - 黑色半透明圆圈 */
 [data-theme="dark"] .scroll-to-bottom {
-  background: #2d2d2d;
-  color: #ffffff;
+  background: rgba(0, 0, 0, 0.6);
   border-color: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), 0 4px 8px rgba(0, 0, 0, 0.3);
 }
 
@@ -3210,9 +3205,18 @@ const feedbackMessage = async (message, type) => {
 }
 .scroll-icon * {
   stroke: currentColor !important;
+  stroke-linecap: round !important;
+  stroke-linejoin: round !important;
+  fill: currentColor !important;
 }
+
+/* SVG箭头样式 */
+.scroll-to-bottom svg {
+  display: block;
+}
+
 .scroll-to-bottom:hover {
-  transform: translateX(-50%) translateY(-4px) scale(1.05);
+  transform: translateX(-50%) translateY(-4px) scale(1.08);
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2), 0 8px 16px rgba(0, 0, 0, 0.15);
 }
 
@@ -3221,7 +3225,7 @@ const feedbackMessage = async (message, type) => {
 }
 
 .scroll-to-bottom:active {
-  transform: translateX(-50%) translateY(-2px) scale(0.98);
+  transform: translateX(-50%) translateY(-2px) scale(0.95);
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.15), 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
@@ -3938,6 +3942,19 @@ const feedbackMessage = async (message, type) => {
   /* 移动端隐藏“语音模式”图标态，仅保留发送/停止两种态 */
   .voice-mode-btn:not(.send-mode):not(.stop-mode) {
     display: none;
+  }
+
+  /* 移动端滚动按钮调整 */
+  .scroll-to-bottom {
+    left: 50%;
+    width: 48px;
+    height: 48px;
+    bottom: calc(80px + env(safe-area-inset-bottom));
+  }
+
+  .scroll-to-bottom svg {
+    width: 22px;
+    height: 22px;
   }
 }
 
