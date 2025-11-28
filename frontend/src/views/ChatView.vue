@@ -3521,6 +3521,9 @@ const feedbackMessage = async (message, type) => {
   gap: 2px;
   margin-top: 4px;
   transition: opacity 0.2s;
+  opacity: 1 !important; /* 强制显示工具栏 */
+  position: relative;
+  z-index: 2;
 }
 .message.assistant .message-toolbar {
   opacity: 1;
@@ -3595,13 +3598,13 @@ const feedbackMessage = async (message, type) => {
   max-width: 42rem;
   margin: 0 auto;
   display: flex;
-  flex-direction: column; /* 改为纵向布局以容纳预览图 */
+  flex-direction: column;
   gap: 8px;
-  align-items: stretch; /* 撑满宽度 */
+  align-items: stretch;
   background: var(--bg-secondary);
-  border: 1px solid var(--border-light);
+  /* border: 1px solid var(--border-light); */
   border-radius: 22px;
-  padding: 8px 10px; /* 调整内边距 */
+  padding: 8px 10px;
   transition: all 0.2s ease;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
   min-height: 50px;
@@ -3868,7 +3871,7 @@ const feedbackMessage = async (message, type) => {
   margin-top: 4px;
   scroll-margin-bottom: 120px;
   position: relative;
-  z-index: 5;
+  z-index: 10; /* 提高层级 */
 }
 
 .thinking-wrapper .typing-indicator span {
