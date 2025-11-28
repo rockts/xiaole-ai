@@ -48,6 +48,7 @@
           v-for="(message, idx) in messages"
           :key="message.id"
           class="message"
+          :data-msg-id="message.id"
           :class="[
             message.role,
             {
@@ -1259,6 +1260,13 @@ watch(
         "Role:",
         lastMsg.role
       );
+      // 打印最近 5 条消息的简要信息，帮助排查渲染/内容问题
+      try {
+        const lastFive = messages.value
+          .slice(-5)
+          .map((m) => ({ id: m.id, role: m.role, status: m.status, len: (m.content || '').length, preview: (m.content || '').slice(0, 80) }));
+        console.log('📋 Last 5 messages summary:', lastFive);
+      } catch (e) {}
     }
 
     nextTick(() => {
@@ -4704,7 +4712,9 @@ svg[viewBox="0 0 8 8"] {
   outline: none !important;
 }
 
-.divider { display: none !important; }
+.divider {
+  display: none !important;
+}
 
 /* 确保 message 内容区域不显示分隔线 */
 .message .md-content,
@@ -4720,6 +4730,18 @@ svg[viewBox="0 0 8 8"] {
 .message + .message {
   border-top: none !important;
   margin-top: 8px;
+}
+
+/* 强制确保消息内容区可见且有默认配色，防止被其他样式隐藏 */
+.message .md-content {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  color: var(--text-primary) !important;
+}
+
+.message.assistant .md-content {
+  color: var(--text-primary) !important;
 }
 </style>
 
