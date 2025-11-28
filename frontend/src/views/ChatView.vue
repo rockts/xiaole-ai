@@ -74,10 +74,10 @@
                   min-width: 80px;
                 "
               >
-                <div class="thinking-dots">
-                  <div class="thinking-dot"></div>
-                  <div class="thinking-dot"></div>
-                  <div class="thinking-dot"></div>
+                <div style="display: inline-flex; align-items: center; gap: 6px; height: 12px;">
+                  <span style="display: block; width: 8px; height: 8px; border-radius: 50%; background: #3b82f6; animation: bounce1 1.4s ease-in-out infinite;"></span>
+                  <span style="display: block; width: 8px; height: 8px; border-radius: 50%; background: #3b82f6; animation: bounce2 1.4s ease-in-out infinite;"></span>
+                  <span style="display: block; width: 8px; height: 8px; border-radius: 50%; background: #3b82f6; animation: bounce3 1.4s ease-in-out infinite;"></span>
                 </div>
                 <span
                   style="
@@ -3785,16 +3785,33 @@ const feedbackMessage = async (message, type) => {
   animation-delay: 0.4s !important;
 }
 
-@keyframes thinkingBounce {
+@keyframes bounce1 {
   0%, 60%, 100% {
     transform: translateY(0);
-    opacity: 0.7;
   }
   30% {
     transform: translateY(-10px);
-    opacity: 1;
   }
 }
+
+@keyframes bounce2 {
+  0%, 60%, 100% {
+    transform: translateY(0);
+  }
+  30% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes bounce3 {
+  0%, 60%, 100% {
+    transform: translateY(0);
+  }
+  30% {
+    transform: translateY(-10px);
+  }
+}
+
 .md-content.typing:after {
   content: "";
   display: inline-block;
