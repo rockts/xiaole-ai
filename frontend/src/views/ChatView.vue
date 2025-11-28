@@ -1310,7 +1310,7 @@ watch(
                   if (msgEl) {
                     const msgRect = msgEl.getBoundingClientRect();
                     const containerRect = container.getBoundingClientRect();
-                    const safeMargin = 120; // 安全边距：确保消息底部距离输入框顶部至少120px
+                    const safeMargin = 180; // 安全边距：确保消息底部距离输入框顶部至少180px
                     const overlap =
                       msgRect.bottom -
                       (containerRect.bottom - inputH - safeMargin);
@@ -4069,7 +4069,7 @@ const feedbackMessage = async (message, type) => {
   }
 
   .chat-inner {
-    padding: 12px 12px 350px 12px;
+    padding: 12px 12px 200px 12px; /* 减小到200px，配合滚动逻辑处理 */
   }
 
   .user-bubble {
