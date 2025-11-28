@@ -74,10 +74,21 @@
                   min-width: 80px;
                 "
               >
-                <div style="display: inline-flex; align-items: center; gap: 6px;">
-                  <div class="thinking-circle" style="animation-delay: 0s; border-radius: 50% !important;"></div>
-                  <div class="thinking-circle" style="animation-delay: 0.2s; border-radius: 50% !important;"></div>
-                  <div class="thinking-circle" style="animation-delay: 0.4s; border-radius: 50% !important;"></div>
+                <div
+                  style="display: inline-flex; align-items: center; gap: 6px"
+                >
+                  <div
+                    class="thinking-circle"
+                    style="animation-delay: 0s; border-radius: 50% !important"
+                  ></div>
+                  <div
+                    class="thinking-circle"
+                    style="animation-delay: 0.2s; border-radius: 50% !important"
+                  ></div>
+                  <div
+                    class="thinking-circle"
+                    style="animation-delay: 0.4s; border-radius: 50% !important"
+                  ></div>
                 </div>
                 <span
                   style="

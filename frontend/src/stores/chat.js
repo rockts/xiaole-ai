@@ -131,30 +131,39 @@ export const useChatStore = defineStore('chat', () => {
                         }))
                     }
                 } else {
-                    messages.value[msgIndex].status = 'typing'
-                    messages.value[msgIndex].content = ''
+                    // 先保持 thinking 状态至少 800ms，让用户看到思考动画
+                    const thinkingStartTime = Date.now()
+                    const minThinkingTime = 800
+                    
+                    const startTyping = () => {
+                        messages.value[msgIndex].status = 'typing'
+                        messages.value[msgIndex].content = ''
+                        
+                        let i = 0
+                        const step = Math.max(1, Math.round(full.length / 60)) // 约1秒60步
+                        typingTimer.value = setInterval(() => {
+                            if (i >= full.length) {
+                                clearInterval(typingTimer.value)
+                                typingTimer.value = null
+                                messages.value[msgIndex].content = full
+                                messages.value[msgIndex].status = 'done'
+                                isTyping.value = false
+                                return
+                            }
+                            messages.value[msgIndex].content = full.slice(0, i)
+                            i += step
+                        }, 16) // ~60fps
+                    }
+                    
+                    const elapsed = Date.now() - thinkingStartTime
+                    const remainingTime = Math.max(0, minThinkingTime - elapsed)
+                    
+                    setTimeout(startTyping, remainingTime)
                 }
 
                 // 保存搜索结果
                 if (response.search_results) {
                     messages.value[msgIndex].search_results = response.search_results
-                }
-
-                if (!instant) {
-                    let i = 0
-                    const step = Math.max(1, Math.round(full.length / 60)) // 约1秒60步
-                    typingTimer.value = setInterval(() => {
-                        if (i >= full.length) {
-                            clearInterval(typingTimer.value)
-                            typingTimer.value = null
-                            messages.value[msgIndex].content = full
-                            messages.value[msgIndex].status = 'done'
-                            isTyping.value = false
-                            return
-                        }
-                        messages.value[msgIndex].content = full.slice(0, i)
-                        i += step
-                    }, 16) // ~60fps
                 }
             }
 
