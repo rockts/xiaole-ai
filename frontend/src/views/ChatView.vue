@@ -74,10 +74,44 @@
                   min-width: 80px;
                 "
               >
-                <div style="display: inline-flex; align-items: center; gap: 6px; height: 12px;">
-                  <span style="display: block; width: 8px; height: 8px; border-radius: 50%; background: #3b82f6; animation: bounce1 1.4s ease-in-out infinite;"></span>
-                  <span style="display: block; width: 8px; height: 8px; border-radius: 50%; background: #3b82f6; animation: bounce2 1.4s ease-in-out infinite;"></span>
-                  <span style="display: block; width: 8px; height: 8px; border-radius: 50%; background: #3b82f6; animation: bounce3 1.4s ease-in-out infinite;"></span>
+                <div
+                  style="
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 6px;
+                    height: 12px;
+                  "
+                >
+                  <span
+                    style="
+                      display: block;
+                      width: 8px;
+                      height: 8px;
+                      border-radius: 50%;
+                      background: #3b82f6;
+                      animation: bounce1 1.4s ease-in-out 0s infinite;
+                    "
+                  ></span>
+                  <span
+                    style="
+                      display: block;
+                      width: 8px;
+                      height: 8px;
+                      border-radius: 50%;
+                      background: #3b82f6;
+                      animation: bounce2 1.4s ease-in-out 0.2s infinite;
+                    "
+                  ></span>
+                  <span
+                    style="
+                      display: block;
+                      width: 8px;
+                      height: 8px;
+                      border-radius: 50%;
+                      background: #3b82f6;
+                      animation: bounce3 1.4s ease-in-out 0.4s infinite;
+                    "
+                  ></span>
                 </div>
                 <span
                   style="
@@ -3786,7 +3820,9 @@ const feedbackMessage = async (message, type) => {
 }
 
 @keyframes bounce1 {
-  0%, 60%, 100% {
+  0%,
+  60%,
+  100% {
     transform: translateY(0);
   }
   30% {
@@ -3795,7 +3831,9 @@ const feedbackMessage = async (message, type) => {
 }
 
 @keyframes bounce2 {
-  0%, 60%, 100% {
+  0%,
+  60%,
+  100% {
     transform: translateY(0);
   }
   30% {
@@ -3804,7 +3842,9 @@ const feedbackMessage = async (message, type) => {
 }
 
 @keyframes bounce3 {
-  0%, 60%, 100% {
+  0%,
+  60%,
+  100% {
     transform: translateY(0);
   }
   30% {
