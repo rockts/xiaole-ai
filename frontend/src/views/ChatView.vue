@@ -562,7 +562,8 @@
             <line x1="5" y1="12" x2="19" y2="12"></line>
           </svg>
         </button>
-        <div class="divider"></div>
+        <!-- divider removed to avoid horizontal lines -->
+        <!-- <div class="divider"></div> -->
         <button
           class="control-btn close-btn"
           @click="closeImagePreview"
@@ -4691,6 +4692,34 @@ span.thinking-dot {
 svg[viewBox="0 0 8 8"] {
   box-sizing: content-box !important;
   display: block !important;
+}
+
+/* ===== 强制移除所有消息之间的横线/边框（覆盖现有样式） ===== */
+.chat-inner,
+.message,
+.message * {
+  border-top: none !important;
+  border-bottom: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+.divider { display: none !important; }
+
+/* 确保 message 内容区域不显示分隔线 */
+.message .md-content,
+.message .user-bubble,
+.message .voice-session-tag,
+.quote-preview-bar,
+.related-reading,
+.related-card,
+.preview-card {
+  border: none !important;
+}
+
+.message + .message {
+  border-top: none !important;
+  margin-top: 8px;
 }
 </style>
 
