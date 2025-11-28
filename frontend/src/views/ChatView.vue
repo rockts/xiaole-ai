@@ -4134,6 +4134,12 @@ const feedbackMessage = async (message, type) => {
   .message-toolbar {
     opacity: 1 !important;
     margin-top: 6px;
+    margin-bottom: 100px; /* 确保最后一条消息的工具栏不被输入框遮挡 */
+  }
+  
+  /* 非最后一条消息的工具栏不需要额外边距 */
+  .message:not(:last-child) .message-toolbar {
+    margin-bottom: 0;
   }
 
   .message.user .message-toolbar {
