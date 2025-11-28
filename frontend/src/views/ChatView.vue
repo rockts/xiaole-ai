@@ -3231,16 +3231,16 @@ const feedbackMessage = async (message, type) => {
 /* SVG箭头样式 */
 .scroll-to-bottom svg {
   display: block;
-  width: 30px !important;
-  height: 30px !important;
-  min-width: 30px !important;
-  min-height: 30px !important;
-  max-width: 30px !important;
-  max-height: 30px !important;
+  width: 24px !important;
+  height: 24px !important;
+  min-width: 24px !important;
+  min-height: 24px !important;
+  max-width: 24px !important;
+  max-height: 24px !important;
 }
 
 .scroll-to-bottom svg path {
-  stroke-width: 2.5 !important;
+  stroke-width: 2 !important;
 }
 
 .scroll-to-bottom:hover {
@@ -3981,14 +3981,14 @@ const feedbackMessage = async (message, type) => {
   }
 
   .scroll-to-bottom svg {
-    width: 26px !important;
-    height: 26px !important;
-    min-width: 26px !important;
-    min-height: 26px !important;
+    width: 22px !important;
+    height: 22px !important;
+    min-width: 22px !important;
+    min-height: 22px !important;
   }
 
   .scroll-to-bottom svg path {
-    stroke-width: 2.5 !important;
+    stroke-width: 2 !important;
   }
 }
 
