@@ -660,13 +660,17 @@ const menuPosition = ref({ top: 0, left: 0, placement: "bottom" });
 const pageSize = 20;
 const currentPage = ref(1);
 const displayedSessions = computed(() => {
-  // 将置顶的会话排在前面
+  // 将置顶的会话排在前面,然后按更新时间倒序
   const sorted = [...sessions.value].sort((a, b) => {
     const aPinned = a.pinned || false;
     const bPinned = b.pinned || false;
+    // 置顶会话优先
     if (aPinned && !bPinned) return -1;
     if (!aPinned && bPinned) return 1;
-    return 0;
+    // 同为置顶或同为非置顶时,按更新时间倒序
+    const aTime = new Date(a.updated_at || a.created_at).getTime();
+    const bTime = new Date(b.updated_at || b.created_at).getTime();
+    return bTime - aTime;
   });
   return sorted.slice(0, currentPage.value * pageSize);
 });
