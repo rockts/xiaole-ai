@@ -300,7 +300,7 @@ export const useChatStore = defineStore('chat', () => {
 
             await api.streamChat({
                 user_id: 'default_user',
-                session_id: currentSessionId.value || '',
+                session_id: currentSessionId.value || null,
                 prompt: content,
                 image_path: imagePath,
                 response_style: responseStyle
