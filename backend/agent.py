@@ -515,11 +515,17 @@ class XiaoLeAgent:
             response_style: 响应风格 (concise/balanced/detailed/professional)
         """
         # 如果没有session_id，创建新会话
+        logger.info(
+            f"💬 chat() 开始 - session_id参数: {session_id}, type: {type(session_id)}")
         if not session_id:
+            logger.info("🆕 session_id为空,准备创建新会话")
             session_id = self.conversation.create_session(
                 user_id=user_id,
                 title=prompt[:50] + "..." if len(prompt) > 50 else prompt
             )
+            logger.info(f"✅ 新会话已创建,ID: {session_id}")
+        else:
+            logger.info(f"📖 使用现有会话: {session_id}")
 
         # v0.5.0: 检查未读提醒
         pending_reminders = []

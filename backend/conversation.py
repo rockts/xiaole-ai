@@ -2,32 +2,13 @@
 对话上下文管理模块
 管理多轮对话会话和消息历史
 """
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy import create_engine
-from db_setup import Conversation, Message
-import os
-from dotenv import load_dotenv
+from db_setup import Conversation, Message, SessionLocal
 from datetime import datetime
 import uuid
+from logger import logger
 
-load_dotenv()
-
-# 构建数据库 URL
-if os.getenv('DATABASE_URL'):
-    DB_URL = os.getenv('DATABASE_URL')
-else:
-    DB_URL = (
-        f"postgresql://{os.getenv('DB_USER')}:{os.getenv('DB_PASS')}"
-        f"@{os.getenv('DB_HOST')}:{os.getenv('DB_PORT')}"
-        f"/{os.getenv('DB_NAME')}"
-    )
-
-engine = create_engine(
-    DB_URL,
-    connect_args={'check_same_thread': False} if DB_URL.startswith('sqlite')
-    else {'client_encoding': 'utf8'}
-)
-Session = sessionmaker(bind=engine)
+# 使用db_setup中统一的Session工厂
+Session = SessionLocal
 
 
 class ConversationManager:
@@ -52,22 +33,22 @@ class ConversationManager:
             title=title
         )
 
-        session = Session()
+        session = SessionLocal()
         try:
             session.add(conversation)
             session.commit()
-            print(f"✅ 会话已创建: {session_id} - {title}")
+            logger.info(f"✅ 会话已创建: {session_id} - {title}")
             return session_id
         except Exception as e:
             session.rollback()
-            print(f"❌ 会话创建失败: {e}")
+            logger.error(f"❌ 会话创建失败: {e}")
             raise
         finally:
             session.close()
 
     def add_message(self, session_id, role, content, image_path=None):
         """添加消息到对话会话"""
-        session = Session()
+        session = SessionLocal()
         try:
             message = Message(
                 session_id=session_id,
@@ -92,7 +73,7 @@ class ConversationManager:
 
     def get_history(self, session_id, limit=10):
         """获取对话历史"""
-        session = Session()
+        session = SessionLocal()
         try:
             messages = session.query(Message).filter(
                 Message.session_id == session_id
@@ -118,7 +99,7 @@ class ConversationManager:
 
     def delete_message_and_following(self, message_id):
         """删除指定消息及其之后的所有消息"""
-        session = Session()
+        session = SessionLocal()
         try:
             # 查找目标消息
             target_msg = session.query(Message).filter(
@@ -146,8 +127,11 @@ class ConversationManager:
 
     def get_recent_sessions(self, user_id="default_user", limit=None):
         """获取最近的对话会话"""
-        session = Session()
+        session = SessionLocal()
         try:
+            # 强制刷新,确保看到最新数据
+            session.expire_all()
+
             query = session.query(Conversation).filter(
                 Conversation.user_id == user_id
             ).order_by(Conversation.updated_at.desc())
@@ -156,6 +140,20 @@ class ConversationManager:
                 query = query.limit(limit)
 
             sessions = query.all()
+            logger.info(
+                f"📋 get_recent_sessions: user_id={user_id}, "
+                f"limit={limit}, 查询到 {len(sessions)} 条会话"
+            )
+            if sessions:
+                logger.info(
+                    f"   最新会话: {sessions[0].title} - "
+                    f"{sessions[0].updated_at}"
+                )
+                # DEBUG: 显示最新5条会话ID
+                logger.info(
+                    f"   最新5条ID: "
+                    f"{[s.session_id[:8] for s in sessions[:5]]}"
+                )
 
             return [
                 {
@@ -168,7 +166,7 @@ class ConversationManager:
                 for s in sessions
             ]
         except Exception as e:
-            print(f"获取会话列表失败: {e}")
+            logger.error(f"❌ 获取会话列表失败: {e}")
             session.rollback()
             return []
         finally:
@@ -176,7 +174,7 @@ class ConversationManager:
 
     def delete_session(self, session_id):
         """删除对话会话及其消息"""
-        session = Session()
+        session = SessionLocal()
         try:
             # 删除消息
             session.query(Message).filter(
@@ -194,7 +192,7 @@ class ConversationManager:
 
     def update_session_title(self, session_id, new_title):
         """更新会话标题"""
-        session = Session()
+        session = SessionLocal()
         try:
             conversation = session.query(Conversation).filter(
                 Conversation.session_id == session_id
@@ -211,7 +209,7 @@ class ConversationManager:
 
     def update_session_pinned(self, session_id, pinned):
         """更新会话置顶状态"""
-        session = Session()
+        session = SessionLocal()
         try:
             conversation = session.query(Conversation).filter(
                 Conversation.session_id == session_id
@@ -229,7 +227,7 @@ class ConversationManager:
     def get_session_stats(self, session_id):
         """获取会话统计信息"""
         from sqlalchemy import func
-        session = Session()
+        session = SessionLocal()
         try:
             conversation = session.query(Conversation).filter(
                 Conversation.session_id == session_id

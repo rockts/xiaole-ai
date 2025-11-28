@@ -567,6 +567,7 @@ const handleMobileNav = () => {
 };
 
 const newChat = () => {
+  chatStore.clearCurrentSession();
   router.push("/chat");
   handleMobileNav();
 };

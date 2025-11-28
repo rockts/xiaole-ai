@@ -172,11 +172,16 @@ def chat_stream(
     """流式对话接口（SSE 兼容）。
 
     说明：
-    - 为尽快上线体验，当前实现为“切片流”：先生成完整回复，再按块推送；
+    - 为尽快上线体验，当前实现为"切片流"：先生成完整回复，再按块推送；
       命中直达规则（时间/日期/计算/小名等）时能即时返回；
     - 后续可改为直连模型原生流式（DeepSeek/Claude）。
     """
+    # 使用认证后的用户名作为user_id,支持多用户
     user_id = current_user
+    logger.info(
+        f"📥 Stream收到请求 - session_id: {session_id}, "
+        f"user_id: {user_id}, prompt: {prompt[:50]}"
+    )
 
     def event_stream():
         import json
@@ -241,6 +246,7 @@ def chat_stream(
                 }
         else:
             # 常规对话
+            logger.info(f"🔄 调用agent.chat - session_id: {session_id}")
             result = agent.chat(prompt, session_id, user_id, response_style)
 
         # 追问分析（异步重要性不高，这里保持与同步一致）
@@ -293,17 +299,182 @@ def chat_stream(
 
 @router.get("/sessions")
 def get_sessions(
-    user_id: str = "default_user",
     limit: Optional[int] = None,
     all_sessions: bool = False,
+    current_user: str = Depends(get_current_user),
     agent: XiaoLeAgent = Depends(get_agent)
 ):
-    """获取用户的对话会话列表"""
+    """获取用户的对话会话列表(使用认证用户)"""
     effective_limit = None if all_sessions else limit
+    logger.info(
+        f"📋 获取会话列表 - user_id: {current_user}, limit: {effective_limit}")
     sessions = agent.conversation.get_recent_sessions(
-        user_id, effective_limit
+        current_user, effective_limit
     )
     return {"sessions": sessions}
+
+
+@router.get("/debug/session/{session_id}")
+def debug_session(session_id: str):
+    """调试:检查特定会话的详细信息"""
+    from db_setup import Session as DBSession, Conversation
+    session = DBSession()
+    try:
+        conv = session.query(Conversation).filter(
+            Conversation.session_id == session_id
+        ).first()
+        if conv:
+            return {
+                "found": True,
+                "session_id": conv.session_id,
+                "title": conv.title,
+                "user_id": conv.user_id,
+                "created_at": str(conv.created_at),
+                "updated_at": str(conv.updated_at),
+                "pinned": getattr(conv, 'pinned', False)
+            }
+        else:
+            return {"found": False}
+    except Exception as e:
+        return {"error": str(e)}
+    finally:
+        session.close()
+
+
+@router.get("/debug/count_by_user")
+def debug_count_by_user():
+    """调试:统计各user_id的会话数"""
+    from db_setup import Session as DBSession, Conversation
+    from sqlalchemy import func
+    session = DBSession()
+    try:
+        counts = session.query(
+            Conversation.user_id,
+            func.count(Conversation.session_id).label('count')
+        ).group_by(Conversation.user_id).all()
+        return {"user_counts": [{"user_id": u, "count": c} for u, c in counts]}
+    except Exception as e:
+        return {"error": str(e)}
+    finally:
+        session.close()
+
+
+@router.get("/admin/user_sessions_stats")
+def get_user_sessions_stats():
+    """管理员接口:查看所有user_id的会话统计"""
+    from db_setup import SessionLocal, Conversation
+    from sqlalchemy import func
+    session = SessionLocal()
+    try:
+        # 按user_id统计会话数量
+        stats = session.query(
+            Conversation.user_id,
+            func.count(Conversation.id).label('count')
+        ).group_by(Conversation.user_id).all()
+
+        result = [
+            {"user_id": user_id, "count": count}
+            for user_id, count in stats
+        ]
+        return {"stats": result, "total_users": len(result)}
+    finally:
+        session.close()
+
+
+@router.post("/admin/migrate_user_sessions")
+def migrate_user_sessions(
+    from_user: str = "default_user",
+    to_user: str = "admin"
+):
+    """管理员接口:将会话从一个用户迁移到另一个用户"""
+    from db_setup import SessionLocal, Conversation
+    from sqlalchemy import text
+    session = SessionLocal()
+    try:
+        # 统计需要迁移的数量
+        count = session.query(Conversation).filter(
+            Conversation.user_id == from_user
+        ).count()
+
+        if count == 0:
+            return {"migrated": 0, "message": "无需迁移"}
+
+        # 使用原生SQL更新,避免触发updated_at自动更新
+        session.execute(
+            text("UPDATE conversations SET user_id = :to_user "
+                 "WHERE user_id = :from_user"),
+            {"to_user": to_user, "from_user": from_user}
+        )
+
+        session.commit()
+        return {
+            "migrated": count,
+            "message": f"成功迁移 {count} 条会话从 {from_user} 到 {to_user}"
+        }
+    except Exception as e:
+        session.rollback()
+        return {"error": str(e), "migrated": 0}
+    finally:
+        session.close()
+
+
+@router.post("/admin/migrate_all_to_current")
+def migrate_all_sessions_to_current(
+    current_user: str = Depends(get_current_user)
+):
+    """管理员接口:将所有非当前用户的会话迁移到当前登录用户"""
+    from db_setup import SessionLocal, Conversation
+    from sqlalchemy import text
+    session = SessionLocal()
+    try:
+        # 统计需要迁移的数量
+        count = session.query(Conversation).filter(
+            Conversation.user_id != current_user
+        ).count()
+
+        if count == 0:
+            return {"migrated": 0, "message": "无需迁移"}
+
+        # 使用原生SQL更新,避免触发updated_at自动更新
+        session.execute(
+            text("UPDATE conversations SET user_id = :current_user "
+                 "WHERE user_id != :current_user"),
+            {"current_user": current_user}
+        )
+
+        session.commit()
+        return {
+            "migrated": count,
+            "message": f"成功迁移 {count} 条会话到当前用户 {current_user}"
+        }
+    except Exception as e:
+        session.rollback()
+        return {"error": str(e), "migrated": 0}
+    finally:
+        session.close()
+
+
+@router.post("/admin/fix_session_timestamps")
+def fix_session_timestamps():
+    """管理员接口:修复会话时间戳(将created_at复制到updated_at)"""
+    from db_setup import SessionLocal
+    from sqlalchemy import text
+    session = SessionLocal()
+    try:
+        # 将所有会话的updated_at重置为created_at
+        result = session.execute(
+            text("UPDATE conversations SET updated_at = created_at")
+        )
+        session.commit()
+        return {
+            "fixed": result.rowcount,
+            "message": f"成功修复 {result.rowcount} 条会话的时间戳"
+        }
+    except Exception as e:
+        session.rollback()
+        return {"error": str(e), "fixed": 0}
+    finally:
+        session.close()
 
 
 @router.get("/session/{session_id}")
