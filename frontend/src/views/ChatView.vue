@@ -74,10 +74,45 @@
                   min-width: 80px;
                 "
               >
-                <div style="display: inline-flex; align-items: center; gap: 6px;">
-                  <span style="display: block !important; width: 8px !important; height: 8px !important; min-width: 8px !important; min-height: 8px !important; border-radius: 50% !important; background: #3b82f6 !important; animation: bounce1 1.4s ease-in-out 0s infinite !important;"></span>
-                  <span style="display: block !important; width: 8px !important; height: 8px !important; min-width: 8px !important; min-height: 8px !important; border-radius: 50% !important; background: #3b82f6 !important; animation: bounce2 1.4s ease-in-out 0.2s infinite !important;"></span>
-                  <span style="display: block !important; width: 8px !important; height: 8px !important; min-width: 8px !important; min-height: 8px !important; border-radius: 50% !important; background: #3b82f6 !important; animation: bounce3 1.4s ease-in-out 0.4s infinite !important;"></span>
+                <div
+                  style="display: inline-flex; align-items: center; gap: 6px"
+                >
+                  <span
+                    style="
+                      display: block !important;
+                      width: 8px !important;
+                      height: 8px !important;
+                      min-width: 8px !important;
+                      min-height: 8px !important;
+                      border-radius: 50% !important;
+                      background: #3b82f6 !important;
+                      animation: bounce1 1.4s ease-in-out 0s infinite !important;
+                    "
+                  ></span>
+                  <span
+                    style="
+                      display: block !important;
+                      width: 8px !important;
+                      height: 8px !important;
+                      min-width: 8px !important;
+                      min-height: 8px !important;
+                      border-radius: 50% !important;
+                      background: #3b82f6 !important;
+                      animation: bounce2 1.4s ease-in-out 0.2s infinite !important;
+                    "
+                  ></span>
+                  <span
+                    style="
+                      display: block !important;
+                      width: 8px !important;
+                      height: 8px !important;
+                      min-width: 8px !important;
+                      min-height: 8px !important;
+                      border-radius: 50% !important;
+                      background: #3b82f6 !important;
+                      animation: bounce3 1.4s ease-in-out 0.4s infinite !important;
+                    "
+                  ></span>
                 </div>
                 <span
                   style="
@@ -3742,80 +3777,20 @@ const feedbackMessage = async (message, type) => {
   box-shadow: 0 4px 14px rgba(255, 0, 0, 0.45);
 }
 
-/* 思考与打字效果 */
-.thinking-wrapper {
-  display: flex !important;
-  align-items: center;
-  min-height: 24px;
-  padding: 2px 4px;
-  visibility: visible !important;
-  opacity: 1 !important;
-}
-.thinking-dots {
-  display: inline-flex !important;
-  align-items: center !important;
-  gap: 6px !important;
-  height: 12px !important;
-  vertical-align: middle !important;
-}
-
-.thinking-dot {
-  width: 8px !important;
-  height: 8px !important;
-  min-width: 8px !important;
-  min-height: 8px !important;
-  max-width: 8px !important;
-  max-height: 8px !important;
-  border-radius: 50% !important;
-  background: #3b82f6 !important;
-  animation: thinkingBounce 1.4s ease-in-out infinite !important;
-  flex-shrink: 0 !important;
-  display: block !important;
-}
-
-.thinking-dot:nth-child(1) {
-  animation-delay: 0s !important;
-}
-
-.thinking-dot:nth-child(2) {
-  animation-delay: 0.2s !important;
-}
-
-.thinking-dot:nth-child(3) {
-  animation-delay: 0.4s !important;
-}
-
+/* 思考动画 - 三个圆点跳动效果 */
 @keyframes bounce1 {
-  0%,
-  60%,
-  100% {
-    transform: translateY(0);
-  }
-  30% {
-    transform: translateY(-10px);
-  }
+  0%, 60%, 100% { transform: translateY(0); }
+  30% { transform: translateY(-10px); }
 }
 
 @keyframes bounce2 {
-  0%,
-  60%,
-  100% {
-    transform: translateY(0);
-  }
-  30% {
-    transform: translateY(-10px);
-  }
+  0%, 60%, 100% { transform: translateY(0); }
+  30% { transform: translateY(-10px); }
 }
 
 @keyframes bounce3 {
-  0%,
-  60%,
-  100% {
-    transform: translateY(0);
-  }
-  30% {
-    transform: translateY(-10px);
-  }
+  0%, 60%, 100% { transform: translateY(0); }
+  30% { transform: translateY(-10px); }
 }
 
 .md-content.typing:after {
