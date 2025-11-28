@@ -3588,7 +3588,7 @@ const feedbackMessage = async (message, type) => {
   z-index: 100;
   background: var(--bg-primary);
   padding: 12px 16px calc(16px + env(safe-area-inset-bottom));
-  border-top: 1px solid var(--border-light);
+  /* border-top: 1px solid var(--border-light); */
   flex-shrink: 0;
 }
 .input-wrapper {
@@ -3866,9 +3866,16 @@ const feedbackMessage = async (message, type) => {
   min-height: 44px;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
   margin-top: 4px;
-  scroll-margin-bottom: 120px; /* 确保滚动时不会被遮挡 */
+  scroll-margin-bottom: 120px;
   position: relative;
   z-index: 5;
+}
+
+.thinking-wrapper .typing-indicator span {
+  background-color: #3b82f6 !important; /* 强制显示蓝色，防止变量失效 */
+  width: 6px;
+  height: 6px;
+  opacity: 1 !important;
 }
 
 .thinking-label {
