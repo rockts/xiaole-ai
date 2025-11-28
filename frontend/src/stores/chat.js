@@ -20,6 +20,13 @@ export const useChatStore = defineStore('chat', () => {
                 id: s.session_id || s.id
             }))
             console.log('✅ Sessions loaded:', sessions.value.length)
+            if (sessions.value.length > 0) {
+                console.log('📋 最新3条会话:', sessions.value.slice(0, 3).map(s => ({
+                    title: s.title,
+                    updated_at: s.updated_at,
+                    id: s.id || s.session_id
+                })))
+            }
         } catch (error) {
             console.error('Failed to load sessions:', error)
         } finally {
