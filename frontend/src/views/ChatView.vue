@@ -3981,7 +3981,7 @@ const feedbackMessage = async (message, type) => {
   }
 
   .chat-inner {
-    padding: 12px 12px 100px 12px;
+    padding: 12px 12px 160px 12px;
   }
 
   .user-bubble {
@@ -4019,7 +4019,14 @@ const feedbackMessage = async (message, type) => {
   }
 
   .input-container {
-    padding: 8px 10px 10px;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    background: var(--bg-primary);
+    padding: 8px 10px calc(10px + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--border-light);
   }
 
   .input-wrapper {
