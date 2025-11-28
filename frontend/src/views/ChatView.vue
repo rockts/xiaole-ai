@@ -74,45 +74,10 @@
                   min-width: 80px;
                 "
               >
-                <div
-                  style="display: inline-flex; align-items: center; gap: 6px"
-                >
-                  <span
-                    style="
-                      display: block !important;
-                      width: 8px !important;
-                      height: 8px !important;
-                      min-width: 8px !important;
-                      min-height: 8px !important;
-                      border-radius: 50% !important;
-                      background: #3b82f6 !important;
-                      animation: bounce1 1.4s ease-in-out 0s infinite !important;
-                    "
-                  ></span>
-                  <span
-                    style="
-                      display: block !important;
-                      width: 8px !important;
-                      height: 8px !important;
-                      min-width: 8px !important;
-                      min-height: 8px !important;
-                      border-radius: 50% !important;
-                      background: #3b82f6 !important;
-                      animation: bounce2 1.4s ease-in-out 0.2s infinite !important;
-                    "
-                  ></span>
-                  <span
-                    style="
-                      display: block !important;
-                      width: 8px !important;
-                      height: 8px !important;
-                      min-width: 8px !important;
-                      min-height: 8px !important;
-                      border-radius: 50% !important;
-                      background: #3b82f6 !important;
-                      animation: bounce3 1.4s ease-in-out 0.4s infinite !important;
-                    "
-                  ></span>
+                <div style="display: inline-flex; align-items: center; gap: 6px;">
+                  <div class="thinking-circle" style="animation-delay: 0s;"></div>
+                  <div class="thinking-circle" style="animation-delay: 0.2s;"></div>
+                  <div class="thinking-circle" style="animation-delay: 0.4s;"></div>
                 </div>
                 <span
                   style="
@@ -3778,19 +3743,29 @@ const feedbackMessage = async (message, type) => {
 }
 
 /* 思考动画 - 三个圆点跳动效果 */
-@keyframes bounce1 {
-  0%, 60%, 100% { transform: translateY(0); }
-  30% { transform: translateY(-10px); }
+.thinking-circle {
+  display: block !important;
+  width: 8px !important;
+  height: 8px !important;
+  min-width: 8px !important;
+  min-height: 8px !important;
+  max-width: 8px !important;
+  max-height: 8px !important;
+  border-radius: 50% !important;
+  background: #3b82f6 !important;
+  flex-shrink: 0 !important;
+  animation: thinkingBounce 1.4s ease-in-out infinite !important;
 }
 
-@keyframes bounce2 {
-  0%, 60%, 100% { transform: translateY(0); }
-  30% { transform: translateY(-10px); }
-}
-
-@keyframes bounce3 {
-  0%, 60%, 100% { transform: translateY(0); }
-  30% { transform: translateY(-10px); }
+@keyframes thinkingBounce {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+  }
+  30% {
+    transform: translateY(-10px);
+  }
 }
 
 .md-content.typing:after {
