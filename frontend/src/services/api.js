@@ -83,11 +83,11 @@ api.interceptors.response.use(
 export default {
     // 会话相关
     getSessions(allSessions = true) {
-        return api.get('/sessions', { params: { all_sessions: allSessions } })
+        return api.get('/api/sessions', { params: { all_sessions: allSessions } })
     },
 
     getSession(sessionId, limit = 200) {
-        return api.get(`/session/${sessionId}`, { params: { limit } })
+        return api.get(`/api/session/${sessionId}`, { params: { limit } })
     },
 
     deleteSession(sessionId) {
@@ -114,7 +114,7 @@ export default {
         if (data.image_path) params.append('image_path', data.image_path)
 
         // 增加超时时间到 120 秒，并禁用自动重试
-        return api.post(`/chat?${params.toString()}`, null, {
+        return api.post(`/api/chat?${params.toString()}`, null, {
             timeout: 120000,
             retryCount: MAX_RETRIES // 设置为最大重试次数，防止拦截器重试
         })
@@ -134,7 +134,7 @@ export default {
         const headers = { 'Accept': 'text/event-stream' }
         if (authStore.token) headers['Authorization'] = `Bearer ${authStore.token}`
 
-        const url = `${API_BASE_URL}/chat/stream?${params.toString()}`
+        const url = `${API_BASE_URL}/api/chat/stream?${params.toString()}`
         const res = await fetch(url, { method: 'POST', headers, signal })
         if (!res.ok || !res.body) {
             const text = await res.text().catch(() => '')
@@ -212,22 +212,22 @@ export default {
 
     // 记忆相关
     getMemoryStats() {
-        return api.get('/memory/stats')
+        return api.get('/api/memory/stats')
     },
 
     getRecentMemories(hours = 24, limit = 20, tag = null) {
         const params = { hours, limit }
         if (tag) params.tag = tag
-        return api.get('/memory/recent', { params })
+        return api.get('/api/memory/recent', { params })
     },
 
     searchMemories(keywords) {
         // ...existing code...
-        return api.get('/memory/search', { params: { keywords } })
+        return api.get('/api/memory/search', { params: { keywords } })
     },
 
     semanticSearch(query) {
-        return api.get('/memory/semantic', { params: { query } })
+        return api.get('/api/memory/semantic', { params: { query } })
     },
 
     deleteMemory(memoryId) {
@@ -285,8 +285,16 @@ export default {
     },
 
     // 文档相关
-    getDocuments(userId = 'default_user', limit = 50) {
-        return api.get(`/api/users/${userId}/documents`, { params: { limit } })
+    getDocuments(limit = 50) {
+        // 从auth store获取登录用户名,如果没有使用admin
+        const authStore = useAuthStore();
+        console.log('🔍 authStore.user:', authStore.user);
+        console.log('🔍 authStore.token:', authStore.token ? '有token' : '无token');
+        const username = authStore.user?.username || 'admin';
+        console.log('🔍 getDocuments - 使用登录用户名:', username);
+        const url = `/api/documents/users/${username}`;
+        console.log('🔍 请求URL:', url);
+        return api.get(url, { params: { limit } })
     },
 
     getDocument(docId) {
@@ -305,11 +313,11 @@ export default {
 
     // 工具相关
     getTools(enabledOnly = true) {
-        return api.get('/tools/list', { params: { enabled_only: enabledOnly } })
+        return api.get('/api/tools/list', { params: { enabled_only: enabledOnly } })
     },
 
     getToolHistory(userId = 'default_user', limit = 20) {
-        return api.get('/tools/history', { params: { user_id: userId, limit } })
+        return api.get('/api/tools/history', { params: { user_id: userId, limit } })
     },
 
     // 反馈相关

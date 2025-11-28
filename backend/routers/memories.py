@@ -7,6 +7,7 @@ from memory import MemoryManager
 from logger import logger
 
 router = APIRouter(
+    prefix="/api",
     tags=["memory"]
 )
 
@@ -71,7 +72,7 @@ def memory_stats(agent: XiaoLeAgent = Depends(get_agent)):
     return agent.memory.get_stats()
 
 
-@router.put("/api/memory/{memory_id}")
+@router.put("/memory/{memory_id}")
 async def update_memory(memory_id: int, request: dict):
     """更新记忆内容"""
     try:
@@ -107,7 +108,7 @@ async def update_memory(memory_id: int, request: dict):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.delete("/api/memory/{memory_id}")
+@router.delete("/memory/{memory_id}")
 async def delete_memory(memory_id: int):
     """删除记忆"""
     try:

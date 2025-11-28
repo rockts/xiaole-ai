@@ -17,6 +17,25 @@
 
 ## [Unreleased] - develop 分支
 
+### 2025-11-29
+
+#### fix
+- 🐛 修复前端全局加载状态问题
+  - 移除 App.vue 中的 Suspense 组件（导致页面持续转圈）
+  - 清理 Vite 缓存解决浏览器缓存问题
+  - 简化 ChatView 加载逻辑,移除嵌套 requestAnimationFrame
+
+#### refactor
+- ♻️ 统一数据库 user_id 字段
+  - 新增 `scripts/unify_user_id.py` 脚本
+  - 批量更新 3801 条记录到当前登录用户
+  - 涉及表: user_behaviors, proactive_questions, learned_patterns, tool_executions
+
+#### fix
+- 🐛 修复侧边栏用户图标位置
+  - 移动 sidebar-footer 到 sidebar-content 外部
+  - 确保收起状态下图标固定在底部
+
 ### 2025-11-27
 
 #### feat

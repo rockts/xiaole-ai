@@ -22,6 +22,7 @@
 import SidebarModern from "@/components/layout/SidebarModern.vue";
 import TopBar from "@/components/layout/TopBar.vue";
 import ReminderNotification from "@/components/common/ReminderNotification.vue";
+import LoadingView from "@/views/LoadingView.vue";
 import { ref, onMounted, watch } from "vue";
 import { useWebSocket } from "@/composables/useWebSocket";
 import { useAuthStore } from "@/stores/auth";

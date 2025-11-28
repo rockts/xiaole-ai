@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>前端调试工具</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+        }
+
+        button {
+            margin: 5px;
+            padding: 10px;
+            cursor: pointer;
+        }
+
+        pre {
+            background: #f5f5f5;
+            padding: 10px;
+            overflow: auto;
+        }
+    </style>
+</head>
+
+<body>
+    <h2>小乐 AI 前端调试</h2>
+
+    <h3>1. 清除认证信息</h3>
+    <button onclick="clearAuth()">清除 localStorage (token/user)</button>
+    <pre id="auth-result"></pre>
+
+    <h3>2. 测试 API 连接</h3>
+    <button onclick="testBackend()">测试后端连接</button>
+    <button onclick="testLogin()">测试登录 (admin/admin123)</button>
+    <pre id="api-result"></pre>
+
+    <h3>3. 跳转到应用</h3>
+    <button onclick="location.href='http://localhost:3000'">打开前端</button>
+    <button onclick="location.href='http://localhost:3000/login'">打开登录页</button>
+
+    <script>
+        function clearAuth() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            document.getElementById('auth-result').textContent =
+                '✅ 已清除 token 和 user\n' +
+                'token: ' + localStorage.getItem('token') + '\n' +
+                'user: ' + localStorage.getItem('user');
+        }
+
+        async function testBackend() {
+            const result = document.getElementById('api-result');
+            result.textContent = '测试中...';
+            try {
+                const res = await fetch('http://localhost:8000/api/sessions');
+                const text = await res.text();
+                result.textContent =
+                    `状态码: ${res.status}\n` +
+                    `响应: ${text.substring(0, 200)}`;
+            } catch (err) {
+                result.textContent = '❌ 错误: ' + err.message;
+            }
+        }
+
+        async function testLogin() {
+            const result = document.getElementById('api-result');
+            result.textContent = '登录中...';
+            try {
+                const formData = new FormData();
+                formData.append('username', 'admin');
+                formData.append('password', 'admin123');
+
+                const res = await fetch('http://localhost:8000/token', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+
+                if (data.access_token) {
+                    localStorage.setItem('token', data.access_token);
+                    localStorage.setItem('user', JSON.stringify({ username: 'admin' }));
+                    result.textContent = '✅ 登录成功!\nToken已保存到localStorage';
+                } else {
+                    result.textContent = '❌ 登录失败: ' + JSON.stringify(data);
+                }
+            } catch (err) {
+                result.textContent = '❌ 错误: ' + err.message;
+            }
+        }
+    </script>
+</body>
+
+</html>

@@ -4,7 +4,7 @@ from dependencies import get_xiaole_agent
 from agent import XiaoLeAgent
 
 router = APIRouter(
-    prefix="/tools",
+    prefix="/api/tools",
     tags=["tools"]
 )
 

@@ -175,11 +175,26 @@
 
 ## 快速开始
 
+### 0. 环境要求 ⚠️
+
+**Node.js 版本**: >= 18.0.0 (推荐 20.x LTS)  
+**Python 版本**: >= 3.10
+
+```bash
+# 检查环境是否就绪
+./check_env.sh
+```
+
+详细配置说明请查看 [README_NODE_VERSION.md](./README_NODE_VERSION.md)
+
 ### 1. 环境配置
 
 ```bash
-# 安装依赖
+# Python 依赖
 pip install -r requirements.txt
+
+# 前端依赖
+cd frontend && npm install && cd ..
 
 # 配置环境变量
 cp .env.example .env
@@ -197,29 +212,50 @@ python tests/test_nas_connection.py
 
 ### 3. 启动服务
 
-```bash
-# 推荐使用虚拟环境
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+#### 方式 1: 统一启动脚本 (推荐) 🚀
 
-# 启动 FastAPI 服务
-# 注意：核心代码已移动到 backend 目录
-cd backend
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
+```bash
+# 一键启动后端 + 前端
+./start.sh
+
+# 停止服务
+./stop.sh
+
+# 重启服务
+./stop.sh && sleep 2 && ./start.sh
 ```
 
-### 4. 前端开发与访问
+启动脚本会自动:
+- ✅ 检测并使用 `.nvmrc` 中指定的 Node 版本
+- ✅ 清理旧进程避免端口冲突  
+- ✅ 启动后端 (8000) 和前端 (3000)
+- ✅ 输出日志到 `logs/` 目录
 
-开发阶段推荐使用 Vite：
+#### 方式 2: 手动启动
 
 ```bash
-# 使用 Node 20（建议）
+# 后端
+source .venv/bin/activate
+cd backend
+python main.py
+
+# 前端 (新终端)
 cd frontend
-source ~/.nvm/nvm.sh && nvm use 20
-npm install
+nvm use  # 自动读取 .nvmrc
 npm run dev
 ```
+
+### 4. 访问应用
+
+```
+前端: http://localhost:3000
+后端 API: http://localhost:8000
+API 文档: http://localhost:8000/docs
+```
+
+**默认登录账号**:
+- 用户名: `admin`
+- 密码: `admin123`
 
 打开浏览器访问：
 

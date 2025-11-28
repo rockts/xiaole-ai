@@ -1062,6 +1062,7 @@ const shouldScrollToBottom = ref(false); // 标志位：是否需要滚动到底
 const isLoadingSession = ref(true); // 初始就设置为 true，默认隐藏
 let currentSpeech = null;
 let autoStickRaf = null;
+let loadingTimeout = null; // 加载超时定时器
 
 // 反馈相关状态
 const showFeedbackDialog = ref(false);
@@ -1191,22 +1192,41 @@ const sessionId = computed(() => route.params.sessionId);
 watch(
   sessionId,
   async (newId) => {
+    // 清除之前的超时
+    if (loadingTimeout) {
+      clearTimeout(loadingTimeout);
+    }
+
     if (newId) {
       isLoadingSession.value = true;
-      await chatStore.loadSession(newId);
-      // 立即设置滚动位置（在渲染前）
-      await nextTick();
-      await nextTick();
-      // 使用 requestAnimationFrame 确保在浏览器绘制前完成
-      requestAnimationFrame(() => {
-        if (chatContainer.value) {
-          chatContainer.value.scrollTop = chatContainer.value.scrollHeight;
-        }
-        // 立即显示，因为滚动已经在绘制前完成
+
+      // 设置3秒超时保护(缩短超时时间)
+      loadingTimeout = setTimeout(() => {
+        console.warn("⚠️ 会话加载超时,强制停止加载动画");
+        isLoadingSession.value = false;
+      }, 3000);
+
+      try {
+        await chatStore.loadSession(newId);
+        console.log("✅ loadSession 完成,准备显示UI");
+
+        // 先停止加载动画
+        clearTimeout(loadingTimeout);
+        isLoadingSession.value = false;
+
+        // 然后设置滚动位置
+        await nextTick();
         requestAnimationFrame(() => {
-          isLoadingSession.value = false;
+          if (chatContainer.value) {
+            chatContainer.value.scrollTop = chatContainer.value.scrollHeight;
+            console.log("📍 滚动到底部完成");
+          }
         });
-      });
+      } catch (error) {
+        console.error("加载会话失败:", error);
+        clearTimeout(loadingTimeout);
+        isLoadingSession.value = false;
+      }
     } else {
       chatStore.clearCurrentSession();
       isLoadingSession.value = false;
@@ -2743,6 +2763,14 @@ const canSend = computed(() => {
 });
 
 onMounted(() => {
+  // 终极超时保护：如果10秒后还在加载,强制停止
+  setTimeout(() => {
+    if (isLoadingSession.value) {
+      console.warn("⚠️ 检测到长时间加载,强制停止加载动画");
+      isLoadingSession.value = false;
+    }
+  }, 10000);
+
   const onResize = () => {
     isMobile.value = window.innerWidth <= 768;
   };
@@ -3194,7 +3222,7 @@ const feedbackMessage = async (message, type) => {
 }
 /* PC端最后一条消息添加底部空间，确保工具栏可见 */
 .message:last-child {
-  padding-bottom: 100px;
+  padding-bottom: 80px;
 }
 .message.new-group {
   margin-top: 8px;
@@ -4073,12 +4101,13 @@ const feedbackMessage = async (message, type) => {
   }
 
   .chat-inner {
-    padding: 12px; /* 移除底部padding,依靠.message:last-child的padding */
+    padding: 12px;
+    padding-bottom: 8px; /* 减少底部内边距，避免键盘弹出时过多空白 */
   }
 
-  /* 移动端最后一条消息添加额外底部空间，确保工具栏可见 */
+  /* 移动端最后一条消息添加底部空间 */
   .message:last-child {
-    padding-bottom: 40px !important;
+    padding-bottom: 20px !important;
   }
 
   .user-bubble {
@@ -4143,12 +4172,11 @@ const feedbackMessage = async (message, type) => {
   .message-toolbar {
     opacity: 1 !important;
     margin-top: 6px;
-    margin-bottom: 100px; /* 确保最后一条消息的工具栏不被输入框遮挡 */
   }
 
-  /* 非最后一条消息的工具栏不需要额外边距 */
-  .message:not(:last-child) .message-toolbar {
-    margin-bottom: 0;
+  /* 最后一条消息的工具栏添加底部间距，避免被输入框遮挡 */
+  .message:last-child .message-toolbar {
+    margin-bottom: 16px;
   }
 
   .message.user .message-toolbar {

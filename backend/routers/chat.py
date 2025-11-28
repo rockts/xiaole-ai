@@ -8,6 +8,7 @@ from auth import get_current_user
 from logger import logger
 
 router = APIRouter(
+    prefix="/api",
     tags=["chat"]
 )
 

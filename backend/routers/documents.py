@@ -298,3 +298,45 @@ def delete_document(doc_id: int):
             "success": False,
             "error": str(e)
         }
+
+
+@router.post("/admin/migrate_documents")
+def migrate_documents(
+    from_user: str = "default_user",
+    to_user: str = "admin"
+):
+    """管理员接口:迁移文档从一个用户到另一个用户"""
+    import psycopg2
+    from config import DB_CONFIG
+
+    try:
+        conn = psycopg2.connect(**DB_CONFIG)
+        cur = conn.cursor()
+
+        # 统计需要迁移的数量
+        cur.execute(
+            "SELECT COUNT(*) FROM documents WHERE user_id = %s",
+            (from_user,)
+        )
+        count = cur.fetchone()[0]
+
+        if count == 0:
+            cur.close()
+            conn.close()
+            return {"migrated": 0, "message": "无需迁移"}
+
+        # 执行迁移
+        cur.execute(
+            "UPDATE documents SET user_id = %s WHERE user_id = %s",
+            (to_user, from_user)
+        )
+        conn.commit()
+        cur.close()
+        conn.close()
+
+        return {
+            "migrated": count,
+            "message": f"成功迁移 {count} 个文档从 {from_user} 到 {to_user}"
+        }
+    except Exception as e:
+        return {"error": str(e), "migrated": 0}

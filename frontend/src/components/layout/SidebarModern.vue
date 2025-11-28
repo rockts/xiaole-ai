@@ -332,118 +332,118 @@
           </template>
         </div>
       </div>
+    </div>
+    <!-- 结束 sidebar-content -->
 
-      <!-- 底部：用户资料 -->
-      <div
-        class="sidebar-footer user-profile"
-        @click="toggleUserMenu"
-        @touchstart.stop="toggleUserMenu"
-        ref="userMenuRef"
-        style="
-          cursor: pointer;
-          user-select: none;
-          -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
-        "
-      >
-        <div class="avatar-wrapper">
-          <div class="user-avatar-icon">
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-              <circle cx="12" cy="7" r="4" />
-            </svg>
-          </div>
-        </div>
-        <div class="user-info">
-          <div class="username">{{ username }}</div>
-          <div class="user-status">在线</div>
-        </div>
-        <button class="settings-icon-btn" title="用户菜单">
+    <!-- 底部：用户资料 -->
+    <div
+      class="sidebar-footer user-profile"
+      @click="toggleUserMenu"
+      @touchstart.stop="toggleUserMenu"
+      ref="userMenuRef"
+      style="
+        cursor: pointer;
+        user-select: none;
+        -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+      "
+    >
+      <div class="avatar-wrapper">
+        <div class="user-avatar-icon">
           <svg
-            width="24"
-            height="24"
+            width="20"
+            height="20"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
             stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
           >
-            <circle cx="12" cy="12" r="1"></circle>
-            <circle cx="12" cy="5" r="1"></circle>
-            <circle cx="12" cy="19" r="1"></circle>
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+            <circle cx="12" cy="7" r="4" />
           </svg>
-        </button>
-
-        <!-- 用户菜单弹出层 -->
-        <teleport to="body">
-          <transition name="dropdown">
-            <div
-              v-if="showUserMenu"
-              class="user-dropdown-menu"
-              :style="{
-                left: userMenuPosition.left + 'px',
-                bottom: userMenuPosition.bottom + 'px',
-              }"
-              @click.stop
-            >
-              <div class="dropdown-item" @click="openSettingsModal">
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                  <circle cx="12" cy="7" r="4"></circle>
-                </svg>
-                <span>个人中心</span>
-              </div>
-              <div class="dropdown-item" @click="openSettingsModal">
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <circle cx="12" cy="12" r="3" />
-                  <path
-                    d="M12 1v6m0 6v6M3.93 3.93l4.24 4.24m8.48 8.48l4.24 4.24M1 12h6m6 0h6M3.93 20.07l4.24-4.24m8.48-8.48l4.24-4.24"
-                  />
-                </svg>
-                <span>设置</span>
-              </div>
-              <div class="dropdown-divider"></div>
-              <div class="dropdown-item danger">
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                  <polyline points="16 17 21 12 16 7" />
-                  <line x1="21" y1="12" x2="9" y2="12" />
-                </svg>
-                <span>退出登录</span>
-              </div>
-            </div>
-          </transition>
-        </teleport>
+        </div>
       </div>
-      <!-- 结束 sidebar-content -->
+      <div class="user-info">
+        <div class="username">{{ username }}</div>
+        <div class="user-status">在线</div>
+      </div>
+      <button class="settings-icon-btn" title="用户菜单">
+        <svg
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <circle cx="12" cy="12" r="1"></circle>
+          <circle cx="12" cy="5" r="1"></circle>
+          <circle cx="12" cy="19" r="1"></circle>
+        </svg>
+      </button>
+
+      <!-- 用户菜单弹出层 -->
+      <teleport to="body">
+        <transition name="dropdown">
+          <div
+            v-if="showUserMenu"
+            class="user-dropdown-menu"
+            :style="{
+              left: userMenuPosition.left + 'px',
+              bottom: userMenuPosition.bottom + 'px',
+            }"
+            @click.stop
+          >
+            <div class="dropdown-item" @click="openSettingsModal">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+              </svg>
+              <span>个人中心</span>
+            </div>
+            <div class="dropdown-item" @click="openSettingsModal">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <circle cx="12" cy="12" r="3" />
+                <path
+                  d="M12 1v6m0 6v6M3.93 3.93l4.24 4.24m8.48 8.48l4.24 4.24M1 12h6m6 0h6M3.93 20.07l4.24-4.24m8.48-8.48l4.24-4.24"
+                />
+              </svg>
+              <span>设置</span>
+            </div>
+            <div class="dropdown-divider"></div>
+            <div class="dropdown-item danger">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                <polyline points="16 17 21 12 16 7" />
+                <line x1="21" y1="12" x2="9" y2="12" />
+              </svg>
+              <span>退出登录</span>
+            </div>
+          </div>
+        </transition>
+      </teleport>
     </div>
 
     <!-- 设置弹窗 - 使用 Teleport 渲染到 body 确保最高层级 -->
