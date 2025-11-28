@@ -4597,3 +4597,17 @@ span.thinking-dot {
   }
 }
 </style>
+
+<!-- 全局样式：思考动画关键帧，供内联样式引用 -->
+<style>
+@keyframes thinkingBounce {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+  }
+  30% {
+    transform: translateY(-10px);
+  }
+}
+</style>
