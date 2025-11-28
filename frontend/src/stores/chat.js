@@ -131,9 +131,9 @@ export const useChatStore = defineStore('chat', () => {
                         }))
                     }
                 } else {
-                    // 先保持 thinking 状态至少 800ms，让用户看到思考动画
+                    // 先保持 thinking 状态至少 500ms，让用户看到思考动画
                     const thinkingStartTime = Date.now()
-                    const minThinkingTime = 800
+                    const minThinkingTime = 500
 
                     const startTyping = () => {
                         messages.value[msgIndex].status = 'typing'
