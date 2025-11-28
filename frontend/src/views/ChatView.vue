@@ -75,9 +75,9 @@
                 "
               >
                 <div style="display: inline-flex; align-items: center; gap: 6px;">
-                  <div class="thinking-circle" style="animation-delay: 0s;"></div>
-                  <div class="thinking-circle" style="animation-delay: 0.2s;"></div>
-                  <div class="thinking-circle" style="animation-delay: 0.4s;"></div>
+                  <div class="thinking-circle" style="animation-delay: 0s; border-radius: 50% !important;"></div>
+                  <div class="thinking-circle" style="animation-delay: 0.2s; border-radius: 50% !important;"></div>
+                  <div class="thinking-circle" style="animation-delay: 0.4s; border-radius: 50% !important;"></div>
                 </div>
                 <span
                   style="
@@ -3754,6 +3754,8 @@ const feedbackMessage = async (message, type) => {
   border-radius: 50% !important;
   background: #3b82f6 !important;
   flex-shrink: 0 !important;
+  overflow: hidden !important;
+  box-shadow: 0 0 0 0 #3b82f6 !important;
   animation: thinkingBounce 1.4s ease-in-out infinite !important;
 }
 
