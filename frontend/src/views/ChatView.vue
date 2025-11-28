@@ -82,6 +82,8 @@
                     height="8"
                     viewBox="0 0 8 8"
                     style="
+                      display: block;
+                      overflow: visible;
                       animation: thinkingBounce 1.4s ease-in-out 0s infinite;
                     "
                   >
@@ -92,6 +94,8 @@
                     height="8"
                     viewBox="0 0 8 8"
                     style="
+                      display: block;
+                      overflow: visible;
                       animation: thinkingBounce 1.4s ease-in-out 0.2s infinite;
                     "
                   >
@@ -102,6 +106,8 @@
                     height="8"
                     viewBox="0 0 8 8"
                     style="
+                      display: block;
+                      overflow: visible;
                       animation: thinkingBounce 1.4s ease-in-out 0.4s infinite;
                     "
                   >
