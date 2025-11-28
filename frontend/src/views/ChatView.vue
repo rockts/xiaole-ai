@@ -1303,11 +1303,12 @@ watch(
                     if (msgEl) {
                       const msgRect = msgEl.getBoundingClientRect();
                       const containerRect = container.getBoundingClientRect();
-                      const overlap = msgRect.bottom - (containerRect.bottom - inputH - 12);
+                      const safeMargin = 80; // 安全边距：确保消息底部距离输入框顶部至少80px
+                      const overlap = msgRect.bottom - (containerRect.bottom - inputH - safeMargin);
                       if (overlap > 0) {
-                        // 向上滚动 overlap，确保消息底部位于输入框上方12px处
-                        container.scrollTop += overlap + 12;
-                        console.log('🔧 Adjusted scroll to keep last message above input, overlap:', overlap);
+                        // 向上滚动 overlap，确保消息底部位于输入框上方足够距离处
+                        container.scrollTop += overlap + safeMargin;
+                        console.log('🔧 Adjusted scroll to keep last message above input, overlap:', overlap, 'margin:', safeMargin);
                       }
                     }
                   }
@@ -3153,7 +3154,7 @@ const feedbackMessage = async (message, type) => {
   width: 100%;
   max-width: 42rem;
   padding: 16px 20px;
-  padding-bottom: 260px; /* 增加底部内边距，防止被输入框遮挡（加大以适配较高输入区） */
+  padding-bottom: 320px; /* 增加底部内边距，防止被输入框遮挡（加大以适配较高输入区） */
   position: relative;
 }
 .message {
@@ -3637,7 +3638,7 @@ const feedbackMessage = async (message, type) => {
   bottom: 0;
   left: 0;
   right: 0;
-  z-index: 100;
+  z-index: 50;
   background: var(--bg-primary);
   padding: 12px 16px calc(16px + env(safe-area-inset-bottom));
   /* border-top: 1px solid var(--border-light); */
@@ -4053,7 +4054,7 @@ const feedbackMessage = async (message, type) => {
   }
 
   .chat-inner {
-    padding: 12px 12px 220px 12px;
+    padding: 12px 12px 280px 12px;
   }
 
   .user-bubble {
@@ -4095,7 +4096,7 @@ const feedbackMessage = async (message, type) => {
     bottom: 0;
     left: 0;
     right: 0;
-    z-index: 100;
+    z-index: 50;
     background: var(--bg-primary);
     padding: 8px 10px calc(10px + env(safe-area-inset-bottom));
     /* border-top: 1px solid var(--border-light); */
