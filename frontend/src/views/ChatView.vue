@@ -484,9 +484,26 @@
       aria-label="回到底部"
     >
       <!-- 向下箭头：竖线+V形 -->
-      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M12 5L12 17" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
-        <path d="M7 13L12 18L17 13" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <svg
+        width="28"
+        height="28"
+        viewBox="0 0 24 24"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d="M12 5L12 17"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-linecap="round"
+        />
+        <path
+          d="M7 13L12 18L17 13"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
       </svg>
     </button>
 
@@ -3214,12 +3231,16 @@ const feedbackMessage = async (message, type) => {
 /* SVG箭头样式 */
 .scroll-to-bottom svg {
   display: block;
-  width: 32px !important;
-  height: 32px !important;
+  width: 30px !important;
+  height: 30px !important;
+  min-width: 30px !important;
+  min-height: 30px !important;
+  max-width: 30px !important;
+  max-height: 30px !important;
 }
 
 .scroll-to-bottom svg path {
-  stroke-width: 3 !important;
+  stroke-width: 2.5 !important;
 }
 
 .scroll-to-bottom:hover {
@@ -3960,12 +3981,14 @@ const feedbackMessage = async (message, type) => {
   }
 
   .scroll-to-bottom svg {
-    width: 28px !important;
-    height: 28px !important;
+    width: 26px !important;
+    height: 26px !important;
+    min-width: 26px !important;
+    min-height: 26px !important;
   }
-  
+
   .scroll-to-bottom svg path {
-    stroke-width: 2.8 !important;
+    stroke-width: 2.5 !important;
   }
 }
 
