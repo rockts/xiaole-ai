@@ -3168,7 +3168,7 @@ const feedbackMessage = async (message, type) => {
   width: 100%;
   max-width: 42rem;
   padding: 16px 20px;
-  padding-bottom: 400px; /* 增加底部内边距，防止被输入框遮挡（加大以适配较高输入区） */
+  padding-bottom: 20px; /* 减少底部内边距,依靠.message:last-child的padding */
   position: relative;
 }
 .message {
@@ -4073,12 +4073,12 @@ const feedbackMessage = async (message, type) => {
   }
 
   .chat-inner {
-    padding: 12px 12px 200px 12px; /* 减小到200px，配合滚动逻辑处理 */
+    padding: 12px; /* 移除底部padding,依靠.message:last-child的padding */
   }
 
   /* 移动端最后一条消息添加额外底部空间，确保工具栏可见 */
   .message:last-child {
-    padding-bottom: 120px !important;
+    padding-bottom: 150px !important; /* 增加到150px,确保工具栏和输入框之间有足够空间 */
   }
 
   .user-bubble {
