@@ -74,14 +74,18 @@
                   min-width: 80px;
                 "
               >
-                <div class="thinking-dot"></div>
+                <div class="thinking-dots">
+                  <div class="thinking-dot"></div>
+                  <div class="thinking-dot"></div>
+                  <div class="thinking-dot"></div>
+                </div>
                 <span
                   style="
-                    margin-left: 8px;
+                    margin-left: 12px;
                     color: var(--text-secondary);
                     font-size: 13px;
                   "
-                  >思考中</span
+                  >思考中...</span
                 >
               </div>
             </template>
@@ -3747,27 +3751,41 @@ const feedbackMessage = async (message, type) => {
   visibility: visible !important;
   opacity: 1 !important;
 }
+.thinking-dots {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .thinking-dot {
-  width: 16px !important;
-  height: 16px !important;
+  width: 8px !important;
+  height: 8px !important;
   border-radius: 50%;
   background: #3b82f6 !important;
-  box-shadow: 0 0 12px #3b82f6 !important;
-  animation: thinkingPulse 0.8s ease-in-out infinite !important;
+  animation: thinkingBounce 1.4s ease-in-out infinite !important;
   flex-shrink: 0;
 }
-@keyframes thinkingPulse {
-  0% {
-    transform: scale(0.7);
-    opacity: 0.5;
+
+.thinking-dot:nth-child(1) {
+  animation-delay: 0s !important;
+}
+
+.thinking-dot:nth-child(2) {
+  animation-delay: 0.2s !important;
+}
+
+.thinking-dot:nth-child(3) {
+  animation-delay: 0.4s !important;
+}
+
+@keyframes thinkingBounce {
+  0%, 60%, 100% {
+    transform: translateY(0);
+    opacity: 0.7;
   }
-  50% {
-    transform: scale(1.6);
+  30% {
+    transform: translateY(-10px);
     opacity: 1;
-  }
-  100% {
-    transform: scale(0.7);
-    opacity: 0.5;
   }
 }
 .md-content.typing:after {
