@@ -1,14 +1,11 @@
-import face_recognition
-import numpy as np
 import os
 import logging
 import base64
 import requests
 import json
-from datetime import datetime
 from typing import Dict, Any, List, Optional
 from tool_manager import Tool, ToolParameter
-from db_setup import SessionLocal, FaceEncoding
+from backend.face_manager import FaceManager
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +26,7 @@ class VisionTool(Tool):
         ]
         self.qwen_key = os.getenv("QWEN_API_KEY")
         self.claude_key = os.getenv("CLAUDE_API_KEY")
+        self.face_manager = FaceManager()
 
     def _resolve_path(self, image_path: str) -> Optional[str]:
         """Resolve image path relative to backend or project root"""
@@ -57,7 +55,7 @@ class VisionTool(Tool):
     def analyze_image(self, image_path: str, prompt: str = None, prefer_model: str = "auto") -> Dict[str, Any]:
         """
         Analyze image content using hybrid approach:
-        1. Use face_recognition to identify known people
+        1. Use FaceManager to identify known people
         2. Use Vision LLM (Qwen-VL/Claude) for general scene description
         """
         try:
@@ -68,58 +66,59 @@ class VisionTool(Tool):
             if not full_path:
                 return {"success": False, "error": f"Image file not found: {image_path}"}
 
-            # Step 1: Face Recognition
+            # Step 1: Face Recognition using FaceManager
             face_info = ""
+            face_details: List[Dict[str, Any]] = []
             try:
-                # Load image
-                image = face_recognition.load_image_file(full_path)
-                # Detect faces
-                face_locations = face_recognition.face_locations(image)
+                # Use FaceManager to recognize faces
+                recognition_result = self.face_manager.recognize_faces(
+                    full_path)
 
-                if len(face_locations) > 0:
-                    face_encodings = face_recognition.face_encodings(
-                        image, face_locations)
+                if recognition_result['success']:
+                    identified_people = recognition_result['identified_people']
+                    face_count = recognition_result['face_count']
+                    face_details = recognition_result.get('faces', [])
 
-                    # Load known faces from DB
-                    db = SessionLocal()
-                    known_face_encodings = []
-                    known_face_names = []
+                    # threshold for announcing identities - 提高到0.75
                     try:
-                        known_faces = db.query(FaceEncoding).all()
-                        for face in known_faces:
-                            if face.encoding:
-                                known_face_encodings.append(
-                                    np.array(face.encoding))
-                                known_face_names.append(face.name)
-                    finally:
-                        db.close()
+                        announce_threshold = float(
+                            os.getenv("FACE_ANNOUNCE_THRESHOLD", "0.75"))
+                    except Exception:
+                        announce_threshold = 0.75
 
-                    identified_people = []
-                    if known_face_encodings:
-                        for face_encoding in face_encodings:
-                            matches = face_recognition.compare_faces(
-                                known_face_encodings, face_encoding, tolerance=0.6)
-                            name = "未知人物"
-
-                            face_distances = face_recognition.face_distance(
-                                known_face_encodings, face_encoding)
-                            if len(face_distances) > 0:
-                                best_match_index = np.argmin(face_distances)
-                                if matches[best_match_index]:
-                                    name = known_face_names[best_match_index]
-
-                            identified_people.append(name)
-                    else:
-                        identified_people = ["未知人物"] * len(face_locations)
-
-                    # Filter out unknown people to avoid noise if desired, or keep them
+                    # Filter out unknown people
                     known_people = [
                         p for p in identified_people if p != "未知人物"]
 
                     if known_people:
-                        face_info = f"【人脸识别结果】图中发现了以下熟人：{', '.join(known_people)}。\n"
+                        # If low confidence, ask for confirmation
+                        low_conf = any(
+                            (d.get('name') in known_people and (
+                                d.get('confidence') or 0) < announce_threshold)
+                            for d in face_details
+                        )
+                        if low_conf:
+                            # 低置信度时明确要求确认，不直接断言身份
+                            conf_vals = [
+                                f"{d.get('name')}({d.get('confidence', 0):.2f})"
+                                for d in face_details
+                                if d.get('name') in known_people
+                            ]
+                            face_info = (
+                                f"【人脸识别】检测到可能的匹配：{', '.join(conf_vals)}。"
+                                f"置信度较低，**请确认身份后再告诉我这是谁**，避免记录错误。\n"
+                            )
+                        else:
+                            face_info = f"【人脸识别结果】图中发现了以下熟人：{', '.join(known_people)}。\n"
+                    elif face_count > 0:
+                        face_info = f"【人脸识别结果】图中发现了 {face_count} 个人，但未识别出具体身份。\n"
                     else:
-                        face_info = f"【人脸识别结果】图中发现了 {len(face_locations)} 个人，但未识别出具体身份。\n"
+                        # No faces found
+                        pass
+                else:
+                    logger.warning(
+                        f"Face recognition warning: {recognition_result.get('error')}")
+                    face_info = "【人脸识别】人脸检测过程中出现错误，跳过此步骤。\n"
 
             except Exception as e:
                 logger.error(f"Face recognition failed: {e}")
@@ -139,7 +138,9 @@ class VisionTool(Tool):
                 }
 
             if not llm_result.get("success"):
-                return llm_result
+                # 模型不可用时，仍返回人脸识别结果，描述为空
+                llm_result = {"success": False,
+                              "description": "", "model": "unavailable"}
 
             # Combine results
             final_description = face_info + "\n" + \
@@ -149,7 +150,8 @@ class VisionTool(Tool):
                 "success": True,
                 "description": final_description.strip(),
                 "model": llm_result.get("model", "unknown"),
-                "face_info": face_info
+                "face_info": face_info,
+                "face_details": face_details
             }
 
         except Exception as e:
@@ -367,6 +369,7 @@ class RegisterFaceTool(Tool):
                 required=True
             )
         ]
+        self.face_manager = FaceManager()
 
     def _resolve_path(self, image_path: str) -> Optional[str]:
         """Resolve image path relative to backend or project root"""
@@ -396,64 +399,18 @@ class RegisterFaceTool(Tool):
         try:
             full_path = self._resolve_path(image_path)
             if not full_path:
-                return {"success": False, "error": f"Image file not found: {image_path}"}
+                return {
+                    "success": False,
+                    "error": f"Image file not found: {image_path}"
+                }
 
             logger.info(
                 f"👤 Registering face for '{person_name}' from {full_path}")
 
-            # Load image
-            image = face_recognition.load_image_file(full_path)
+            # Use FaceManager to register face
+            result = self.face_manager.register_face(full_path, person_name)
 
-            # Detect faces
-            face_locations = face_recognition.face_locations(image)
-
-            if len(face_locations) == 0:
-                return {
-                    "success": False,
-                    "error": "No faces detected in the image. Please provide a clear photo of the person."
-                }
-
-            if len(face_locations) > 1:
-                return {
-                    "success": False,
-                    "error": f"Found {len(face_locations)} faces. Please provide a photo with only one person to avoid ambiguity."
-                }
-
-            # Get encoding
-            face_encodings = face_recognition.face_encodings(
-                image, face_locations)
-            if not face_encodings:
-                return {
-                    "success": False,
-                    "error": "Could not generate face encoding. The face might be too small or unclear."
-                }
-
-            new_encoding = face_encodings[0].tolist()
-
-            # Save to DB
-            db = SessionLocal()
-            try:
-                # Check if name already exists, if so, update/add new encoding?
-                # For simplicity, we just add a new record.
-                # Ideally we might want to merge or check duplicates, but multiple encodings for same name is fine (improves accuracy).
-
-                face_record = FaceEncoding(
-                    name=person_name,
-                    encoding=new_encoding,
-                    created_at=datetime.now()
-                )
-                db.add(face_record)
-                db.commit()
-
-                return {
-                    "success": True,
-                    "result": f"Successfully registered face for '{person_name}'."
-                }
-            except Exception as e:
-                db.rollback()
-                return {"success": False, "error": f"Database error: {str(e)}"}
-            finally:
-                db.close()
+            return result
 
         except Exception as e:
             logger.error(f"RegisterFaceTool error: {e}", exc_info=True)

@@ -57,6 +57,15 @@ class ConflictDetector:
                 r'(?:我在|住在|来自)(.{2,20}?)(?:[，。！]|$)',
                 r'(?:家在|老家是)(.{2,20}?)(?:[，。！]|$)',
             ],
+            # 家庭成员扩展：女儿/儿子姓名
+            'daughter_name': [
+                r'(?:女儿|姑娘)[，：: ]*(?:叫|姓名[是为]|名字[是叫为])(.{1,10})',
+                r'女儿姓名[是为:]?(.{1,10})',
+            ],
+            'son_name': [
+                r'儿子[，：: ]*(?:叫|姓名[是为]|名字[是叫为])(.{1,10})',
+                r'儿子姓名[是为:]?(.{1,10})',
+            ],
         }
 
     def extract_key_info(self, text):
@@ -71,6 +80,17 @@ class ConflictDetector:
         """
         extracted = {}
 
+        def _normalize_value(v: str) -> str:
+            # 去掉前导标点与空白
+            v = re.sub(r'^[：:，,\s]+', '', v)
+            # 若出现括号起始但未被完整捕获，直接从括号起截断
+            v = re.split(r'[（(]', v)[0]
+            # 去掉括号内英文别名或补充说明（中/英括号）
+            v = re.sub(r'[（(][^）)]*[）)]', '', v)
+            # 再次清理尾随空白
+            v = v.strip()
+            return v
+
         for info_type, pattern_list in self.patterns.items():
             for pattern in pattern_list:
                 match = re.search(pattern, text)
@@ -80,7 +100,9 @@ class ConflictDetector:
                         month, day = match.groups()
                         extracted[info_type] = f"{month}月{day}日"
                     else:
-                        extracted[info_type] = match.group(1).strip()
+                        extracted[info_type] = _normalize_value(
+                            match.group(1).strip()
+                        )
                     break  # 找到第一个匹配就停止
 
         return extracted
@@ -141,9 +163,11 @@ class ConflictDetector:
                                 'new_value': value,
                                 'old_memory': old_mem.content,
                                 'new_memory': item['content'],
-                                'old_time': old_time.isoformat() if old_time else None,
-                                'new_time': item['created_at'].isoformat() if item['created_at'] else None,
-                                'conflict_detected_at': datetime.now().isoformat()
+                                'old_time': old_time,
+                                'new_time': item['created_at'],
+                                'conflict_detected_at': (
+                                    datetime.now().isoformat()
+                                )
                             })
 
                     # 记录当前值
@@ -197,7 +221,9 @@ class ConflictDetector:
             'age': '年龄',
             'birthday': '生日',
             'gender': '性别',
-            'location': '地址'
+            'location': '地址',
+            'daughter_name': '女儿姓名',
+            'son_name': '儿子姓名',
         }
         return names.get(info_type, info_type)
 
@@ -247,10 +273,18 @@ class ConflictDetector:
 
         report = [
             "="*60,
-            f"⚠️  记忆冲突检测报告",
+            "⚠️  记忆冲突检测报告",
             "="*60,
             f"\n发现 {summary['total_conflicts']} 个冲突：\n"
         ]
+
+        def _fmt_time(t):
+            if not t:
+                return '未知'
+            try:
+                return t.strftime('%Y-%m-%d')
+            except Exception:
+                return str(t)
 
         for i, conflict in enumerate(summary['conflicts'], 1):
             report.append(f"\n【冲突 {i}】{conflict['type_cn']}")
@@ -259,8 +293,10 @@ class ConflictDetector:
             report.append(f"  旧记忆: {conflict['old_memory'][:50]}...")
             report.append(f"  新记忆: {conflict['new_memory'][:50]}...")
             report.append(
-                f"  时间: {conflict['old_time'].strftime('%Y-%m-%d')} "
-                f"→ {conflict['new_time'].strftime('%Y-%m-%d')}"
+                "  时间: "
+                + _fmt_time(conflict['old_time'])
+                + " → "
+                + _fmt_time(conflict['new_time'])
             )
 
         report.append("\n" + "="*60)
@@ -300,3 +336,8 @@ class ConflictDetector:
             'resolved': 0,
             'message': '自动解决功能开发中，请使用 mark_only 策略'
         }
+
+
+if __name__ == '__main__':
+    detector = ConflictDetector()
+    print(detector.generate_conflict_report())

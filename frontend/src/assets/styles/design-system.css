@@ -481,3 +481,26 @@ body {
 .typing-indicator span:nth-child(3) {
     animation-delay: 0.4s;
 }
+
+/* 交互反馈增强 */
+.clickable {
+    cursor: pointer;
+    transition: opacity var(--duration-fast), transform var(--duration-fast);
+}
+
+.clickable:active {
+    opacity: 0.7;
+    transform: scale(0.98);
+}
+
+/* 移动端触摸反馈优化 */
+@media (hover: none) {
+    .btn:active {
+        transform: scale(0.96);
+    }
+
+    .card-hover:active {
+        transform: scale(0.98);
+        background: var(--bg-active);
+    }
+}

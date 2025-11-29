@@ -66,6 +66,7 @@ let autoCloseTimer = null;
 let currentAudio = null; // 存储当前播放的音频对象
 let loopTimer = null; // 循环播放定时器
 let isStopped = false; // 标记是否已停止播放
+let sharedAudioCtx = null; // Shared AudioContext instance
 
 const formatTime = (isoString) => {
   if (!isoString) return "";
@@ -194,7 +195,11 @@ const playFallbackSound = async () => {
         return;
       }
 
-      const ctx = new AudioContext();
+      // Use shared context or create new one
+      if (!sharedAudioCtx) {
+        sharedAudioCtx = new AudioContext();
+      }
+      const ctx = sharedAudioCtx;
 
       // 尝试恢复音频上下文（解决浏览器自动播放策略限制）
       if (ctx.state === "suspended") {
@@ -229,8 +234,18 @@ const playFallbackSound = async () => {
       osc2.start(ctx.currentTime + 0.4);
       osc2.stop(ctx.currentTime + 1.5);
 
-      // 约1.5秒后结束
-      setTimeout(resolve, 1500);
+      // Clean up nodes after they are done to prevent memory leaks
+      setTimeout(() => {
+        try {
+          osc1.disconnect();
+          gain1.disconnect();
+          osc2.disconnect();
+          gain2.disconnect();
+        } catch (e) {
+          // Ignore disconnect errors
+        }
+        resolve();
+      }, 1500);
     } catch (e) {
       console.error("Failed to play sound:", e);
       resolve();
@@ -372,6 +387,10 @@ onUnmounted(() => {
   stopPlayback();
   stopAutoCloseTimer();
   if (removeListener) removeListener();
+  if (sharedAudioCtx) {
+    sharedAudioCtx.close().catch(console.error);
+    sharedAudioCtx = null;
+  }
 });
 </script>
 

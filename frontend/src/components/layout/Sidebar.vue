@@ -196,6 +196,7 @@
 import { ref, computed, onMounted, onUnmounted } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { useChatStore } from "@/stores/chat";
+import api from "@/services/api";
 import { storeToRefs } from "pinia";
 
 const router = useRouter();
@@ -280,23 +281,14 @@ const renameSession = async (id) => {
     return;
   }
   try {
-    const res = await fetch(`/api/chat/sessions/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title: newTitle }),
-    });
-    if (res.ok) {
-      if (session) session.title = newTitle;
-      if (
-        chatStore.sessionInfo &&
-        (chatStore.sessionInfo.id === id ||
-          chatStore.sessionInfo.session_id === id)
-      ) {
-        chatStore.sessionInfo.title = newTitle;
-      }
-    } else {
-      console.error("重命名失败:", await res.text());
-      alert("重命名失败,请重试");
+    await api.updateSession(id, { title: newTitle });
+    if (session) session.title = newTitle;
+    if (
+      chatStore.sessionInfo &&
+      (chatStore.sessionInfo.id === id ||
+        chatStore.sessionInfo.session_id === id)
+    ) {
+      chatStore.sessionInfo.title = newTitle;
     }
   } catch (e) {
     console.error("重命名失败:", e);
@@ -310,19 +302,14 @@ const confirmDelete = async (id) => {
   activeMenuSessionId.value = null;
   if (!window.confirm("删除后不可恢复,确认删除该对话吗?")) return;
   try {
-    const res = await fetch(`/api/chat/sessions/${id}`, { method: "DELETE" });
-    if (res.ok) {
-      const idx = sessions.value.findIndex(
-        (s) => (s.id || s.session_id) === id
-      );
-      if (idx > -1) sessions.value.splice(idx, 1);
-      if (route.params.sessionId == id) router.push("/chat");
-    } else {
-      alert("删除失败,请重试");
-    }
+    await api.deleteSession(id);
+    const idx = sessions.value.findIndex((s) => (s.id || s.session_id) === id);
+    if (idx > -1) sessions.value.splice(idx, 1);
+    if (route.params.sessionId == id) router.push("/chat");
   } catch (e) {
     console.error("删除失败:", e);
-    alert("删除失败,请重试");
+    const errorMsg = e.response?.data?.detail || e.message || "删除失败";
+    alert(`删除失败: ${errorMsg}`);
   }
 };
 

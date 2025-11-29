@@ -8,12 +8,13 @@ import jieba
 import math
 from collections import Counter
 from typing import List, Tuple, Dict
+from logger import logger
 
 
 class SemanticSearchManager:
     def __init__(self):
         """初始化分词器"""
-        print("✅ 初始化轻量级语义搜索")
+        logger.info("✅ 初始化轻量级语义搜索")
         jieba.setLogLevel(jieba.logging.INFO)
         # 添加自定义词典（常见停用词）
         self.stopwords = set([
@@ -21,6 +22,10 @@ class SemanticSearchManager:
             '不', '人', '都', '一', '你', '他', '她', '它', '吗',
             '啊', '呢', '吧', '么', '什么', '这', '那', '这个'
         ])
+
+    def add_memory(self, memory_id: int, content: str, tag: str):
+        """添加记忆到索引 (轻量级版本无需持久化索引，此方法为空)"""
+        pass
 
     def tokenize(self, text: str) -> List[str]:
         """分词并过滤停用词"""

@@ -16,7 +16,23 @@
     </header>
 
     <div v-if="error" class="error-message">
-      {{ error }}
+      <div class="empty-state">
+        <svg
+          width="64"
+          height="64"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+        >
+          <path
+            d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"
+          ></path>
+        </svg>
+        <h3>暂无行为数据</h3>
+        <p>开始与小乐对话后，系统会自动记录和分析你的使用行为</p>
+        <router-link to="/chat" class="start-chat-btn">开始对话</router-link>
+      </div>
     </div>
 
     <div v-else-if="loading && !report" class="loading-state">
@@ -30,26 +46,28 @@
         <div class="stat-card">
           <div class="stat-label">总会话数</div>
           <div class="stat-value">
-            {{ report.conversation_stats.total_sessions }}
+            {{ report.conversation_stats?.total_sessions || 0 }}
           </div>
         </div>
         <div class="stat-card">
           <div class="stat-label">总消息数</div>
           <div class="stat-value">
-            {{ report.conversation_stats.total_messages }}
+            {{ report.conversation_stats?.total_messages || 0 }}
           </div>
         </div>
         <div class="stat-card">
           <div class="stat-label">平均对话时长</div>
           <div class="stat-value">
-            {{ report.conversation_stats.avg_duration_per_session_minutes }}
+            {{
+              report.conversation_stats?.avg_duration_per_session_minutes || 0
+            }}
             <span class="unit">分钟</span>
           </div>
         </div>
         <div class="stat-card">
           <div class="stat-label">平均消息长度</div>
           <div class="stat-value">
-            {{ report.conversation_stats.avg_message_length }}
+            {{ report.conversation_stats?.avg_message_length || 0 }}
             <span class="unit">字</span>
           </div>
         </div>
@@ -81,13 +99,13 @@
             <div class="summary-item">
               <span class="label">最活跃时段</span>
               <span class="value"
-                >{{ report.activity_pattern.most_active_hour }}点</span
+                >{{ report.activity_pattern?.most_active_hour || "-" }}点</span
               >
             </div>
             <div class="summary-item">
               <span class="label">最活跃日子</span>
               <span class="value">{{
-                report.activity_pattern.most_active_day
+                report.activity_pattern?.most_active_day || "-"
               }}</span>
             </div>
           </div>
@@ -99,7 +117,7 @@
         <h2>话题偏好</h2>
         <div class="topics-cloud">
           <div
-            v-for="(topic, index) in report.topic_preferences.top_topics"
+            v-for="(topic, index) in report.topic_preferences?.top_topics || []"
             :key="index"
             class="topic-tag"
             :style="{
@@ -112,7 +130,7 @@
           </div>
         </div>
         <div
-          v-if="report.topic_preferences.top_topics.length === 0"
+          v-if="!report.topic_preferences?.top_topics?.length"
           class="empty-topics"
         >
           暂无足够的话题数据
@@ -124,7 +142,7 @@
 
 <script setup>
 import { ref, onMounted, computed } from "vue";
-import axios from "axios";
+import api from "@/services/api";
 
 const days = ref(30);
 const loading = ref(false);
@@ -173,9 +191,8 @@ const fetchData = async () => {
   loading.value = true;
   error.value = null;
   try {
-    // 使用相对路径，通过 Vite 代理转发
-    const response = await axios.get(`/analytics/behavior?days=${days.value}`);
-    report.value = response.data;
+    const response = await api.getBehaviorAnalytics(days.value);
+    report.value = response;
   } catch (err) {
     console.error("Failed to fetch behavior data:", err);
     error.value = "无法加载行为分析数据，请稍后再试。";

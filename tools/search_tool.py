@@ -6,10 +6,17 @@ v0.6.1: 升级到ddgs包,改进搜索稳定性
 v0.6.2: 添加代理支持和超时优化
 """
 from tool_manager import Tool, ToolParameter
-from ddgs import DDGS  # v0.6.1: 使用新的ddgs包
+try:
+    from duckduckgo_search import DDGS
+except ImportError:
+    try:
+        from ddgs import DDGS
+    except ImportError:
+        DDGS = None
 import asyncio
 import time
 import os
+import requests  # v0.6.4: Bing Search fallback
 from typing import List, Dict, Optional
 
 
@@ -70,8 +77,13 @@ class SearchTool(Tool):
         self.proxy = os.getenv('HTTP_PROXY') or os.getenv('HTTPS_PROXY')
         self.timeout = 15  # 每次搜索超时时间（秒）
 
+        # === v0.6.4 新增：Bing Search 备用源 ===
+        self.bing_api_key = os.getenv('BING_SEARCH_API_KEY')
+
         if self.proxy:
             print(f"✅ 搜索工具已启用代理: {self.proxy}")
+        if self.bing_api_key:
+            print("✅ 搜索工具已启用 Bing Search 备用源")
 
     async def execute(self, **kwargs) -> Dict:
         """
@@ -404,8 +416,80 @@ class SearchTool(Tool):
         except Exception as e:
             print(f"⚠️  策略3失败: {str(e)[:100]}")
 
+        # 策略4: Bing Search (备用源)
+        if self.bing_api_key:
+            time.sleep(1)
+            bing_results = self._search_bing(query, max_results)
+            if bing_results:
+                return bing_results
+
         print("❌ 所有搜索策略均失败")
         return []
+
+    def _search_bing(self, query: str, max_results: int = 5) -> List[Dict]:
+        """
+        使用 Bing Search API 进行搜索 (备用源)
+
+        Args:
+            query: 搜索关键词
+            max_results: 最大结果数
+
+        Returns:
+            List[Dict]: 搜索结果列表
+        """
+        if not self.bing_api_key:
+            return []
+
+        try:
+            print(f"🔍 尝试 Bing Search: {query}")
+            endpoint = "https://api.bing.microsoft.com/v7.0/search"
+            headers = {"Ocp-Apim-Subscription-Key": self.bing_api_key}
+            params = {
+                "q": query,
+                "count": max_results,
+                "mkt": "zh-CN"
+            }
+
+            # 如果配置了代理，Bing API 请求也应该走代理吗？
+            # 通常 Bing API 是 HTTPS，如果网络环境受限，可能需要代理。
+            # 但如果是国内直连 Bing API 可能没问题。
+            # 这里为了稳妥，如果配置了代理，尝试使用代理。
+            proxies = None
+            if self.proxy:
+                proxies = {
+                    'http': self.proxy,
+                    'https': self.proxy
+                }
+
+            response = requests.get(
+                endpoint,
+                headers=headers,
+                params=params,
+                proxies=proxies,
+                timeout=10
+            )
+            response.raise_for_status()
+            data = response.json()
+
+            results = []
+            if "webPages" in data and "value" in data["webPages"]:
+                for item in data["webPages"]["value"]:
+                    results.append({
+                        "title": item.get("name"),
+                        "body": item.get("snippet"),
+                        "href": item.get("url")
+                    })
+
+            if results:
+                print(f"✅ Bing Search 找到 {len(results)} 条结果")
+                return results
+            else:
+                print("⚠️ Bing Search 返回空结果")
+                return []
+
+        except Exception as e:
+            print(f"⚠️ Bing Search 失败: {e}")
+            return []
 
     def _format_results(self, results: List[Dict]) -> str:
         """

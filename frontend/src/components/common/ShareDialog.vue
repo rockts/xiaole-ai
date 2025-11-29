@@ -41,13 +41,26 @@
 
             <!-- 摘要式布局 -->
             <div class="summary-content">
-              <div v-for="(msg, index) in previewMessages" :key="index" class="message-row" :class="msg.role">
+              <div
+                v-for="(msg, index) in previewMessages"
+                :key="index"
+                class="message-row"
+                :class="msg.role"
+              >
                 <!-- 用户消息 -->
                 <div v-if="msg.role === 'user'" class="user-message">
                   <div class="message-bubble">
-                    <div v-if="msg.content" class="message-text" v-html="renderMarkdown(msg.content)"></div>
+                    <div
+                      v-if="msg.content"
+                      class="message-text"
+                      v-html="renderMarkdown(msg.content)"
+                    ></div>
                     <div v-if="msg.image" class="message-image-wrapper">
-                      <img :src="msg.image" class="message-image" crossorigin="anonymous" />
+                      <img
+                        :src="msg.image"
+                        class="message-image"
+                        crossorigin="anonymous"
+                      />
                     </div>
                   </div>
                 </div>
@@ -55,16 +68,31 @@
                 <!-- AI 消息 -->
                 <div v-else class="ai-message">
                   <div class="ai-avatar">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <svg
+                      width="20"
+                      height="20"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
                       <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
                       <polyline points="22 4 12 14.01 9 11.01"></polyline>
                     </svg>
                   </div>
                   <div class="message-content">
                     <div class="ai-name">XiaoLe AI</div>
-                    <div v-if="msg.content" class="message-text" v-html="renderMarkdown(msg.content)"></div>
+                    <div
+                      v-if="msg.content"
+                      class="message-text"
+                      v-html="renderMarkdown(msg.content)"
+                    ></div>
                     <div v-if="msg.image" class="message-image-wrapper">
-                      <img :src="msg.image" class="message-image" crossorigin="anonymous" />
+                      <img
+                        :src="msg.image"
+                        class="message-image"
+                        crossorigin="anonymous"
+                      />
                     </div>
                   </div>
                 </div>
@@ -156,6 +184,7 @@
 <script setup>
 import { ref, onMounted } from "vue";
 import { marked } from "marked";
+import api from "@/services/api";
 
 const emit = defineEmits(["close"]);
 const props = defineProps({
@@ -267,11 +296,8 @@ onMounted(async () => {
     console.log("提取的会话ID:", id);
 
     // 拉取会话最近消息以构建预览
-    const resp = await fetch(`/session/${id}`);
-    console.log("会话数据响应状态:", resp.status);
-
-    if (resp.ok) {
-      const data = await resp.json();
+    try {
+      const data = await api.getSession(id);
       const list = (data.messages || data.history || []).slice(-5);
       console.log("获取到的消息数量:", list.length);
 
@@ -318,8 +344,8 @@ onMounted(async () => {
       } else {
         console.log("使用服务端预览图");
       }
-    } else {
-      console.log("会话数据获取失败，直接使用前端截图");
+    } catch (err) {
+      console.log("会话数据获取失败，直接使用前端截图", err);
       await htmlToImagePreview();
     }
   } catch (err) {
@@ -571,6 +597,30 @@ onMounted(async () => {
   margin-top: 0;
   flex-shrink: 0;
 }
+
+@media (max-width: 640px) {
+  .share-actions {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    padding: 16px;
+  }
+
+  .action-btn {
+    width: 100%;
+  }
+
+  .icon-circle {
+    width: 44px;
+    height: 44px;
+    margin: 0 auto;
+  }
+
+  .action-label {
+    font-size: 11px;
+  }
+}
+
 .action-btn {
   display: flex;
   flex-direction: column;

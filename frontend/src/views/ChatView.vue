@@ -1,6 +1,7 @@
 <template>
   <div
     class="chat-view"
+    ref="chatViewRoot"
     :class="{ empty: isEmptyChat }"
     @dragover.prevent
     @dragenter.prevent="handleDragEnter"
@@ -47,11 +48,13 @@
           v-for="(message, idx) in messages"
           :key="message.id"
           class="message"
+          :data-msg-id="message.id"
           :class="[
             message.role,
             {
               'new-group':
                 idx === 0 || messages[idx - 1]?.role !== message.role,
+              'thinking-message': message.status === 'thinking',
             },
           ]"
         >
@@ -65,7 +68,12 @@
           <template v-if="message.role === 'assistant'">
             <template v-if="message.status === 'thinking'">
               <div class="thinking-wrapper">
-                <div class="thinking-dot"></div>
+                <div class="thinking-animation">
+                  <div class="thinking-dot"></div>
+                  <div class="thinking-dot"></div>
+                  <div class="thinking-dot"></div>
+                </div>
+                <span class="thinking-label">思考中</span>
               </div>
             </template>
             <template v-else>
@@ -127,6 +135,31 @@
                   :class="{ typing: message.status === 'typing' }"
                   v-html="renderMarkdown(getDisplayContent(message))"
                 ></div>
+
+                <div
+                  v-if="message.status === 'typing'"
+                  class="typing-indicator"
+                  aria-live="polite"
+                >
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </div>
+                <!-- Fallback for empty content when done -->
+                <div
+                  v-if="
+                    message.status === 'done' &&
+                    !getDisplayContent(message) &&
+                    !message.image_path
+                  "
+                  style="
+                    color: var(--text-tertiary);
+                    font-style: italic;
+                    font-size: 13px;
+                  "
+                >
+                  (无内容)
+                </div>
 
                 <!-- 相关阅读卡片 -->
                 <div v-if="hasRelatedReadings(message)" class="related-reading">
@@ -466,17 +499,27 @@
       @click="scrollToBottomSmooth"
       aria-label="回到底部"
     >
+      <!-- 向下箭头：竖线+V形 -->
       <svg
-        class="scroll-icon"
+        width="28"
+        height="28"
         viewBox="0 0 24 24"
         fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"
+        xmlns="http://www.w3.org/2000/svg"
       >
-        <line x1="12" y1="6" x2="12" y2="16" />
-        <polyline points="8 12 12 16 16 12" />
+        <path
+          d="M12 5L12 17"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-linecap="round"
+        />
+        <path
+          d="M7 13L12 18L17 13"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
       </svg>
     </button>
 
@@ -518,7 +561,8 @@
             <line x1="5" y1="12" x2="19" y2="12"></line>
           </svg>
         </button>
-        <div class="divider"></div>
+        <!-- divider removed to avoid horizontal lines -->
+        <!-- <div class="divider"></div> -->
         <button
           class="control-btn close-btn"
           @click="closeImagePreview"
@@ -754,22 +798,25 @@
           <button
             class="icon-btn voice-mode-btn"
             :class="{
-              active: isVoiceMode && buttonMode === 'voice-mode',
-              'send-mode': buttonMode === 'send',
-              'stop-mode': buttonMode === 'stop',
+              active: isVoiceMode && effectiveButtonMode === 'voice-mode',
+              'send-mode': effectiveButtonMode === 'send',
+              'stop-mode': effectiveButtonMode === 'stop',
             }"
             @click="handleMainButton"
+            :disabled="
+              isMobile && effectiveButtonMode === 'send' && !hasInputContent
+            "
             :title="
-              buttonMode === 'send'
+              effectiveButtonMode === 'send'
                 ? '发送消息'
-                : buttonMode === 'stop'
+                : effectiveButtonMode === 'stop'
                 ? '停止生成'
                 : '语音模式'
             "
           >
             <!-- 发送图标 (向上箭头) -->
             <svg
-              v-if="buttonMode === 'send'"
+              v-if="effectiveButtonMode === 'send'"
               width="24"
               height="24"
               viewBox="0 0 24 24"
@@ -785,7 +832,7 @@
 
             <!-- 停止图标 -->
             <svg
-              v-else-if="buttonMode === 'stop'"
+              v-else-if="effectiveButtonMode === 'stop'"
               width="20"
               height="20"
               viewBox="0 0 24 24"
@@ -949,6 +996,7 @@ import { marked } from "marked";
 import markedKatex from "marked-katex-extension";
 import hljs from "highlight.js";
 import "katex/dist/katex.min.css";
+import api from "@/services/api";
 
 import ShareDialog from "@/components/common/ShareDialog.vue";
 import VoiceModeDialog from "@/components/voice/VoiceModeDialog.vue";
@@ -962,7 +1010,9 @@ const isEmptyChat = computed(
 );
 
 const messageInput = ref(null);
+const isMobile = ref(window.innerWidth <= 768);
 const chatContainer = ref(null);
+const chatViewRoot = ref(null);
 const fileInput = ref(null);
 const voiceModeDialogRef = ref(null); // VoiceMode 对话框引用
 const isRecording = ref(false);
@@ -1009,6 +1059,8 @@ const inputContent = ref("");
 const shouldScrollToBottom = ref(false); // 标志位：是否需要滚动到底部
 const isLoadingSession = ref(true); // 初始就设置为 true，默认隐藏
 let currentSpeech = null;
+let autoStickRaf = null;
+let loadingTimeout = null; // 加载超时定时器
 
 // 反馈相关状态
 const showFeedbackDialog = ref(false);
@@ -1034,6 +1086,14 @@ const buttonMode = computed(() => {
   if (isTyping.value) return "stop";
   if (hasInputContent.value) return "send";
   return "voice-mode";
+});
+
+// 移动端强制为发送/停止模式（无输入时禁用发送按钮）
+const effectiveButtonMode = computed(() => {
+  if (isMobile.value) {
+    return isTyping.value ? "stop" : "send";
+  }
+  return buttonMode.value;
 });
 
 // 随机选择问候语
@@ -1130,22 +1190,41 @@ const sessionId = computed(() => route.params.sessionId);
 watch(
   sessionId,
   async (newId) => {
+    // 清除之前的超时
+    if (loadingTimeout) {
+      clearTimeout(loadingTimeout);
+    }
+
     if (newId) {
       isLoadingSession.value = true;
-      await chatStore.loadSession(newId);
-      // 立即设置滚动位置（在渲染前）
-      await nextTick();
-      await nextTick();
-      // 使用 requestAnimationFrame 确保在浏览器绘制前完成
-      requestAnimationFrame(() => {
-        if (chatContainer.value) {
-          chatContainer.value.scrollTop = chatContainer.value.scrollHeight;
-        }
-        // 立即显示，因为滚动已经在绘制前完成
+
+      // 设置3秒超时保护(缩短超时时间)
+      loadingTimeout = setTimeout(() => {
+        console.warn("⚠️ 会话加载超时,强制停止加载动画");
+        isLoadingSession.value = false;
+      }, 3000);
+
+      try {
+        await chatStore.loadSession(newId);
+        console.log("✅ loadSession 完成,准备显示UI");
+
+        // 先停止加载动画
+        clearTimeout(loadingTimeout);
+        isLoadingSession.value = false;
+
+        // 然后设置滚动位置
+        await nextTick();
         requestAnimationFrame(() => {
-          isLoadingSession.value = false;
+          if (chatContainer.value) {
+            chatContainer.value.scrollTop = chatContainer.value.scrollHeight;
+            console.log("📍 滚动到底部完成");
+          }
         });
-      });
+      } catch (error) {
+        console.error("加载会话失败:", error);
+        clearTimeout(loadingTimeout);
+        isLoadingSession.value = false;
+      }
     } else {
       chatStore.clearCurrentSession();
       isLoadingSession.value = false;
@@ -1154,24 +1233,123 @@ watch(
   { immediate: true }
 );
 
+// 是否接近底部
+const isNearBottom = () => {
+  const el = chatContainer.value;
+  if (!el) return true;
+  return el.scrollHeight - el.scrollTop - el.clientHeight < 140;
+};
+
+// 立即粘到底部（无平滑动画，避免频繁重绘卡顿）
+const stickToBottomImmediate = () => {
+  const el = chatContainer.value;
+  if (!el) return;
+  el.scrollTop = el.scrollHeight;
+};
+
+// 在 AI 打字期间，使用 rAF 持续粘底（仅在接近底部时）
+const startAutoStick = () => {
+  if (autoStickRaf) return;
+  const step = () => {
+    if (chatContainer.value && isNearBottom()) {
+      stickToBottomImmediate();
+    }
+    autoStickRaf = requestAnimationFrame(step);
+  };
+  autoStickRaf = requestAnimationFrame(step);
+};
+
+const stopAutoStick = () => {
+  if (autoStickRaf) cancelAnimationFrame(autoStickRaf);
+  autoStickRaf = null;
+};
+
 watch(
   messages,
   () => {
     // 如果正在加载会话，不触发自动滚动（由 loadSession 负责初始定位）
     if (isLoadingSession.value) return;
 
+    const lastMsg = messages.value[messages.value.length - 1];
+    if (lastMsg) {
+      console.log(
+        "📨 Messages updated. Last message status:",
+        lastMsg.status,
+        "Role:",
+        lastMsg.role
+      );
+      // 打印最近 5 条消息的简要信息，帮助排查渲染/内容问题
+      try {
+        const lastFive = messages.value.slice(-5).map((m) => ({
+          id: m.id,
+          role: m.role,
+          status: m.status,
+          len: (m.content || "").length,
+          preview: (m.content || "").slice(0, 80),
+        }));
+        console.log("📋 Last 5 messages summary:", lastFive);
+      } catch (e) {}
+    }
+
     nextTick(() => {
       // 只在用户发送消息后或 AI 正在打字时才滚动
       if (shouldScrollToBottom.value || isTyping.value) {
-        setTimeout(() => {
-          scrollToBottom();
-          // AI 打字过程中持续滚动到底部
-          if (isTyping.value) {
-            shouldScrollToBottom.value = true;
-          } else {
-            shouldScrollToBottom.value = false;
+        // 对于流式生成，用即时粘底减少抖动
+        stickToBottomImmediate();
+        // 双重保险：确保渲染完成后再次滚动，防止内容撑开导致未到底
+        setTimeout(stickToBottomImmediate, 50);
+        shouldScrollToBottom.value = !!isTyping.value;
+        // 额外补偿：如果输入框覆盖了底部消息，向上偏移一个输入框高度
+        try {
+          const inputEl = document.querySelector(".input-container");
+          const container = chatContainer.value;
+          if (inputEl && container) {
+            const inputH = inputEl.getBoundingClientRect().height || 0;
+            // 在下一帧再次调整，确保元素渲染完成
+            requestAnimationFrame(() => {
+              const maxScrollTop =
+                container.scrollHeight - container.clientHeight;
+              const desired = Math.max(
+                0,
+                Math.min(
+                  maxScrollTop,
+                  container.scrollHeight - container.clientHeight + inputH + 8
+                )
+              );
+              container.scrollTop = desired;
+
+              // 进一步确保最后消息元素完全可见（避免思考气泡出现在输入框后面）
+              try {
+                const lastMsg = messages.value[messages.value.length - 1];
+                if (lastMsg && lastMsg.id) {
+                  const msgEl = container.querySelector(
+                    `[data-msg-id="${lastMsg.id}"]`
+                  );
+                  if (msgEl) {
+                    const msgRect = msgEl.getBoundingClientRect();
+                    const containerRect = container.getBoundingClientRect();
+                    const safeMargin = 180; // 安全边距：确保消息底部距离输入框顶部至少180px
+                    const overlap =
+                      msgRect.bottom -
+                      (containerRect.bottom - inputH - safeMargin);
+                    if (overlap > 0) {
+                      // 向上滚动 overlap，确保消息底部位于输入框上方足够距离处
+                      container.scrollTop += overlap + safeMargin;
+                      console.log(
+                        "🔧 Adjusted scroll to keep last message above input, overlap:",
+                        overlap,
+                        "margin:",
+                        safeMargin
+                      );
+                    }
+                  }
+                }
+              } catch (e) {
+                console.error("Error ensuring last message visibility", e);
+              }
+            });
           }
-        }, 50); // 减少延迟，更快响应
+        } catch (e) {}
       }
     });
   },
@@ -1180,6 +1358,10 @@ watch(
 
 // 监听 AI 打字状态，用于语音模式自动朗读
 watch(isTyping, (newVal, oldVal) => {
+  // 流式期间启用 rAF 粘底
+  if (newVal) startAutoStick();
+  else stopAutoStick();
+
   if (oldVal && !newVal && isVoiceMode.value) {
     // AI 停止打字，且处于语音模式
     const lastMessage = messages.value[messages.value.length - 1];
@@ -1236,35 +1418,22 @@ async function speakAndResumeMic(text) {
   const clean = cleanTtsText(text);
   try {
     console.log("🔊 开始请求 TTS API...");
-    const resp = await fetch("/api/voice/synthesize", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        text: clean,
-        person,
-        speed: 7,
-        pitch: 4,
-        volume: 3,
-        audio_format: "mp3",
-      }),
+    const data = await api.synthesizeVoice(clean, {
+      person,
+      speed: 7,
+      pitch: 4,
+      volume: 3,
+      audio_format: "mp3",
     });
-    console.log("🔊 TTS API 响应状态:", resp.status);
-    if (!resp.ok) {
-      const errorText = await resp.text();
-      console.error("🔊 TTS API 错误响应(HTTP层):", errorText);
-      throw new Error("TTS 请求失败: " + resp.status);
-    }
-    const data = await resp.json();
+
     const base64Audio = data.audio_base64 || data.audio; // 兼容旧字段
     const mimeType = data.mime || data.mime_type;
     console.log("🔊 TTS 响应数据解析:", {
-      success: data.success,
       hasAudio: !!base64Audio,
       mimeType,
       len: base64Audio?.length,
       raw: data,
     });
-    if (!data.success) throw new Error(data.error || "语音合成失败");
     if (!base64Audio || !mimeType) throw new Error("TTS 响应无音频");
     const audio = new Audio(`data:${mimeType};base64,${base64Audio}`);
     audio.onplay = () => {
@@ -1453,23 +1622,15 @@ const toggleSpeak = async (message) => {
     const voiceId = localStorage.getItem("selectedVoice") || "juniper";
     const person = getPersonFromVoiceId(voiceId);
     const clean = cleanTtsText(message.content);
-    const resp = await fetch("/api/voice/synthesize", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        text: clean,
-        person,
-        speed: 7,
-        pitch: 4,
-        volume: 3,
-        audio_format: "mp3",
-      }),
+    const data = await api.synthesizeVoice(clean, {
+      person,
+      speed: 7,
+      pitch: 4,
+      volume: 3,
+      audio_format: "mp3",
     });
-    if (!resp.ok) throw new Error("TTS 请求失败");
-    const data = await resp.json();
     const base64Audio = data.audio_base64 || data.audio;
     const mimeType = data.mime || data.mime_type;
-    if (!data.success) throw new Error(data.error || "语音合成失败");
     if (!base64Audio || !mimeType) throw new Error("TTS 响应无音频");
     const audio = new Audio(`data:${mimeType};base64,${base64Audio}`);
     audio.onplay = () => {
@@ -1631,7 +1792,7 @@ const onScroll = () => {
   const el = chatContainer.value;
   if (!el) return;
   // 检查是否接近底部
-  const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 140;
+  const nearBottom = isNearBottom();
   showScrollToBottom.value = !nearBottom;
 
   // 滚动时隐藏引用按钮，避免位置错乱
@@ -1703,6 +1864,7 @@ const stopDrag = () => {
 const touchStartDistance = ref(0);
 const touchStartScale = ref(1);
 const lastTouchPos = ref({ x: 0, y: 0 });
+const lastTapTime = ref(0);
 
 const getDistance = (t1, t2) => {
   const dx = t1.clientX - t2.clientX;
@@ -1753,6 +1915,21 @@ const handleTouchMove = (e) => {
 const handleTouchEnd = (e) => {
   if (e.touches.length === 0) {
     isDragging.value = false;
+
+    // 双击缩放检测
+    const currentTime = new Date().getTime();
+    const tapLength = currentTime - lastTapTime.value;
+    if (tapLength < 300 && tapLength > 0) {
+      if (imageScale.value > 1.1) {
+        // 如果已经放大，则还原
+        imageScale.value = 1;
+        imageTranslate.value = { x: 0, y: 0 };
+      } else {
+        // 如果未放大，则放大到 2.5 倍
+        imageScale.value = 2.5;
+      }
+    }
+    lastTapTime.value = currentTime;
   }
 };
 
@@ -2006,13 +2183,23 @@ const sendMessage = async () => {
   pendingPreviewUrl.value = null;
 
   // 立即添加用户消息到界面末尾（保持对话顺序）
-  messages.value.push({
+  const userMsg = {
     id: `temp-${Date.now()}`,
     role: "user",
     content: content,
     image_path: currentPreview, // 临时显示本地预览图
     timestamp: new Date().toISOString(),
-  });
+  };
+  messages.value.push(userMsg);
+
+  console.log("✅ 用户消息已添加:", userMsg);
+  console.log("📊 当前消息总数:", messages.value.length);
+  console.log(
+    "📝 最后3条消息:",
+    messages.value
+      .slice(-3)
+      .map((m) => ({ role: m.role, content: m.content?.substring(0, 30) }))
+  );
 
   // 设置标志位：需要滚动到底部
   shouldScrollToBottom.value = true;
@@ -2034,8 +2221,15 @@ const sendMessage = async () => {
       }
     }
 
-    // 发送到后端
-    await chatStore.sendMessage(content, imagePath, router);
+    // 发送到后端（默认走流式）
+    // 使用 setTimeout 0 将请求放入下一个宏任务，确保 UI 先渲染用户消息和思考气泡
+    setTimeout(async () => {
+      try {
+        await chatStore.sendMessageStreamed(content, imagePath, router);
+      } catch (e) {
+        console.error("Async send failed:", e);
+      }
+    }, 0);
   } catch (e) {
     console.error("Send message failed:", e);
     messages.value.push({
@@ -2071,9 +2265,9 @@ const stopGeneration = () => {
 };
 
 const handleMainButton = () => {
-  if (buttonMode.value === "send") {
+  if (effectiveButtonMode.value === "send") {
     sendMessage();
-  } else if (buttonMode.value === "stop") {
+  } else if (effectiveButtonMode.value === "stop") {
     stopGeneration();
   } else {
     toggleVoiceMode();
@@ -2263,25 +2457,214 @@ const handleVoice = () => {
   console.log("语音输入");
 };
 
-const handleVoiceInput = () => {
-  if (!recognition.value) {
-    alert("您的浏览器不支持语音识别功能，请使用 Chrome 或 Edge 浏览器。");
-    return;
-  }
+// PCM/WAV 录音缓冲
+let pcmBuffers = [];
+let inputSampleRate = 44100;
+let scriptNode = null;
 
-  if (isRecording.value) {
-    recognition.value.stop();
+const startPcmRecording = async () => {
+  try {
+    if (!mediaStream) {
+      mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    }
+    if (!audioContext) {
+      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    const source = audioContext.createMediaStreamSource(mediaStream);
+    inputSampleRate = audioContext.sampleRate || 44100;
+    scriptNode = audioContext.createScriptProcessor(4096, 1, 1);
+    pcmBuffers = [];
+    scriptNode.onaudioprocess = (e) => {
+      if (!isRecording.value) return;
+      const channelData = e.inputBuffer.getChannelData(0);
+      pcmBuffers.push(new Float32Array(channelData));
+    };
+    source.connect(scriptNode);
+    scriptNode.connect(audioContext.destination);
+    startVisualizer();
+  } catch (err) {
+    console.error("启动PCM录音失败:", err);
     isRecording.value = false;
     stopVisualizer();
-  } else {
-    try {
-      recognition.value.start();
-      isRecording.value = true;
-      startVisualizer();
-    } catch (e) {
-      console.error("无法启动语音识别:", e);
+    // 根据错误类型给出不同提示
+    if (
+      err.name === "NotAllowedError" ||
+      err.name === "PermissionDeniedError"
+    ) {
+      alert(
+        "需要麦克风权限才能使用语音输入。\n\n请点击地址栏旁的锁图标，允许此网站访问麦克风，然后刷新页面。"
+      );
+    } else if (
+      err.name === "NotFoundError" ||
+      err.name === "DevicesNotFoundError"
+    ) {
+      alert("未检测到麦克风设备，请检查设备连接。");
+    } else {
+      alert("无法访问麦克风，请检查浏览器权限和设备设置。");
+    }
+    throw err; // 重新抛出错误，让handleVoiceInput捕获
+  }
+};
+
+const stopPcmRecording = async () => {
+  try {
+    if (scriptNode) {
+      try {
+        scriptNode.disconnect();
+      } catch (_) {}
+      scriptNode.onaudioprocess = null;
+      scriptNode = null;
+    }
+    const length = pcmBuffers.reduce((sum, arr) => sum + arr.length, 0);
+    const merged = new Float32Array(length);
+    let offset = 0;
+    for (const buf of pcmBuffers) {
+      merged.set(buf, offset);
+      offset += buf.length;
+    }
+    const targetRate = 16000;
+    const downsampled = downsampleBuffer(merged, inputSampleRate, targetRate);
+    const wavBlob = encodeWAV(downsampled, targetRate);
+    return wavBlob;
+  } catch (err) {
+    console.error("停止PCM录音失败:", err);
+    return null;
+  } finally {
+    pcmBuffers = [];
+  }
+};
+
+function downsampleBuffer(buffer, sampleRate, outSampleRate) {
+  if (outSampleRate === sampleRate) return floatTo16BitPCM(buffer);
+  const ratio = sampleRate / outSampleRate;
+  const newLen = Math.round(buffer.length / ratio);
+  const result = new Int16Array(newLen);
+  let offsetResult = 0;
+  let offsetBuffer = 0;
+  while (offsetResult < result.length) {
+    const nextOffsetBuffer = Math.round((offsetResult + 1) * ratio);
+    let accum = 0,
+      count = 0;
+    for (let i = offsetBuffer; i < nextOffsetBuffer && i < buffer.length; i++) {
+      accum += buffer[i];
+      count++;
+    }
+    const sample = Math.max(-1, Math.min(1, accum / (count || 1)));
+    result[offsetResult] = sample < 0 ? sample * 0x8000 : sample * 0x7fff;
+    offsetResult++;
+    offsetBuffer = nextOffsetBuffer;
+  }
+  return result;
+}
+
+function floatTo16BitPCM(float32Array) {
+  const out = new Int16Array(float32Array.length);
+  for (let i = 0; i < float32Array.length; i++) {
+    const s = Math.max(-1, Math.min(1, float32Array[i]));
+    out[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
+  }
+  return out;
+}
+
+function encodeWAV(samples, sampleRate) {
+  const buffer = new ArrayBuffer(44 + samples.length * 2);
+  const view = new DataView(buffer);
+  writeString(view, 0, "RIFF");
+  view.setUint32(4, 36 + samples.length * 2, true);
+  writeString(view, 8, "WAVE");
+  writeString(view, 12, "fmt ");
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  writeString(view, 36, "data");
+  view.setUint32(40, samples.length * 2, true);
+  let index = 44;
+  for (let i = 0; i < samples.length; i++, index += 2) {
+    view.setInt16(index, samples[i], true);
+  }
+  return new Blob([view], { type: "audio/wav" });
+}
+
+function writeString(view, offset, string) {
+  for (let i = 0; i < string.length; i++) {
+    view.setUint8(offset + i, string.charCodeAt(i));
+  }
+}
+
+const handleVoiceInput = async () => {
+  if (recognition.value) {
+    if (isRecording.value) {
+      recognition.value.stop();
       isRecording.value = false;
       stopVisualizer();
+    } else {
+      try {
+        recognition.value.start();
+        isRecording.value = true;
+        startVisualizer();
+      } catch (e) {
+        console.error("无法启动语音识别:", e);
+        isRecording.value = false;
+        stopVisualizer();
+        if (e.name === "NotAllowedError") {
+          alert(
+            "需要麦克风权限才能使用语音输入。请在浏览器设置中允许麦克风访问。"
+          );
+        } else {
+          alert("语音输入启动失败，请检查麦克风权限或刷新页面重试。");
+        }
+      }
+    }
+    return;
+  }
+  if (!isRecording.value) {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      alert(
+        "当前浏览器不支持麦克风访问。请通过 HTTPS 方式打开或使用支持麦克风权限的浏览器。"
+      );
+      return;
+    }
+    try {
+      isRecording.value = true;
+      await startPcmRecording();
+    } catch (e) {
+      console.error("启动录音失败:", e);
+      isRecording.value = false;
+      if (e.name === "NotAllowedError" || e.message?.includes("permission")) {
+        alert(
+          "需要麦克风权限才能使用语音输入。请在浏览器设置中允许麦克风访问。"
+        );
+      } else {
+        alert("无法启动录音，请检查麦克风是否正常工作。");
+      }
+    }
+  } else {
+    isRecording.value = false;
+    stopVisualizer();
+    const wavBlob = await stopPcmRecording();
+    if (!wavBlob) {
+      alert("录音数据为空，请重试。");
+      return;
+    }
+    try {
+      const res = await api.recognizeVoice(wavBlob, "voice.wav");
+      if (res && res.success && res.text) {
+        if (messageInput.value) {
+          messageInput.value.innerText =
+            (messageInput.value.innerText || "") + res.text;
+          handleInput();
+          messageInput.value.focus();
+        }
+      } else {
+        alert("语音识别失败: " + (res?.message || "无法识别语音内容"));
+      }
+    } catch (err) {
+      console.error("语音识别请求失败:", err);
+      alert("语音识别服务异常，请稍后重试。");
     }
   }
 };
@@ -2378,6 +2761,56 @@ const canSend = computed(() => {
 });
 
 onMounted(() => {
+  // 终极超时保护：如果10秒后还在加载,强制停止
+  setTimeout(() => {
+    if (isLoadingSession.value) {
+      console.warn("⚠️ 检测到长时间加载,强制停止加载动画");
+      isLoadingSession.value = false;
+    }
+  }, 10000);
+
+  const onResize = () => {
+    isMobile.value = window.innerWidth <= 768;
+  };
+  window.addEventListener("resize", onResize);
+  window.__chat_onResize = onResize;
+  // 设置可视高度 CSS 变量，适配移动端键盘
+  const applyViewportHeight = () => {
+    try {
+      const vh = window.visualViewport?.height || window.innerHeight;
+      document.documentElement.style.setProperty("--app-vh", `${vh}px`);
+    } catch (_) {}
+  };
+  applyViewportHeight();
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener("resize", applyViewportHeight);
+    window.visualViewport.addEventListener("scroll", applyViewportHeight);
+    // 保存引用以便卸载时移除
+    window.__chat_applyViewportHeight = applyViewportHeight;
+  }
+
+  // 监听输入框 focus/blur，避免移动端键盘遮挡
+  const onFocus = () => {
+    try {
+      chatViewRoot.value?.classList.add("keyboard-open");
+      // 聚焦时立即粘底，确保输入可见
+      setTimeout(() => stickToBottomImmediate(), 0);
+    } catch (_) {}
+  };
+  const onBlur = () => {
+    try {
+      chatViewRoot.value?.classList.remove("keyboard-open");
+    } catch (_) {}
+  };
+
+  if (messageInput.value) {
+    messageInput.value.addEventListener("focus", onFocus);
+    messageInput.value.addEventListener("blur", onBlur);
+  }
+  // 保存引用以便卸载时移除
+  window.__chat_onFocus = onFocus;
+  window.__chat_onBlur = onBlur;
+
   // 监听即时语音助手回复事件（voice_call模式下 isTyping 为 false）
   const voiceAssistantHandler = (e) => {
     if (!isVoiceMode.value) return;
@@ -2503,6 +2936,7 @@ onBeforeUnmount(() => {
   // 停止朗读
   stopSpeech();
   stopVisualizer();
+  stopAutoStick();
 
   if (observer.value) {
     observer.value.disconnect();
@@ -2513,12 +2947,39 @@ onBeforeUnmount(() => {
     chatContainer.value.removeEventListener("scroll", onScroll);
   }
   document.removeEventListener("selectionchange", handleSelection);
+  // 移除 viewport 监听
+  if (window.visualViewport && window.__chat_applyViewportHeight) {
+    try {
+      window.visualViewport.removeEventListener(
+        "resize",
+        window.__chat_applyViewportHeight
+      );
+      window.visualViewport.removeEventListener(
+        "scroll",
+        window.__chat_applyViewportHeight
+      );
+      delete window.__chat_applyViewportHeight;
+    } catch (_) {}
+  }
+  // 移除输入框 focus/blur 监听
+  if (messageInput.value && window.__chat_onFocus && window.__chat_onBlur) {
+    try {
+      messageInput.value.removeEventListener("focus", window.__chat_onFocus);
+      messageInput.value.removeEventListener("blur", window.__chat_onBlur);
+      delete window.__chat_onFocus;
+      delete window.__chat_onBlur;
+    } catch (_) {}
+  }
   if (chatStore.__voiceAssistantHandler) {
     window.removeEventListener(
       "voiceAssistantReply",
       chatStore.__voiceAssistantHandler
     );
     delete chatStore.__voiceAssistantHandler;
+  }
+  if (window.__chat_onResize) {
+    window.removeEventListener("resize", window.__chat_onResize);
+    delete window.__chat_onResize;
   }
 });
 
@@ -2656,13 +3117,11 @@ const feedbackMessage = async (message, type) => {
 }
 /* 欢迎消息 */
 .welcome-message {
-  position: absolute;
-  top: 35%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  flex-shrink: 0;
   text-align: center;
   z-index: 10;
   animation: fadeInUp 0.5s ease-out;
+  margin-top: -10vh; /* 桌面端稍微上移 */
 }
 @keyframes fadeInUp {
   from {
@@ -2691,22 +3150,27 @@ const feedbackMessage = async (message, type) => {
 .chat-view.empty {
   justify-content: center;
   align-items: center;
+  flex-direction: column;
+  gap: 32px; /* 欢迎语和输入框之间的间距 */
 }
 .chat-view.empty .chat-container {
-  display: none;
+  visibility: hidden;
+  pointer-events: none;
+  position: absolute; /* 完全脱离布局流 */
 }
 .chat-view.empty .input-container {
   position: static;
   background: transparent;
   border-top: none;
-  padding: 0;
+  padding: 0 16px;
   display: flex;
   justify-content: center;
   align-items: center;
   width: 100%;
+  flex-shrink: 0;
 }
 .chat-view.empty .input-wrapper {
-  max-width: 800px;
+  max-width: 32rem; /* PC端输入框更窄 */
   width: 90%;
   box-shadow: none;
   background: var(--bg-secondary);
@@ -2719,20 +3183,24 @@ const feedbackMessage = async (message, type) => {
   display: flex;
   justify-content: center;
   background: var(--bg-primary);
-  margin-bottom: 100px;
+  /* margin-bottom: 100px; Removed to prevent layout jump on focus */
   scroll-behavior: auto; /* 确保初始滚动是瞬间的 */
 }
+/* 键盘弹出时，减少底部间距以避免过多空白 */
+/* .chat-view.keyboard-open .chat-container {
+  margin-bottom: 8px;
+} */
 .chat-inner {
   width: 100%;
-  max-width: 800px;
+  max-width: 42rem;
   padding: 16px 20px;
+  padding-bottom: 20px; /* 减少底部内边距,依靠.message:last-child的padding */
   position: relative;
 }
 .message {
-  margin-bottom: 16px;
+  margin-bottom: 8px;
   display: flex;
   flex-direction: column;
-  opacity: 0;
   animation: messageSlideIn 0.3s ease-out forwards;
 }
 @keyframes messageSlideIn {
@@ -2745,8 +3213,17 @@ const feedbackMessage = async (message, type) => {
     transform: translateY(0);
   }
 }
+.message.thinking-message {
+  animation: none !important;
+  opacity: 1 !important;
+  transform: none !important;
+}
+/* PC端最后一条消息添加底部空间，确保工具栏可见 */
+.message:last-child {
+  padding-bottom: 80px;
+}
 .message.new-group {
-  margin-top: 24px;
+  margin-top: 8px;
 }
 .message.user {
   align-items: flex-end;
@@ -2843,66 +3320,88 @@ const feedbackMessage = async (message, type) => {
   font-variant-numeric: tabular-nums;
 }
 .scroll-to-bottom {
-  position: absolute;
-  left: 50%;
+  position: fixed;
+  left: calc(50% + 130px);
   transform: translateX(-50%);
-  bottom: 120px;
-  border: none;
-  background: transparent;
-  padding: 0;
+  bottom: calc(100px + env(safe-area-inset-bottom));
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(10px);
+  color: #ffffff;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15), 0 4px 8px rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
-  z-index: 100;
-  transition: transform 0.2s ease, opacity 0.2s ease;
-  animation: fadeIn 0.3s ease;
+  z-index: 1200;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: fadeInUp 0.3s ease;
 }
-.scroll-icon-wrapper {
-  width: 54px;
-  height: 54px;
-  border-radius: 50%;
-  border: 1.5px solid rgba(255, 255, 255, 0.14);
-  background: rgba(15, 15, 15, 0.85);
-  box-shadow: 0 18px 32px rgba(0, 0, 0, 0.45), 0 4px 12px rgba(0, 0, 0, 0.35);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.25s ease;
+
+/* 深色主题 - 黑色半透明圆圈 */
+[data-theme="dark"] .scroll-to-bottom {
+  background: rgba(0, 0, 0, 0.6);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), 0 4px 8px rgba(0, 0, 0, 0.3);
 }
-.scroll-icon-inner {
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: radial-gradient(
-    circle at 30% 30%,
-    rgba(255, 255, 255, 0.08),
-    rgba(20, 20, 20, 0.9)
-  );
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: #fdfdfd;
+
+.scroll-icon {
+  width: 40px;
+  height: 40px;
+  position: relative;
+  z-index: 1;
+  color: inherit;
 }
-.scroll-icon-inner svg {
-  width: 22px;
-  height: 22px;
+.scroll-icon * {
+  stroke: currentColor !important;
+  stroke-linecap: round !important;
+  stroke-linejoin: round !important;
+  fill: currentColor !important;
+}
+
+/* SVG箭头样式 */
+.scroll-to-bottom svg {
   display: block;
-  stroke: currentColor;
+  width: 24px !important;
+  height: 24px !important;
+  min-width: 24px !important;
+  min-height: 24px !important;
+  max-width: 24px !important;
+  max-height: 24px !important;
 }
-.scroll-icon-inner svg circle {
-  stroke: rgba(255, 255, 255, 0.45);
+
+.scroll-to-bottom svg path {
+  stroke-width: 2 !important;
 }
-.scroll-icon-inner svg polyline,
-.scroll-icon-inner svg line {
-  stroke: #ffffff;
+
+.scroll-to-bottom:hover {
+  transform: translateX(-50%) translateY(-4px) scale(1.08);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2), 0 8px 16px rgba(0, 0, 0, 0.15);
 }
-.scroll-to-bottom:hover .scroll-icon-wrapper {
-  border-color: rgba(255, 255, 255, 0.35);
-  transform: scale(1.03);
-  box-shadow: 0 22px 38px rgba(0, 0, 0, 0.55);
+
+[data-theme="dark"] .scroll-to-bottom:hover {
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5), 0 8px 16px rgba(0, 0, 0, 0.35);
 }
-.scroll-to-bottom:active .scroll-icon-wrapper {
-  transform: scale(0.98);
-  box-shadow: 0 12px 20px rgba(0, 0, 0, 0.35);
+
+.scroll-to-bottom:active {
+  transform: translateX(-50%) translateY(-2px) scale(0.95);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.15), 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="dark"] .scroll-to-bottom:active {
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4), 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+.md-content :deep(ul),
+.md-content :deep(ol) {
+  padding-left: 1.5em;
+  margin: 0.5em 0;
+}
+.md-content :deep(ul) {
+  list-style-type: disc;
 }
 .md-content :deep(ol) {
   list-style-type: decimal;
@@ -3116,37 +3615,47 @@ const feedbackMessage = async (message, type) => {
 }
 .message-toolbar {
   display: flex;
-  gap: 2px;
-  margin-top: 4px;
+  gap: 4px;
+  margin-top: 6px;
+  padding: 4px 0;
   transition: opacity 0.2s;
-}
-.message.assistant .message-toolbar {
-  opacity: 1;
-}
-.message.user .message-toolbar {
+  flex-wrap: wrap;
   opacity: 0;
-  justify-content: flex-end;
 }
-.message.user:hover .message-toolbar {
+
+/* PC端：鼠标悬停时显示工具栏 */
+.chat-view .message:hover .message-toolbar {
   opacity: 1;
+}
+
+/* Assistant消息工具栏对齐方式 */
+.message.assistant .message-toolbar {
+  justify-content: flex-start;
+}
+
+/* User消息工具栏对齐方式 */
+.message.user .message-toolbar {
+  justify-content: flex-end;
 }
 .toolbar-icon {
   background: none;
   border: none;
-  padding: 5px;
+  padding: 6px;
   cursor: pointer;
   color: var(--text-tertiary);
-  border-radius: 5px;
+  border-radius: 6px;
   transition: all 0.15s;
-  width: 26px;
-  height: 26px;
+  width: 28px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 .toolbar-icon svg {
   width: 15px;
   height: 15px;
+  flex-shrink: 0;
 }
 .toolbar-icon:hover {
   background: var(--bg-hover);
@@ -3155,6 +3664,27 @@ const feedbackMessage = async (message, type) => {
 .toolbar-icon.active {
   background: var(--bg-active);
   color: var(--text-primary);
+}
+
+/* 桌面端：仅用户消息的工具栏需要悬停显示，AI消息工具栏始终显示 */
+@media (min-width: 481px) {
+  .message.user .message-toolbar {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+  .chat-view .message.user:hover .message-toolbar,
+  .chat-view .message.user .message-toolbar:hover {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+  }
+  /* AI消息工具栏始终显示 */
+  .message.assistant .message-toolbar {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+  }
 }
 .message.user .toolbar-icon {
   color: rgba(255, 255, 255, 0.5);
@@ -3179,22 +3709,28 @@ const feedbackMessage = async (message, type) => {
   color: var(--text-primary);
 }
 .input-container {
-  padding: 12px 16px 16px;
-  border-top: none;
-  background: transparent;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  background: var(--bg-primary);
+  padding: 12px 16px calc(16px + env(safe-area-inset-bottom));
+  border-top: none !important;
+  box-shadow: none !important;
   flex-shrink: 0;
 }
 .input-wrapper {
-  max-width: 800px;
+  max-width: 42rem;
   margin: 0 auto;
   display: flex;
-  flex-direction: column; /* 改为纵向布局以容纳预览图 */
+  flex-direction: column;
   gap: 8px;
-  align-items: stretch; /* 撑满宽度 */
+  align-items: stretch;
   background: var(--bg-secondary);
-  border: 1px solid var(--border-light);
+  border: none !important;
   border-radius: 22px;
-  padding: 8px 10px; /* 调整内边距 */
+  padding: 8px 10px;
   transition: all 0.2s ease;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
   min-height: 50px;
@@ -3374,54 +3910,148 @@ const feedbackMessage = async (message, type) => {
   box-shadow: 0 4px 14px rgba(255, 0, 0, 0.45);
 }
 
-/* 思考与打字效果 */
+/* 思考动画 - 三个圆点跳动效果 */
+.dot {
+  display: inline-block !important;
+  width: 8px !important;
+  height: 8px !important;
+  background: #3b82f6 !important;
+  border-radius: 50% !important;
+  animation: thinkingBounce 1.4s ease-in-out infinite !important;
+}
+
+.dot-1 {
+  animation-delay: 0s !important;
+}
+
+.dot-2 {
+  animation-delay: 0.2s !important;
+}
+
+.dot-3 {
+  animation-delay: 0.4s !important;
+}
+
+@keyframes thinkingBounce {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+  }
+  30% {
+    transform: translateY(-10px);
+  }
+}
+
+.typing-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.typing-indicator span {
+  display: block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #3b82f6;
+  animation: typingDotBounce 1.2s ease-in-out infinite;
+}
+
+.typing-indicator span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.typing-indicator span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes typingDotBounce {
+  0%,
+  80%,
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  40% {
+    transform: translateY(-6px);
+    opacity: 0.5;
+  }
+}
+
 .thinking-wrapper {
+  background: var(--bg-secondary);
+  padding: 10px 14px;
+  border-radius: var(--radius-xl);
+  border-bottom-left-radius: var(--radius-xs);
+  min-width: 80px;
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+  visibility: visible !important;
+  opacity: 1 !important;
+  min-height: 40px;
+  box-shadow: var(--shadow-sm);
+  margin-top: 4px;
+  margin-bottom: 80px;
+  scroll-margin-bottom: 120px;
+  position: relative;
+  z-index: 999 !important;
+  border: 1px solid var(--border-light);
+}
+
+.thinking-animation {
   display: flex;
   align-items: center;
-  min-height: 24px;
-  padding: 2px 4px;
-}
-.thinking-dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: var(--text-primary);
-  box-shadow: 0 0 8px var(--text-primary);
-  animation: thinkingPulse 1s ease-in-out infinite;
-}
-@keyframes thinkingPulse {
-  0% {
-    transform: scale(0.7);
-    opacity: 0.5;
-  }
-  50% {
-    transform: scale(1.6);
-    opacity: 1;
-  }
-  100% {
-    transform: scale(0.7);
-    opacity: 0.5;
-  }
-}
-.md-content.typing:after {
-  content: "";
-  display: inline-block;
-  width: 6px;
+  gap: 4px;
   height: 16px;
-  background: var(--text-primary);
-  margin-left: 2px;
-  animation: caretBlink 0.9s steps(2, start) infinite;
-  vertical-align: bottom;
 }
-@keyframes caretBlink {
+
+.thinking-dot {
+  width: 6px;
+  height: 6px;
+  background: var(--text-primary);
+  border-radius: 50%;
+  animation: thinkingWave 1.2s ease-in-out infinite;
+}
+
+.thinking-dot:nth-child(1) {
+  animation-delay: 0s;
+}
+
+.thinking-dot:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.thinking-dot:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes thinkingWave {
   0%,
-  49% {
-    opacity: 1;
-  }
-  50%,
+  60%,
   100% {
-    opacity: 0;
+    opacity: 0.2;
+    transform: scale(0.8);
   }
+  30% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.thinking-label {
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: 0.2px;
+}
+
+.typing-indicator span {
+  background-color: var(--brand-primary);
+  width: 6px;
+  height: 6px;
 }
 
 @keyframes pulse {
@@ -3435,49 +4065,26 @@ const feedbackMessage = async (message, type) => {
     transform: scale(1.05);
   }
 }
-.scroll-to-bottom {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  bottom: 120px;
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  border: 1.5px solid rgba(255, 255, 255, 0.25);
-  background: rgba(32, 32, 32, 0.92);
-  color: #fff;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  z-index: 100;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  animation: fadeIn 0.3s ease;
+@media (max-width: 900px) {
+  .scroll-to-bottom {
+    width: 56px;
+    height: 56px;
+    bottom: calc(90px + env(safe-area-inset-bottom));
+  }
+
+  .scroll-icon {
+    width: 32px;
+    height: 32px;
+  }
 }
-.scroll-icon {
-  width: 20px;
-  height: 20px;
-  position: relative;
-  z-index: 1;
-  color: inherit;
+
+.chat-view.keyboard-open .scroll-to-bottom {
+  bottom: calc(70px + env(safe-area-inset-bottom));
 }
-.scroll-icon * {
-  stroke: currentColor;
-}
-.scroll-to-bottom:hover {
-  transform: translateX(-50%) translateY(-2px);
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.3);
-  background: rgba(36, 36, 36, 0.96);
-}
-.scroll-to-bottom:active {
-  transform: translateX(-50%) translateY(0);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-}
-@keyframes fadeIn {
+@keyframes fadeInUp {
   from {
     opacity: 0;
-    transform: translateX(-50%) translateY(10px);
+    transform: translateX(-50%) translateY(20px);
   }
   to {
     opacity: 1;
@@ -3507,9 +4114,52 @@ const feedbackMessage = async (message, type) => {
 }
 
 /* 移动端适配优化 */
-@media (max-width: 768px) {
+@media (max-width: 480px) {
+  .chat-view {
+    height: 100dvh; /* 适配移动端动态视口高度 */
+  }
+
+  /* 移动端空状态：欢迎语居中偏下，输入框固定底部 */
+  .chat-view.empty {
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .chat-view.empty .welcome-message {
+    position: absolute;
+    top: 36%; /* 移动端欢迎语整体上移 */
+    left: 50%;
+    transform: translate(-50%, -50%);
+    margin-top: 0;
+    white-space: nowrap; /* 防止换行 */
+  }
+
+  .chat-view.empty .chat-container {
+    visibility: hidden;
+    pointer-events: none;
+    position: absolute;
+  }
+
+  .chat-view.empty .input-container {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 8px 10px calc(10px + env(safe-area-inset-bottom));
+    background: var(--bg-primary);
+    /* border-top: 1px solid var(--border-light); */
+  }
+
   .chat-inner {
-    padding: 12px 12px;
+    padding: 12px;
+    padding-bottom: 8px; /* 减少底部内边距，避免键盘弹出时过多空白 */
+  }
+
+  /* 移动端最后一条消息添加底部空间 */
+  .message:last-child {
+    padding-bottom: 20px !important;
   }
 
   .user-bubble {
@@ -3518,12 +4168,44 @@ const feedbackMessage = async (message, type) => {
     padding: 10px 14px;
   }
 
+  /* 确保移动端用户消息可见且正确对齐 */
+  .message.user {
+    display: flex !important;
+    justify-content: flex-end !important;
+    margin-bottom: 12px;
+    width: 100%;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+
+  .message.user .user-bubble {
+    display: block !important;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    visibility: visible !important;
+    opacity: 1 !important;
+    background: #2f2f2f !important;
+  }
+
+  [data-theme="light"] .message.user .user-bubble {
+    background: #f3f4f6 !important;
+    color: #1f2937 !important;
+  }
+
   .message.assistant .md-content {
     font-size: 15px;
   }
 
   .input-container {
-    padding: 8px 10px 10px;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 50;
+    background: var(--bg-primary);
+    padding: 8px 10px calc(10px + env(safe-area-inset-bottom));
+    border-top: none !important;
+    box-shadow: none !important;
   }
 
   .input-wrapper {
@@ -3532,7 +4214,7 @@ const feedbackMessage = async (message, type) => {
   }
 
   .welcome-title {
-    font-size: 20px;
+    font-size: 18px; /* 移动端字体更小，防止换行 */
   }
 
   .welcome-icon {
@@ -3540,9 +4222,20 @@ const feedbackMessage = async (message, type) => {
   }
 
   /* 移动端始终显示工具栏，避免无法操作 */
-  .message-toolbar {
-    opacity: 1 !important;
-    margin-top: 6px;
+  .message .message-toolbar {
+    opacity: 1;
+    margin-top: 8px;
+    gap: 6px;
+  }
+  /* 最后一条消息的工具栏添加更多底部间距，确保不被输入框遮挡 */
+  .message:last-child .message-toolbar {
+    margin-bottom: 32px;
+    padding-bottom: 8px;
+  }
+
+  /* 助手消息的工具栏，增加额外底部空间 */
+  .message.assistant:last-child {
+    padding-bottom: 100px;
   }
 
   .message.user .message-toolbar {
@@ -3564,6 +4257,30 @@ const feedbackMessage = async (message, type) => {
   .message-image {
     max-width: 100%;
     max-height: 240px;
+  }
+
+  /* 移动端隐藏“语音模式”图标态，仅保留发送/停止两种态 */
+  .voice-mode-btn:not(.send-mode):not(.stop-mode) {
+    display: none;
+  }
+
+  /* 移动端滚动按钮调整 */
+  .scroll-to-bottom {
+    left: 50%;
+    width: 48px;
+    height: 48px;
+    bottom: calc(80px + env(safe-area-inset-bottom));
+  }
+
+  .scroll-to-bottom svg {
+    width: 22px !important;
+    height: 22px !important;
+    min-width: 22px !important;
+    min-height: 22px !important;
+  }
+
+  .scroll-to-bottom svg path {
+    stroke-width: 2 !important;
   }
 }
 
@@ -4098,6 +4815,62 @@ const feedbackMessage = async (message, type) => {
   to {
     opacity: 1;
     transform: scale(1);
+  }
+}
+
+/* ===== 强制移除所有消息之间的横线/边框（覆盖现有样式） ===== */
+.chat-inner,
+.message,
+.message * {
+  border-top: none !important;
+  border-bottom: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+.divider {
+  display: none !important;
+}
+
+/* 确保 message 内容区域不显示分隔线 */
+.message .md-content,
+.message .user-bubble,
+.message .voice-session-tag,
+.quote-preview-bar,
+.related-reading,
+.related-card,
+.preview-card {
+  border: none !important;
+}
+
+.message + .message {
+  border-top: none !important;
+  margin-top: 8px;
+}
+
+/* 强制确保消息内容区可见且有默认配色，防止被其他样式隐藏 */
+.message .md-content {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  color: var(--text-primary) !important;
+}
+
+.message.assistant .md-content {
+  color: var(--text-primary) !important;
+}
+</style>
+
+<!-- 全局样式：思考动画关键帧，供内联样式引用 -->
+<style>
+@keyframes thinkingBounce {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+  }
+  30% {
+    transform: translateY(-10px);
   }
 }
 </style>

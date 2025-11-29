@@ -83,15 +83,19 @@ api.interceptors.response.use(
 export default {
     // 会话相关
     getSessions(allSessions = true) {
-        return api.get('/sessions', { params: { all_sessions: allSessions } })
+        return api.get('/api/sessions', { params: { all_sessions: allSessions } })
     },
 
     getSession(sessionId, limit = 200) {
-        return api.get(`/session/${sessionId}`, { params: { limit } })
+        return api.get(`/api/session/${sessionId}`, { params: { limit } })
     },
 
     deleteSession(sessionId) {
         return api.delete(`/api/chat/sessions/${sessionId}`)
+    },
+
+    updateSession(sessionId, data) {
+        return api.patch(`/api/chat/sessions/${sessionId}`, data)
     },
 
     deleteMessage(messageId) {
@@ -110,10 +114,94 @@ export default {
         if (data.image_path) params.append('image_path', data.image_path)
 
         // 增加超时时间到 120 秒，并禁用自动重试
-        return api.post(`/chat?${params.toString()}`, null, {
+        return api.post(`/api/chat?${params.toString()}`, null, {
             timeout: 120000,
             retryCount: MAX_RETRIES // 设置为最大重试次数，防止拦截器重试
         })
+    },
+
+    // 流式聊天（SSE 兼容，切片流）
+    async streamChat(data, { onStart, onDelta, onEnd, signal } = {}) {
+        // 使用 fetch 以支持 ReadableStream
+        const params = new URLSearchParams()
+        params.append('prompt', data.prompt || '')
+        if (data.session_id) params.append('session_id', data.session_id)
+        if (data.user_id) params.append('user_id', data.user_id)
+        if (data.response_style) params.append('response_style', data.response_style)
+        if (data.image_path) params.append('image_path', data.image_path)
+
+        const authStore = useAuthStore()
+        const headers = { 'Accept': 'text/event-stream' }
+        if (authStore.token) headers['Authorization'] = `Bearer ${authStore.token}`
+
+        const url = `${API_BASE_URL}/api/chat/stream?${params.toString()}`
+        const res = await fetch(url, { method: 'POST', headers, signal })
+        if (!res.ok || !res.body) {
+            const text = await res.text().catch(() => '')
+            throw new Error(text || `HTTP ${res.status}`)
+        }
+
+        const reader = res.body.getReader()
+        const decoder = new TextDecoder('utf-8')
+        let buffer = ''
+
+        // 先通知开始
+        if (typeof onStart === 'function') onStart()
+
+        try {
+            while (true) {
+                const { value, done } = await reader.read()
+                if (done) break
+                buffer += decoder.decode(value, { stream: true })
+
+                // SSE 按空行分隔事件
+                let idx
+                while ((idx = buffer.indexOf('\n\n')) !== -1) {
+                    const raw = buffer.slice(0, idx).trim()
+                    buffer = buffer.slice(idx + 2)
+                    if (!raw) continue
+                    // 仅处理以 data: 开头的行
+                    const lines = raw.split('\n')
+                    for (const line of lines) {
+                        const prefix = 'data: '
+                        if (line.startsWith(prefix)) {
+                            try {
+                                const payload = JSON.parse(line.slice(prefix.length))
+                                if (payload.type === 'delta' && typeof onDelta === 'function') {
+                                    onDelta(payload.data || '')
+                                } else if (payload.type === 'start') {
+                                    if (typeof onStart === 'function') onStart(payload)
+                                } else if (payload.type === 'end') {
+                                    if (typeof onEnd === 'function') onEnd(payload)
+                                }
+                            } catch (_) {
+                                // 忽略解析错误
+                            }
+                        }
+                    }
+                }
+            }
+            // 处理残留缓冲
+            const rest = buffer.trim()
+            if (rest) {
+                const lines = rest.split('\n')
+                for (const line of lines) {
+                    const prefix = 'data: '
+                    if (line.startsWith(prefix)) {
+                        try {
+                            const payload = JSON.parse(line.slice(prefix.length))
+                            if (payload.type === 'delta' && typeof onDelta === 'function') {
+                                onDelta(payload.data || '')
+                            } else if (payload.type === 'end') {
+                                if (typeof onEnd === 'function') onEnd(payload)
+                            }
+                        } catch (_) { }
+                    }
+                }
+            }
+        } finally {
+            try { reader.releaseLock() } catch (_) { }
+        }
     },
 
     uploadImage(formData) {
@@ -124,20 +212,22 @@ export default {
 
     // 记忆相关
     getMemoryStats() {
-        return api.get('/memory/stats')
+        return api.get('/api/memory/stats')
     },
 
     getRecentMemories(hours = 24, limit = 20, tag = null) {
-        return api.get('/memory/recent', { params: { hours, limit, tag } })
+        const params = { hours, limit }
+        if (tag) params.tag = tag
+        return api.get('/api/memory/recent', { params })
     },
 
     searchMemories(keywords) {
         // ...existing code...
-        return api.get('/memory/search', { params: { keywords } })
+        return api.get('/api/memory/search', { params: { keywords } })
     },
 
     semanticSearch(query) {
-        return api.get('/memory/semantic', { params: { query } })
+        return api.get('/api/memory/semantic', { params: { query } })
     },
 
     deleteMemory(memoryId) {
@@ -149,8 +239,10 @@ export default {
     },
 
     // 任务相关
-    getTasks(userId = 'default_user', status = '', limit = 50) {
-        return api.get(`/api/users/${userId}/tasks`, { params: { status, limit } })
+    getTasks(status = '', limit = 50) {
+        const params = { limit };
+        if (status) params.status = status;
+        return api.get('/api/tasks', { params });
     },
 
     getTask(taskId) {
@@ -170,8 +262,8 @@ export default {
     },
 
     // 提醒相关
-    getReminders(userId = 'default_user', enabledOnly = false) {
-        return api.get('/api/reminders', { params: { user_id: userId, enabled_only: enabledOnly } })
+    getReminders(enabledOnly = false) {
+        return api.get('/api/reminders', { params: { enabled_only: enabledOnly } })
     },
 
     createReminder(data) {
@@ -194,9 +286,22 @@ export default {
         return api.post(`/api/reminders/${reminderId}/snooze`, null, { params: { minutes } })
     },
 
+    // 行为分析相关
+    getBehaviorAnalytics(days = 30) {
+        return api.get('/api/analytics/behavior', { params: { days } })
+    },
+
     // 文档相关
-    getDocuments(userId = 'default_user', limit = 50) {
-        return api.get(`/api/users/${userId}/documents`, { params: { limit } })
+    getDocuments(limit = 50) {
+        // 从auth store获取登录用户名,如果没有使用admin
+        const authStore = useAuthStore();
+        console.log('🔍 authStore.user:', authStore.user);
+        console.log('🔍 authStore.token:', authStore.token ? '有token' : '无token');
+        const username = authStore.user?.username || 'admin';
+        console.log('🔍 getDocuments - 使用登录用户名:', username);
+        const url = `/api/documents/users/${username}`;
+        console.log('🔍 请求URL:', url);
+        return api.get(url, { params: { limit } })
     },
 
     getDocument(docId) {
@@ -215,11 +320,11 @@ export default {
 
     // 工具相关
     getTools(enabledOnly = true) {
-        return api.get('/tools/list', { params: { enabled_only: enabledOnly } })
+        return api.get('/api/tools/list', { params: { enabled_only: enabledOnly } })
     },
 
     getToolHistory(userId = 'default_user', limit = 20) {
-        return api.get('/tools/history', { params: { user_id: userId, limit } })
+        return api.get('/api/tools/history', { params: { user_id: userId, limit } })
     },
 
     // 反馈相关
@@ -232,14 +337,25 @@ export default {
     },
 
     // 语音合成
-    synthesizeVoice(text) {
+    synthesizeVoice(text, options = {}) {
         return api.post('/api/voice/synthesize', {
             text,
-            person: 0, // 默认度小美
-            speed: 5,
-            pitch: 5,
-            volume: 5,
-            audio_format: 'mp3'
+            person: options.person !== undefined ? options.person : 0,
+            speed: options.speed !== undefined ? options.speed : 5,
+            pitch: options.pitch !== undefined ? options.pitch : 5,
+            volume: options.volume !== undefined ? options.volume : 5,
+            audio_format: options.audio_format || 'mp3'
+        })
+    },
+
+    // 语音识别（上传音频文件：wav/pcm/m4a/amr）
+    recognizeVoice(fileOrBlob, filename = 'voice.wav') {
+        const formData = new FormData()
+        const file = fileOrBlob instanceof File ? fileOrBlob : new File([fileOrBlob], filename, { type: 'audio/wav' })
+        formData.append('file', file)
+        return api.post('/api/voice/recognize', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+            timeout: 60000
         })
     }
 }

@@ -46,7 +46,13 @@ class MemoryManager:
         # 注意：这会创建一个持久的 session，请确保正确管理
         self.session = Session()
 
-    def remember(self, content, tag="general", initial_importance=0.5):
+    def remember(
+        self,
+        content,
+        tag="general",
+        initial_importance=0.5,
+        image_path=None
+    ):
         """
         Store memory with importance score.
 
@@ -54,6 +60,7 @@ class MemoryManager:
             content: memory content
             tag: tag/category
             initial_importance: importance score (0-1) - 暂时未使用，等待数据库迁移
+            image_path: 可选，关联的图片相对路径（例如 /uploads/images/xxx.jpg）
         """
         session = Session()
         try:
@@ -68,8 +75,14 @@ class MemoryManager:
                     print(f"⚠️ 跳过重复 facts: {content[:50]}")
                     return existing.id
 
+            # 如提供了 image_path，但 Memory 模型暂无该列，则将其内嵌到内容中
+            final_content = content
+            if image_path:
+                prefix = f"[image_path:{image_path}]\n"
+                final_content = f"{prefix}{content}" if content else prefix
+
             memory = Memory(
-                content=content,
+                content=final_content,
                 tag=tag
                 # importance_score 字段需要数据库迁移后才能使用
             )
@@ -91,7 +104,17 @@ class MemoryManager:
         """Recall memories by tag and keyword"""
         session = Session()
         try:
-            query = session.query(Memory).filter(Memory.tag == tag)
+            # Support prefix matching for tags (case-insensitive)
+            if tag:
+                tag_lower = tag.lower()
+                query = session.query(Memory).filter(
+                    or_(
+                        func.lower(Memory.tag) == tag_lower,
+                        func.lower(Memory.tag).like(f"{tag_lower}:%")
+                    )
+                )
+            else:
+                query = session.query(Memory)
 
             # 如果有关键词，进行模糊搜索
             if keyword:
@@ -120,7 +143,27 @@ class MemoryManager:
             )
 
             if tag:
-                query = query.filter(Memory.tag == tag)
+                # Support prefix matching for tags (case-insensitive)
+                tag_lower = tag.lower()
+                print(f"DEBUG: Filtering tag with prefix: {tag_lower}")
+
+                # Case-insensitive matching via lower() and prefix match
+                # Try both exact match and prefix match
+                query = query.filter(
+                    or_(
+                        func.lower(Memory.tag) == tag_lower,
+                        func.lower(Memory.tag).like(f"{tag_lower}:%")
+                    )
+                )
+
+                # Debug: Print generated SQL (best-effort)
+                try:
+                    compiled = query.statement.compile(
+                        compile_kwargs={'literal_binds': True}
+                    )
+                    print(f"DEBUG SQL: {compiled}")
+                except Exception:
+                    pass
 
             query = query.order_by(Memory.created_at.desc()).limit(limit)
             memories = query.all()
@@ -150,7 +193,14 @@ class MemoryManager:
             query = session.query(Memory).filter(or_(*keyword_filters))
 
             if tag:
-                query = query.filter(Memory.tag == tag)
+                # Support prefix matching for tags (case-insensitive)
+                tag_lower = tag.lower()
+                query = query.filter(
+                    or_(
+                        func.lower(Memory.tag) == tag_lower,
+                        func.lower(Memory.tag).like(f"{tag_lower}:%")
+                    )
+                )
 
             query = query.order_by(Memory.created_at.desc()).limit(limit)
             memories = query.all()
@@ -198,7 +248,14 @@ class MemoryManager:
             # 查询所有记忆
             query_obj = session.query(Memory)
             if tag:
-                query_obj = query_obj.filter(Memory.tag == tag)
+                # Support prefix matching for tags (case-insensitive)
+                tag_lower = tag.lower()
+                query_obj = query_obj.filter(
+                    or_(
+                        func.lower(Memory.tag) == tag_lower,
+                        func.lower(Memory.tag).like(f"{tag_lower}:%")
+                    )
+                )
 
             all_memories = query_obj.all()
 

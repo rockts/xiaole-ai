@@ -17,7 +17,74 @@
 
 ## [Unreleased] - develop 分支
 
+### 2025-11-29
+
+#### fix(reminder) 🔥 重要修复
+- 🐛 **修复提醒系统调度器和 WebSocket 推送**
+  - 将 AsyncIOScheduler 改为 BackgroundScheduler（解决 FastAPI 环境兼容性）
+  - 在 startup_event 中设置事件循环，使 ReminderManager 能从后台线程推送 WebSocket
+  - 优化提醒时间解析，支持 ISO 8601 带时区 + 简单格式
+  - 修复 RemindersView 中的 API 调用，使用认证用户 ID
+  - 移除重复提醒弹窗逻辑，统一使用 ReminderNotification 组件
+  - 添加提醒创建时保存到记忆系统功能
+  - 清理 TaskDetailView 中的重复代码
+  - **测试验证**: 调度器每分钟运行，WebSocket 推送成功，弹窗和语音正常
+  - 详见: `docs/v0.8.1_REMINDER_FIX.md`
+
+#### perf
+- ⚡ 优化 Agent 响应性能
+  - 添加性能监控日志(总耗时、提醒检查、历史加载)
+  - 提醒检查改为按需触发(仅在相关关键词时)
+  - 减少不必要的数据库查询
+
+#### style
+- 🎨 优化思考动画效果
+  - 从跳跃式圆点改为波浪条形图
+  - 使用渐变色彩和微动画效果
+  - 更现代化的视觉设计
+
+- 🎨 优化消息操作按钮布局
+  - 增加按钮间距和大小(28x28)
+  - 最后一条消息增加底部空间(100px)
+  - 工具栏添加 margin-bottom: 32px 防止遮挡
+  - 移除输入框区域边框和阴影
+
+#### fix
+- 🐛 修复前端全局加载状态问题
+  - 移除 App.vue 中的 Suspense 组件（导致页面持续转圈）
+  - 清理 Vite 缓存解决浏览器缓存问题
+  - 简化 ChatView 加载逻辑,移除嵌套 requestAnimationFrame
+
+#### refactor
+- ♻️ 统一数据库 user_id 字段
+  - 新增 `scripts/unify_user_id.py` 脚本
+  - 批量更新 3801 条记录到当前登录用户
+  - 涉及表: user_behaviors, proactive_questions, learned_patterns, tool_executions
+
+#### fix
+- 🐛 修复侧边栏用户图标位置
+  - 移动 sidebar-footer 到 sidebar-content 外部
+  - 确保收起状态下图标固定在底部
+
+### 2025-11-27
+
+#### feat
+- ✨ 1
+
+
 ### 2025-11-26
+#### docs
+- 📝 1
+
+#### fix
+- 🐛 修复前端 Vite 构建错误 `[plugin:vite:import-analysis] Failed to parse source` (清理缓存并强制重建)
+
+#### feat
+- ✨ 新增人脸识别与管理功能 (Face Library)
+  - 后端 `FaceManager` 实现人脸注册与识别
+  - `VisionTool` 升级支持混合分析（人脸+场景）
+  - 新增 `RegisterFaceTool` 支持对话注册人脸
+
 #### feat
 - ✨ 2
 

@@ -30,9 +30,21 @@
               <span class="task-time">{{ formatTaskTime(task) }}</span>
             </div>
           </div>
-          <button class="delete-btn" @click.stop="deleteTask(task.id)">
+          <button class="delete-btn" @click.stop="confirmDelete(task.id)">
             🗑️
           </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 删除确认对话框 -->
+    <div v-if="showDeleteConfirm" class="modal-overlay" @click="cancelDelete">
+      <div class="confirm-dialog" @click.stop>
+        <h3 class="confirm-title">永久删除任务</h3>
+        <p class="confirm-message">删除后，该任务将不可恢复。确认删除吗？</p>
+        <div class="confirm-actions">
+          <button class="btn-cancel" @click="cancelDelete">取消</button>
+          <button class="btn-delete" @click="deleteTask">删除</button>
         </div>
       </div>
     </div>
@@ -48,11 +60,13 @@ const router = useRouter();
 const tasks = ref([]);
 const loading = ref(false);
 const statusFilter = ref("");
+const showDeleteConfirm = ref(false);
+const taskToDelete = ref(null);
 
 const loadTasks = async () => {
   try {
     loading.value = true;
-    const data = await api.getTasks("default_user", statusFilter.value);
+    const data = await api.getTasks(statusFilter.value);
     tasks.value = data.tasks || [];
   } catch (error) {
     console.error("Failed to load tasks:", error);
@@ -65,19 +79,38 @@ const goToTask = (id) => {
   router.push(`/task/${id}`);
 };
 
-const deleteTask = async (id) => {
-  if (!confirm("确定要删除这个任务吗？")) return;
+const confirmDelete = (id) => {
+  taskToDelete.value = id;
+  showDeleteConfirm.value = true;
+};
+
+const cancelDelete = () => {
+  showDeleteConfirm.value = false;
+  taskToDelete.value = null;
+};
+
+const deleteTask = async () => {
+  const id = taskToDelete.value;
+  showDeleteConfirm.value = false;
 
   try {
     const result = await api.deleteTask(id);
     if (result.success) {
-      await loadTasks();
+      // 直接从列表中移除，不需要重新加载
+      const index = tasks.value.findIndex((t) => t.id === id);
+      if (index > -1) {
+        tasks.value.splice(index, 1);
+      }
     } else {
       alert("删除失败: " + (result.error || "未知错误"));
     }
   } catch (error) {
     console.error("Failed to delete task:", error);
-    alert("删除出错");
+    const errorMsg =
+      error.response?.data?.detail || error.message || "删除出错";
+    alert(`删除失败: ${errorMsg}`);
+  } finally {
+    taskToDelete.value = null;
   }
 };
 
@@ -299,5 +332,100 @@ onUnmounted(() => {
   background: #fee;
   border-color: #fcc;
   transform: scale(1.1);
+}
+
+/* 删除确认对话框 */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  animation: fadeIn 0.15s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.confirm-dialog {
+  background: var(--bg-primary);
+  border-radius: 16px;
+  padding: 24px;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  animation: slideUp 0.2s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.confirm-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 12px 0;
+}
+
+.confirm-message {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin: 0 0 24px 0;
+}
+
+.confirm-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.btn-cancel,
+.btn-delete {
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease-out;
+}
+
+.btn-cancel {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.btn-cancel:hover {
+  background: var(--bg-hover);
+}
+
+.btn-delete {
+  background: var(--error);
+  color: white;
+}
+
+.btn-delete:hover {
+  background: #dc2626;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
 }
 </style>

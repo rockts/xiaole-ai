@@ -4,7 +4,7 @@ import axios from 'axios'
 
 export const useAuthStore = defineStore('auth', () => {
     const token = ref(localStorage.getItem('token') || null)
-    const user = ref(null)
+    const user = ref(JSON.parse(localStorage.getItem('user') || 'null'))
     const loading = ref(false)
     const error = ref(null)
 
@@ -26,8 +26,9 @@ export const useAuthStore = defineStore('auth', () => {
             token.value = access_token
             localStorage.setItem('token', access_token)
 
-            // 简单设置用户信息
+            // 简单设置用户信息并持久化
             user.value = { username }
+            localStorage.setItem('user', JSON.stringify(user.value))
 
             return true
         } catch (err) {
@@ -43,6 +44,7 @@ export const useAuthStore = defineStore('auth', () => {
         token.value = null
         user.value = null
         localStorage.removeItem('token')
+        localStorage.removeItem('user')
         // 可以选择重定向到登录页，通常在组件或路由守卫中处理
     }
 

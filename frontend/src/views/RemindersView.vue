@@ -1,4 +1,5 @@
 <template>
+<div>
   <div class="reminders-view">
     <div class="card">
       <div class="header">
@@ -87,16 +88,16 @@
                 <path
                   d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
                 ></path>
-              </svg>
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 删除确认对话框 -->
-    <div v-if="showDeleteConfirm" class="modal-overlay" @click="cancelDelete">
-      <div class="confirm-dialog" @click.stop>
+              </div>
+              <!-- 提醒弹窗 -->
+              <div v-if="showRemindDialog" class="remind-modal-overlay" @click.self="showRemindDialog = false">
+                <div class="remind-modal">
+                  <div class="remind-title">🔔 {{ remindDialogData.title }}</div>
+                  <div class="remind-content">{{ remindDialogData.content }}</div>
+                  <button class="remind-confirm-btn" @click="showRemindDialog = false">知道了</button>
+                </div>
+              </div>
+            </div>
         <h3 class="confirm-title">删除提醒</h3>
         <p class="confirm-message">确定要删除这个提醒吗？此操作无法撤销。</p>
         <div class="confirm-actions">
@@ -178,7 +179,7 @@ const loadReminders = async () => {
     // api.getReminders accepts enabledOnly.
     // If showDisabled is true, we want enabledOnly=false.
     // If showDisabled is false, we want enabledOnly=true.
-    const data = await api.getReminders("default_user", !showDisabled.value);
+    const data = await api.getReminders(!showDisabled.value);
     reminders.value = data.reminders || [];
     updateTimeRemaining();
   } catch (error) {
@@ -198,7 +199,7 @@ const toggleReminder = async (reminder) => {
     console.error("Failed to update reminder:", error);
     // Revert on failure
     reminder.enabled = !newState;
-    alert("更新状态失败");
+    alert(`更新状态失败: ${error.response?.data?.detail || "请重试"}`);
   }
 };
 
@@ -223,7 +224,7 @@ const confirmDelete = async () => {
     deletingReminderId.value = null;
   } catch (error) {
     console.error("Failed to delete reminder:", error);
-    alert("删除失败");
+    alert(`删除失败: ${error.response?.data?.detail || "请重试"}`);
   }
 };
 
@@ -284,12 +285,12 @@ onMounted(() => {
   loadReminders();
   // 监听提醒确认事件，刷新列表
   window.addEventListener("reminder-confirmed", loadReminders);
-  window.addEventListener('refresh-reminders', loadReminders);
+  window.addEventListener("refresh-reminders", loadReminders);
 
   // 启动倒计时更新
   timerInterval = setInterval(updateTimeRemaining, 1000);
 
-  // 监听 WebSocket 消消息，自动刷新列表
+  // 监听 WebSocket 消息，自动刷新列表
   wsUnsubscribe = on((data) => {
     if (
       data.type === "reminder_created" ||
@@ -303,7 +304,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener("reminder-confirmed", loadReminders);
-  window.removeEventListener('refresh-reminders', loadReminders);
+  window.removeEventListener("refresh-reminders", loadReminders);
   if (timerInterval) clearInterval(timerInterval);
   if (wsUnsubscribe) {
     wsUnsubscribe();
@@ -623,5 +624,62 @@ input:checked + .slider:before {
 .btn-delete:hover {
   background: #dc2626;
   box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+}
+
+/* 提醒弹窗样式 */
+.remind-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 99999;
+}
+.remind-modal {
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+  padding: 32px 28px 24px 28px;
+  min-width: 320px;
+  max-width: 90vw;
+  text-align: center;
+  animation: fadeInRemind 0.2s;
+}
+.remind-title {
+  font-size: 1.3em;
+  font-weight: bold;
+  margin-bottom: 12px;
+}
+.remind-content {
+  font-size: 1.1em;
+  margin-bottom: 22px;
+  color: #333;
+}
+.remind-confirm-btn {
+  background: #4caf50;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 32px;
+  font-size: 1em;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.remind-confirm-btn:hover {
+  background: #388e3c;
+}
+@keyframes fadeInRemind {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 </style>

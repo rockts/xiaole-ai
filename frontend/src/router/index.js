@@ -1,4 +1,12 @@
 import { createRouter, createWebHistory } from 'vue-router'
+// 为避免动态导入偶发失败，关键页面改为静态导入
+import ChatView from '@/views/ChatView.vue'
+import MemoryView from '@/views/MemoryView.vue'
+import BehaviorView from '@/views/BehaviorView.vue'
+import TasksView from '@/views/TasksView.vue'
+import TaskDetailView from '@/views/TaskDetailView.vue'
+import DocumentsView from '@/views/DocumentsView.vue'
+import ToolsView from '@/views/ToolsView.vue'
 import { useAuthStore } from '@/stores/auth'
 
 const router = createRouter({
@@ -17,7 +25,7 @@ const router = createRouter({
         {
             path: '/chat/:sessionId?',
             name: 'Chat',
-            component: () => import('@/views/ChatView.vue'),
+            component: ChatView,
             meta: { title: '对话' }
         },
         {
@@ -29,13 +37,13 @@ const router = createRouter({
         {
             path: '/memory',
             name: 'Memory',
-            component: () => import('@/views/MemoryView.vue'),
+            component: MemoryView,
             meta: { title: '记忆' }
         },
         {
             path: '/behavior',
             name: 'Behavior',
-            component: () => import('@/views/BehaviorView.vue'),
+            component: BehaviorView,
             meta: { title: '行为分析' }
         },
         {
@@ -47,19 +55,19 @@ const router = createRouter({
         {
             path: '/tasks',
             name: 'Tasks',
-            component: () => import('@/views/TasksView.vue'),
+            component: TasksView,
             meta: { title: '任务' }
         },
         {
             path: '/task/:id',
             name: 'TaskDetail',
-            component: () => import('@/views/TaskDetailView.vue'),
+            component: TaskDetailView,
             meta: { title: '任务详情' }
         },
         {
             path: '/documents',
             name: 'Documents',
-            component: () => import('@/views/DocumentsView.vue'),
+            component: DocumentsView,
             meta: { title: '文档' }
         },
         {
@@ -71,7 +79,7 @@ const router = createRouter({
         {
             path: '/tools',
             name: 'Tools',
-            component: () => import('@/views/ToolsView.vue'),
+            component: ToolsView,
             meta: { title: '工具' }
         },
         {
@@ -97,3 +105,12 @@ router.beforeEach((to, from, next) => {
 })
 
 export default router
+
+// 路由错误日志，定位动态导入或导航失败
+router.onError((err, to) => {
+    // 一些浏览器可能静默失败，这里强制输出
+    console.error('🚨 Router Error:', err);
+    if (to) {
+        console.error('📍 Navigating to:', to.fullPath || to.path);
+    }
+});

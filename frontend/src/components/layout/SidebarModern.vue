@@ -151,27 +151,27 @@
           <template v-else>
             <div
               v-for="session in displayedSessions"
-              :key="session.id || session.session_id"
+              :key="session.session_id || session.id"
               class="session-item"
               :class="{
                 active: isCurrentSession(session),
                 pinned: session.pinned,
               }"
-              @click="loadSession(session.id || session.session_id)"
-              @mouseenter="hoveredSessionId = session.id || session.session_id"
+              @click="loadSession(session.session_id || session.id)"
+              @mouseenter="hoveredSessionId = session.session_id || session.id"
               @mouseleave="hoveredSessionId = null"
             >
               <div
                 class="session-content"
-                @click="loadSession(session.id || session.session_id)"
+                @click="loadSession(session.session_id || session.id)"
               >
                 <input
-                  v-if="editingSessionId === (session.id || session.session_id)"
+                  v-if="editingSessionId === (session.session_id || session.id)"
                   v-model="editingTitle"
                   class="session-title-input"
-                  @keydown.enter="saveRename(session.id || session.session_id)"
+                  @keydown.enter="saveRename(session.session_id || session.id)"
                   @keydown.esc="cancelRename"
-                  @blur="saveRename(session.id || session.session_id)"
+                  @blur="saveRename(session.session_id || session.id)"
                   @click.stop
                 />
                 <div v-else class="session-title">
@@ -194,20 +194,20 @@
               </div>
               <button
                 v-if="
-                  hoveredSessionId === (session.id || session.session_id) ||
-                  activeMenuSessionId === (session.id || session.session_id) ||
+                  hoveredSessionId === (session.session_id || session.id) ||
+                  activeMenuSessionId === (session.session_id || session.id) ||
                   isCurrentSession(session)
                 "
                 class="session-menu-btn"
                 aria-label="会话操作菜单"
                 aria-haspopup="menu"
-                :id="`menu-btn-${session.id || session.session_id}`"
+                :id="`menu-btn-${session.session_id || session.id}`"
                 :ref="
-                  (el) => setMenuBtnRef(el, session.id || session.session_id)
+                  (el) => setMenuBtnRef(el, session.session_id || session.id)
                 "
                 @mousedown.stop.prevent
                 @click.stop.prevent="
-                  toggleSessionMenu(session.id || session.session_id, $event)
+                  toggleSessionMenu(session.session_id || session.id, $event)
                 "
               >
                 <svg
@@ -228,7 +228,7 @@
               <teleport to="body">
                 <div
                   v-if="
-                    activeMenuSessionId === (session.id || session.session_id)
+                    activeMenuSessionId === (session.session_id || session.id)
                   "
                   class="session-menu"
                   :style="{
@@ -246,7 +246,7 @@
                   <div :class="['menu-arrow', menuPosition.placement]"></div>
                   <button
                     class="menu-item"
-                    @click="renameSession(session.id || session.session_id)"
+                    @click="renameSession(session.session_id || session.id)"
                   >
                     <svg
                       width="14"
@@ -267,7 +267,7 @@
                   </button>
                   <button
                     class="menu-item"
-                    @click="shareSession(session.id || session.session_id)"
+                    @click="shareSession(session.session_id || session.id)"
                   >
                     <svg
                       width="14"
@@ -287,7 +287,7 @@
                   </button>
                   <button
                     class="menu-item"
-                    @click="pinSession(session.id || session.session_id)"
+                    @click="pinSession(session.session_id || session.id)"
                   >
                     <svg
                       width="14"
@@ -305,7 +305,7 @@
                   </button>
                   <button
                     class="menu-item danger"
-                    @click="confirmDelete(session.id || session.session_id)"
+                    @click="confirmDelete(session.session_id || session.id)"
                   >
                     <svg
                       width="14"
@@ -333,12 +333,19 @@
         </div>
       </div>
     </div>
+    <!-- 结束 sidebar-content -->
 
     <!-- 底部：用户资料 -->
     <div
       class="sidebar-footer user-profile"
       @click="toggleUserMenu"
+      @touchstart.stop="toggleUserMenu"
       ref="userMenuRef"
+      style="
+        cursor: pointer;
+        user-select: none;
+        -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+      "
     >
       <div class="avatar-wrapper">
         <div class="user-avatar-icon">
@@ -439,11 +446,13 @@
       </teleport>
     </div>
 
-    <!-- 设置弹窗 -->
-    <SettingsModal
-      v-if="showSettingsModal"
-      @close="showSettingsModal = false"
-    />
+    <!-- 设置弹窗 - 使用 Teleport 渲染到 body 确保最高层级 -->
+    <teleport to="body">
+      <SettingsModal
+        v-if="showSettingsModal"
+        @close="showSettingsModal = false"
+      />
+    </teleport>
 
     <!-- 删除确认对话框 -->
     <div v-if="showDeleteConfirm" class="modal-overlay" @click="cancelDelete">
@@ -475,6 +484,7 @@ import { storeToRefs } from "pinia";
 import logoImage from "@/assets/logo-xiaole.png";
 import ShareDialog from "@/components/common/ShareDialog.vue";
 import SettingsModal from "@/components/common/SettingsModal.vue";
+import api from "@/services/api";
 
 const router = useRouter();
 const route = useRoute();
@@ -489,9 +499,8 @@ const incompleteTasks = computed(() =>
 
 const fetchTasks = async () => {
   try {
-    const res = await fetch("/api/tasks");
-    if (res.ok) {
-      const data = await res.json();
+    const data = await api.getTasks();
+    if (data.success) {
       tasks.value = data.tasks || [];
     }
   } catch (e) {
@@ -507,7 +516,7 @@ const handleTaskClick = (task) => {
 // 移动端检测
 const isMobile = ref(window.innerWidth <= 768);
 
-// 使用新的 logo
+// 使用项目 logo
 const logoSrc = computed(() => logoImage);
 // 从 localStorage 读取收起状态，移动端默认收起
 const savedCollapsed = localStorage.getItem("sidebar-collapsed");
@@ -549,7 +558,7 @@ const navItems = [
 
 const isActive = (path) => route.path.startsWith(path);
 const isCurrentSession = (session) =>
-  route.params.sessionId == (session.id || session.session_id);
+  route.params.sessionId == (session.session_id || session.id);
 
 const handleMobileNav = () => {
   if (isMobile.value) {
@@ -558,6 +567,7 @@ const handleMobileNav = () => {
 };
 
 const newChat = () => {
+  chatStore.clearCurrentSession();
   router.push("/chat");
   handleMobileNav();
 };
@@ -581,13 +591,30 @@ const openSettingsModal = () => {
 const updateUserMenuPosition = () => {
   if (!userMenuRef.value) return;
   const rect = userMenuRef.value.getBoundingClientRect();
-  userMenuPosition.value = {
-    left: rect.left + 8,
-    bottom: window.innerHeight - rect.top + 8,
-  };
+  const isMobile = window.innerWidth <= 768;
+
+  if (isMobile) {
+    // 移动端：使用侧边栏的左侧位置，保持宽度一致
+    userMenuPosition.value = {
+      left: 8, // 与侧边栏对齐
+      bottom: 70,
+    };
+  } else {
+    // 桌面端：根据实际位置计算
+    userMenuPosition.value = {
+      left: rect.left + 8,
+      bottom: window.innerHeight - rect.top + 8,
+    };
+  }
 };
 
-const toggleUserMenu = () => {
+const toggleUserMenu = (event) => {
+  // 阻止事件冒泡和默认行为
+  if (event) {
+    event.stopPropagation();
+    event.preventDefault();
+  }
+
   if (!showUserMenu.value) {
     updateUserMenuPosition();
     showUserMenu.value = true;
@@ -634,13 +661,17 @@ const menuPosition = ref({ top: 0, left: 0, placement: "bottom" });
 const pageSize = 20;
 const currentPage = ref(1);
 const displayedSessions = computed(() => {
-  // 将置顶的会话排在前面
+  // 将置顶的会话排在前面,然后按更新时间倒序
   const sorted = [...sessions.value].sort((a, b) => {
     const aPinned = a.pinned || false;
     const bPinned = b.pinned || false;
+    // 置顶会话优先
     if (aPinned && !bPinned) return -1;
     if (!aPinned && bPinned) return 1;
-    return 0;
+    // 同为置顶或同为非置顶时,按更新时间倒序
+    const aTime = new Date(a.updated_at || a.created_at).getTime();
+    const bTime = new Date(b.updated_at || b.created_at).getTime();
+    return bTime - aTime;
   });
   return sorted.slice(0, currentPage.value * pageSize);
 });
@@ -742,7 +773,7 @@ const toggleSessionMenu = async (id, evt) => {
 
 const startRenaming = (session) => {
   activeMenuSessionId.value = null;
-  editingSessionId.value = session.id || session.session_id;
+  editingSessionId.value = session.session_id || session.id;
   editingTitle.value = session.title || "未命名对话";
   // 等待DOM更新后聚焦输入框
   nextTick(() => {
@@ -759,37 +790,27 @@ const saveRename = async (id) => {
   if (
     !newTitle ||
     newTitle ===
-      sessions.value.find((s) => (s.id || s.session_id) === id)?.title
+      sessions.value.find((s) => (s.session_id || s.id) === id)?.title
   ) {
     cancelRename();
     return;
   }
 
   try {
-    const response = await fetch(`/api/chat/sessions/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title: newTitle }),
-    });
+    await api.updateSession(id, { title: newTitle });
 
-    if (response.ok) {
-      const session = sessions.value.find((s) => (s.id || s.session_id) === id);
-      if (session) {
-        session.title = newTitle;
-      }
-      if (
-        chatStore.sessionInfo &&
-        (chatStore.sessionInfo.id === id ||
-          chatStore.sessionInfo.session_id === id)
-      ) {
-        chatStore.sessionInfo.title = newTitle;
-      }
-      cancelRename();
-    } else {
-      console.error("重命名失败:", await response.text());
-      alert("重命名失败,请重试");
-      cancelRename();
+    const session = sessions.value.find((s) => (s.session_id || s.id) === id);
+    if (session) {
+      session.title = newTitle;
     }
+    if (
+      chatStore.sessionInfo &&
+      (chatStore.sessionInfo.id === id ||
+        chatStore.sessionInfo.session_id === id)
+    ) {
+      chatStore.sessionInfo.title = newTitle;
+    }
+    cancelRename();
   } catch (error) {
     console.error("重命名失败:", error);
     alert("重命名失败,请重试");
@@ -803,8 +824,13 @@ const cancelRename = () => {
 };
 
 const renameSession = async (id) => {
-  const session = sessions.value.find((s) => (s.id || s.session_id) === id);
-  if (!session) return;
+  console.log("重命名会话:", id);
+  const session = sessions.value.find((s) => (s.session_id || s.id) === id);
+  if (!session) {
+    console.error("未找到会话:", id);
+    return;
+  }
+  console.log("找到会话:", session);
   startRenaming(session);
 };
 
@@ -813,7 +839,7 @@ const shareDialogUrl = ref("");
 const shareDialogTitle = ref("分享对话");
 const shareSession = async (id) => {
   activeMenuSessionId.value = null;
-  const session = sessions.value.find((s) => (s.id || s.session_id) === id);
+  const session = sessions.value.find((s) => (s.session_id || s.id) === id);
   const title = session?.title || "未命名对话";
   shareDialogTitle.value = title;
   shareDialogUrl.value = `${window.location.origin}/share/${id}`;
@@ -821,26 +847,24 @@ const shareSession = async (id) => {
 };
 
 const pinSession = async (id) => {
+  console.log("置顶会话:", id);
   activeMenuSessionId.value = null;
-  const session = sessions.value.find((s) => (s.id || s.session_id) === id);
-  if (!session) return;
+  const session = sessions.value.find((s) => (s.session_id || s.id) === id);
+  if (!session) {
+    console.error("未找到会话:", id);
+    return;
+  }
 
   try {
     // 切换置顶状态
     const isPinned = session.pinned || false;
-    const response = await fetch(`/api/chat/sessions/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pinned: !isPinned }),
-    });
+    console.log("当前置顶状态:", isPinned, "→ 切换为:", !isPinned);
+    await api.updateSession(id, { pinned: !isPinned });
 
-    if (response.ok) {
-      session.pinned = !isPinned;
-      // 重新排序会话列表,置顶的会话排在前面
-      await chatStore.loadSessions(true);
-    } else {
-      alert(isPinned ? "取消置顶失败" : "置顶失败");
-    }
+    session.pinned = !isPinned;
+    console.log("置顶成功");
+    // 重新排序会话列表,置顶的会话排在前面
+    await chatStore.loadSessions(true);
   } catch (error) {
     console.error("置顶操作失败:", error);
     alert("操作失败,请重试");
@@ -865,29 +889,25 @@ const deleteSession = async () => {
   if (!id) return;
 
   try {
-    const response = await fetch(`/api/chat/sessions/${id}`, {
-      method: "DELETE",
-    });
+    await api.deleteSession(id);
 
-    if (response.ok) {
-      // 从列表中移除
-      const index = sessions.value.findIndex(
-        (s) => (s.id || s.session_id) === id
-      );
-      if (index > -1) {
-        sessions.value.splice(index, 1);
-      }
+    // 从列表中移除
+    const index = sessions.value.findIndex(
+      (s) => (s.session_id || s.id) === id
+    );
+    if (index > -1) {
+      sessions.value.splice(index, 1);
+    }
 
-      // 如果删除的是当前会话,跳转到新对话
-      if (route.params.sessionId == id) {
-        router.push("/chat");
-      }
-    } else {
-      alert("删除失败,请重试");
+    // 如果删除的是当前会话,跳转到新对话
+    if (route.params.sessionId == id) {
+      router.push("/chat");
     }
   } catch (error) {
     console.error("删除失败:", error);
-    alert("删除失败,请重试");
+    const errorMsg =
+      error.response?.data?.detail || error.message || "删除失败";
+    alert(`删除失败: ${errorMsg}`);
   }
 };
 
@@ -931,6 +951,63 @@ onMounted(() => {
   document.addEventListener("click", clickOutsideHandler);
   // 初次挂载后，尝试保证出现滚动条
   ensureScrollable();
+
+  // 强制显示移动端滚动条
+  nextTick(() => {
+    if (window.innerWidth <= 768) {
+      const sessionsList = document.querySelector(".sessions-list");
+      if (sessionsList) {
+        // 强制设置滚动条样式
+        sessionsList.style.cssText += `
+          overflow-y: scroll !important;
+          -webkit-overflow-scrolling: touch !important;
+          scrollbar-width: auto !important;
+        `;
+
+        // 添加滚动指示器（上下渐变）
+        const sessionsSection = document.querySelector(".sessions-section");
+        if (
+          sessionsSection &&
+          sessionsList.scrollHeight > sessionsList.clientHeight
+        ) {
+          sessionsSection.style.cssText += `
+            position: relative;
+          `;
+          // 上渐变
+          const topGradient = document.createElement("div");
+          topGradient.className = "scroll-indicator-top";
+          topGradient.style.cssText = `
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 14px;
+            height: 20px;
+            background: linear-gradient(to bottom, var(--bg-primary), transparent);
+            pointer-events: none;
+            z-index: 10;
+          `;
+          // 下渐变
+          const bottomGradient = document.createElement("div");
+          bottomGradient.className = "scroll-indicator-bottom";
+          bottomGradient.style.cssText = `
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 14px;
+            height: 30px;
+            background: linear-gradient(to top, var(--bg-primary), transparent);
+            pointer-events: none;
+            z-index: 10;
+          `;
+          sessionsSection.appendChild(topGradient);
+          sessionsSection.appendChild(bottomGradient);
+
+          console.log("Mobile scrollbar forced with indicators");
+        }
+      }
+    }
+  });
+
   // 窗口变化时关闭菜单或重算
   const onResize = () => {
     const newIsMobile = window.innerWidth <= 768;
@@ -981,6 +1058,8 @@ watch(
   border-right: 1px solid var(--border-light);
   transition: all var(--duration-normal) var(--ease-out);
   z-index: 900;
+  box-sizing: border-box;
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 .sidebar.collapsed {
@@ -995,13 +1074,15 @@ watch(
     position: fixed;
     top: 0;
     left: 0;
-    bottom: 0;
+    height: 100vh;
+    height: 100dvh; /* 使用动态视口高度，更准确 */
     width: 245px !important; /* 移动端展开时宽度固定 */
     min-width: 245px !important;
     flex: 0 0 245px !important;
     transform: translateX(0);
     box-shadow: var(--shadow-lg);
     z-index: 1000;
+    padding-bottom: 0; /* 移除sidebar的padding，让footer自己处理 */
   }
 
   .sidebar.collapsed {
@@ -1529,8 +1610,12 @@ watch(
   flex-shrink: 0;
   flex-grow: 0;
   padding: 2px 8px;
+  /* 为 iOS/全面屏添加底部安全区内边距，避免遮挡用户栏 */
+  padding-bottom: calc(2px + env(safe-area-inset-bottom));
+  padding-bottom: calc(2px + constant(safe-area-inset-bottom));
   border-top: 1px solid var(--border-light);
   background: var(--bg-primary);
+  z-index: 5;
 }
 .settings-btn {
   display: flex;
@@ -1693,31 +1778,50 @@ watch(
 
 .user-dropdown-menu {
   position: fixed;
-  min-width: 200px;
+  width: 225px; /* 与侧边栏宽度保持一致 */
   background: var(--bg-primary);
   border: 1px solid var(--border-light);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-lg);
-  padding: 4px;
-  z-index: 1000;
+  border-radius: 12px; /* 圆角效果 */
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  padding: 8px;
+  z-index: 10000 !important;
   animation: slideUp 0.15s ease-out;
   cursor: default;
+  overflow: hidden;
+}
+
+@media (max-width: 768px) {
+  .user-dropdown-menu {
+    /* 移动端保持一致样式 */
+    z-index: 10000 !important;
+    width: 225px;
+  }
 }
 
 .dropdown-item {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 12px;
+  padding: 12px 14px;
   color: var(--text-primary);
   font-size: 14px;
-  border-radius: 6px;
+  border-radius: 8px; /* 圆角 */
   cursor: pointer;
-  transition: background var(--duration-fast);
+  transition: all 0.2s ease;
 }
 
 .dropdown-item:hover {
   background: var(--bg-hover);
+  transform: translateX(2px);
+}
+
+.dropdown-item svg {
+  color: var(--icon-color);
+  transition: color 0.2s ease;
+}
+
+.dropdown-item:hover svg {
+  color: var(--text-primary);
 }
 
 .dropdown-item.danger {
@@ -1801,6 +1905,75 @@ watch(
   width: 40px;
   height: 40px;
   border-width: 0;
+}
+
+/* 移动端覆盖：让可滚动区域自适应，避免挤压底部用户栏 */
+@media (max-width: 768px) {
+  .sidebar-content {
+    /* 确保sidebar-content占满高度并使用flex分配 */
+    height: 100%;
+    max-height: 100vh;
+    max-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto; /* 允许整体滚动 */
+  }
+  .sessions-section {
+    /* 限制最大高度，为footer预留空间 */
+    max-height: calc(100vh - 200px); /* 为顶部logo+nav+footer预留空间 */
+    max-height: calc(100dvh - 200px);
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .sessions-list {
+    flex: 1;
+    overflow-y: scroll !important; /* 强制显示滚动条 */
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch; /* iOS平滑滚动 */
+    /* 强制显示滚动条 - 所有浏览器 */
+    scrollbar-width: auto !important; /* Firefox - auto比thin更明显 */
+    scrollbar-color: rgba(0, 0, 0, 0.5) rgba(0, 0, 0, 0.1) !important;
+  }
+  /* Chrome/Safari/Edge/移动端 - 强制显示，使用更明显的样式 */
+  .sessions-list::-webkit-scrollbar {
+    width: 14px !important; /* 加宽滚动条 */
+    -webkit-appearance: none !important;
+    display: block !important;
+    background: rgba(0, 0, 0, 0.05) !important;
+  }
+  .sessions-list::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.08) !important;
+    border-radius: 7px !important;
+    margin: 4px 0 !important;
+  }
+  .sessions-list::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.45) !important;
+    border-radius: 7px !important;
+    border: 3px solid rgba(0, 0, 0, 0.05) !important; /* 边框让滚动条更明显 */
+    background-clip: padding-box !important;
+    min-height: 50px !important;
+  }
+  .sessions-list::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.6) !important;
+    background-clip: padding-box !important;
+  }
+  .sessions-list::-webkit-scrollbar-thumb:active {
+    background: rgba(0, 0, 0, 0.7) !important;
+    background-clip: padding-box !important;
+  }
+  .sidebar-footer {
+    /* 确保footer始终在底部显示，增加足够的padding避免被系统UI遮挡 */
+    flex-shrink: 0;
+    padding: 12px 8px;
+    padding-bottom: calc(20px + env(safe-area-inset-bottom));
+    background: var(--bg-primary);
+    border-top: 1px solid var(--border-light);
+    min-height: 60px;
+    box-sizing: border-box;
+  }
 }
 </style>
 

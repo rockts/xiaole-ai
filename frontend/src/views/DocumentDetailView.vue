@@ -132,7 +132,25 @@ const showPreview = ref(true);
 
 const fileUrl = computed(() => {
   if (!document.value) return "";
-  return `/uploads/${document.value.filename}`;
+  const filename = document.value.filename;
+
+  // 1. 如果文件名已包含子目录路径,直接使用
+  if (filename.includes("/")) {
+    return `/uploads/${filename}`;
+  }
+
+  // 2. 根据时间戳判断新旧文件: >= 1764159000 为新文件(11月26日20:00后)
+  const timestampMatch = filename.match(/^(\d+)_/);
+  if (timestampMatch) {
+    const timestamp = parseInt(timestampMatch[1]);
+    // 11月26日20:00后的文件在documents子目录
+    if (timestamp >= 1764159000) {
+      return `/uploads/documents/${filename}`;
+    }
+  }
+
+  // 3. 其他都是旧文件,在根目录
+  return `/uploads/${filename}`;
 });
 
 const isPdf = computed(() => {
