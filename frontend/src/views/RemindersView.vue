@@ -1,113 +1,120 @@
 <template>
-<div>
-  <div class="reminders-view">
-    <div class="card">
-      <div class="header">
-        <h3>🔔 提醒管理</h3>
-        <div class="controls">
-          <label class="toggle-label">
-            <input
-              type="checkbox"
-              v-model="showDisabled"
-              @change="loadReminders"
-            />
-            显示已禁用
-          </label>
+  <div>
+    <div class="reminders-view">
+      <div class="card">
+        <div class="header">
+          <h3>🔔 提醒管理</h3>
+          <div class="controls">
+            <label class="toggle-label">
+              <input
+                type="checkbox"
+                v-model="showDisabled"
+                @change="loadReminders"
+              />
+              显示已禁用
+            </label>
+          </div>
+        </div>
+
+        <div class="reminders-list">
+          <div v-if="loading" class="loading">加载中...</div>
+          <div v-else-if="reminders.length === 0" class="empty">暂无提醒</div>
+          <div
+            v-else
+            v-for="reminder in reminders"
+            :key="reminder.reminder_id"
+            class="reminder-item"
+            :class="{ disabled: !reminder.enabled }"
+          >
+            <div class="reminder-main">
+              <div class="reminder-header">
+                <span class="reminder-title">{{
+                  reminder.title || "未命名提醒"
+                }}</span>
+                <span class="reminder-type" :class="reminder.reminder_type">
+                  {{ formatType(reminder.reminder_type) }}
+                </span>
+                <span
+                  class="reminder-priority"
+                  :class="'p' + reminder.priority"
+                >
+                  P{{ reminder.priority }}
+                </span>
+              </div>
+              <div
+                class="reminder-content"
+                v-if="reminder.content && reminder.content !== reminder.title"
+              >
+                {{ reminder.content }}
+              </div>
+              <div class="reminder-condition">
+                <span class="icon">⏰</span>
+                {{ formatCondition(reminder) }}
+              </div>
+              <div class="reminder-meta">
+                <span v-if="reminder.repeat" class="tag repeat">🔁 重复</span>
+                <span
+                  v-if="timeRemainingMap[reminder.reminder_id]"
+                  class="tag time-left"
+                >
+                  ⏳ {{ timeRemainingMap[reminder.reminder_id] }}
+                </span>
+                <span class="created-at"
+                  >创建于: {{ formatDate(reminder.created_at) }}</span
+                >
+              </div>
+            </div>
+
+            <div class="reminder-actions">
+              <label class="switch">
+                <input
+                  type="checkbox"
+                  :checked="reminder.enabled"
+                  @change="toggleReminder(reminder)"
+                />
+                <span class="slider round"></span>
+              </label>
+              <button
+                class="btn-icon"
+                @click="requestDelete(reminder.reminder_id)"
+                title="删除"
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <polyline points="3 6 5 6 21 6"></polyline>
+                  <path
+                    d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+                  ></path>
+                </svg>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div class="reminders-list">
-        <div v-if="loading" class="loading">加载中...</div>
-        <div v-else-if="reminders.length === 0" class="empty">暂无提醒</div>
-        <div
-          v-else
-          v-for="reminder in reminders"
-          :key="reminder.reminder_id"
-          class="reminder-item"
-          :class="{ disabled: !reminder.enabled }"
-        >
-          <div class="reminder-main">
-            <div class="reminder-header">
-              <span class="reminder-title">{{
-                reminder.title || "未命名提醒"
-              }}</span>
-              <span class="reminder-type" :class="reminder.reminder_type">
-                {{ formatType(reminder.reminder_type) }}
-              </span>
-              <span class="reminder-priority" :class="'p' + reminder.priority">
-                P{{ reminder.priority }}
-              </span>
-            </div>
-            <div
-              class="reminder-content"
-              v-if="reminder.content && reminder.content !== reminder.title"
-            >
-              {{ reminder.content }}
-            </div>
-            <div class="reminder-condition">
-              <span class="icon">⏰</span>
-              {{ formatCondition(reminder) }}
-            </div>
-            <div class="reminder-meta">
-              <span v-if="reminder.repeat" class="tag repeat">🔁 重复</span>
-              <span
-                v-if="timeRemainingMap[reminder.reminder_id]"
-                class="tag time-left"
-              >
-                ⏳ {{ timeRemainingMap[reminder.reminder_id] }}
-              </span>
-              <span class="created-at"
-                >创建于: {{ formatDate(reminder.created_at) }}</span
-              >
-            </div>
+      <!-- 删除确认对话框 -->
+      <div
+        v-if="showDeleteConfirm"
+        class="modal-overlay"
+        @click.self="cancelDelete"
+      >
+        <div class="confirm-dialog">
+          <h3 class="confirm-title">删除提醒</h3>
+          <p class="confirm-message">确定要删除这个提醒吗？此操作无法撤销。</p>
+          <div class="confirm-actions">
+            <button class="btn-cancel" @click="cancelDelete">取消</button>
+            <button class="btn-delete" @click="confirmDelete">删除</button>
           </div>
-
-          <div class="reminder-actions">
-            <label class="switch">
-              <input
-                type="checkbox"
-                :checked="reminder.enabled"
-                @change="toggleReminder(reminder)"
-              />
-              <span class="slider round"></span>
-            </label>
-            <button
-              class="btn-icon"
-              @click="requestDelete(reminder.reminder_id)"
-              title="删除"
-            >
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <polyline points="3 6 5 6 21 6"></polyline>
-                <path
-                  d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
-                ></path>
-              </div>
-              <!-- 提醒弹窗 -->
-              <div v-if="showRemindDialog" class="remind-modal-overlay" @click.self="showRemindDialog = false">
-                <div class="remind-modal">
-                  <div class="remind-title">🔔 {{ remindDialogData.title }}</div>
-                  <div class="remind-content">{{ remindDialogData.content }}</div>
-                  <button class="remind-confirm-btn" @click="showRemindDialog = false">知道了</button>
-                </div>
-              </div>
-            </div>
-        <h3 class="confirm-title">删除提醒</h3>
-        <p class="confirm-message">确定要删除这个提醒吗？此操作无法撤销。</p>
-        <div class="confirm-actions">
-          <button class="btn-cancel" @click="cancelDelete">取消</button>
-          <button class="btn-delete" @click="confirmDelete">删除</button>
         </div>
       </div>
     </div>
   </div>
-</div>
 </template>
 
 <script setup>
