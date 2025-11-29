@@ -27,7 +27,13 @@ engine = create_engine(
 Base = declarative_base()
 
 # 创建Session工厂
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+# expire_on_commit=False: 提交后对象不过期,避免查询问题
+SessionLocal = sessionmaker(
+    autocommit=False,
+    autoflush=False,
+    bind=engine,
+    expire_on_commit=False
+)
 
 
 class Memory(Base):

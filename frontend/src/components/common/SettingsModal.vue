@@ -105,6 +105,11 @@
         </button>
         <button @click="saveSettings" class="btn-primary">💾 保存设置</button>
       </div>
+
+      <!-- 移动端额外的关闭按钮 -->
+      <div class="mobile-close-bar">
+        <button @click="$emit('close')" class="mobile-close-btn">返回</button>
+      </div>
     </div>
   </div>
 </template>
@@ -164,7 +169,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 2000;
+  z-index: 99999;
   backdrop-filter: blur(4px);
   animation: fadeIn 0.2s ease-out;
 }
@@ -179,8 +184,60 @@ onMounted(() => {
   flex-direction: column;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
   animation: slideUp 0.2s ease-out;
+  z-index: 100000;
 }
 
+@media (max-width: 768px) {
+  .modal-overlay {
+    align-items: stretch;
+  }
+
+  .modal-content {
+    width: 100%;
+    max-width: 100%;
+    height: 100vh;
+    max-height: 100vh;
+    border-radius: 0;
+    margin: 0;
+  }
+
+  .mobile-close-bar {
+    display: flex;
+    justify-content: center;
+    padding: 16px;
+    padding-bottom: calc(
+      16px + env(safe-area-inset-bottom) + 60px
+    ); /* 额外加60px避开浏览器底部菜单 */
+    border-top: 1px solid var(--border-light);
+    background: var(--bg-secondary);
+  }
+
+  .mobile-close-btn {
+    width: 100%;
+    max-width: 400px;
+    padding: 14px 24px;
+    background: var(--brand-primary);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .mobile-close-btn:active {
+    transform: scale(0.98);
+    background: var(--brand-secondary);
+  }
+}
+
+/* 桌面端隐藏移动端关闭按钮 */
+@media (min-width: 769px) {
+  .mobile-close-bar {
+    display: none;
+  }
+}
 .modal-header {
   padding: 20px 24px;
   border-bottom: 1px solid var(--border-light);
@@ -214,6 +271,7 @@ onMounted(() => {
 
 .modal-body {
   padding: 24px;
+  padding-bottom: 12px; /* 减少底部padding给按钮区留空间 */
   overflow-y: auto;
   flex: 1;
 }
@@ -287,10 +345,12 @@ onMounted(() => {
 
 .modal-footer {
   padding: 16px 24px;
+  padding-bottom: 20px; /* 增加底部边距 */
   border-top: 1px solid var(--border-light);
   display: flex;
   justify-content: flex-end;
   gap: 12px;
+  flex-shrink: 0; /* 防止被压缩 */
 }
 
 .btn-primary,

@@ -33,10 +33,21 @@ sleep 2
 echo "🎨 启动前端服务 (端口 3000)..."
 cd frontend
 
-# 加载 nvm 并使用 Node 20
+# 加载 nvm 并使用项目指定的 Node 版本
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-nvm use 20
+
+# 自动使用 .nvmrc 中指定的版本
+if [ -f .nvmrc ]; then
+    echo "📦 使用 .nvmrc 指定的 Node 版本..."
+    nvm use || nvm install
+else
+    echo "⚠️  未找到 .nvmrc，使用 Node 20..."
+    nvm use 20 2>/dev/null || nvm install 20
+fi
+
+NODE_VERSION=$(node --version)
+echo "✅ Node 版本: $NODE_VERSION"
 
 # 清理缓存并启动
 rm -rf node_modules/.vite

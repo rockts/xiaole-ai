@@ -9,9 +9,20 @@ from typing import List, Optional, Tuple
 from pathlib import Path
 
 # 文件解析库
-import PyPDF2
-from docx import Document
-import pdfplumber
+try:
+    import PyPDF2
+except ImportError:
+    PyPDF2 = None
+
+try:
+    from docx import Document
+except ImportError:
+    Document = None
+
+try:
+    import pdfplumber
+except ImportError:
+    pdfplumber = None
 
 # 数据库
 import psycopg2

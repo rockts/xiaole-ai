@@ -113,48 +113,48 @@ class XiaoLeAgent:
         if self.api_type == "deepseek":
             if not self.deepseek_key or \
                self.deepseek_key == "your_deepseek_api_key_here":
-                print("⚠️  警告: 未配置 DEEPSEEK_API_KEY，使用占位模式")
+                logger.warning("⚠️  警告: 未配置 DEEPSEEK_API_KEY，使用占位模式")
                 return None
-            print(f"✅ 使用 DeepSeek API ({self.model})")
+            logger.info(f"✅ 使用 DeepSeek API ({self.model})")
             return "deepseek"
 
         elif self.api_type == "claude":
             if not self.claude_key or \
                self.claude_key == "your_claude_api_key_here":
-                print("⚠️  警告: 未配置 CLAUDE_API_KEY，使用占位模式")
+                logger.warning("⚠️  警告: 未配置 CLAUDE_API_KEY，使用占位模式")
                 # 尝试回退到 DeepSeek
                 if self.deepseek_key and \
                    self.deepseek_key != "your_deepseek_api_key_here":
-                    print("↩️  回退到 DeepSeek（因缺少 Claude Key）")
+                    logger.info("↩️  回退到 DeepSeek（因缺少 Claude Key）")
                     self.api_type = "deepseek"
                     self.model = self._get_model()
-                    print(f"✅ 使用 DeepSeek API ({self.model})")
+                    logger.info(f"✅ 使用 DeepSeek API ({self.model})")
                     return "deepseek"
                 return None
             try:
                 from anthropic import Anthropic
-                print(f"✅ 使用 Claude API ({self.model})")
+                logger.info(f"✅ 使用 Claude API ({self.model})")
                 return Anthropic(api_key=self.claude_key)
             except Exception as e:
-                print(f"⚠️  Claude初始化失败: {e}")
+                logger.error(f"⚠️  Claude初始化失败: {e}")
                 # 尝试回退到 DeepSeek
                 if self.deepseek_key and \
                    self.deepseek_key != "your_deepseek_api_key_here":
-                    print("↩️  回退到 DeepSeek（Claude 初始化失败）")
+                    logger.info("↩️  回退到 DeepSeek（Claude 初始化失败）")
                     self.api_type = "deepseek"
                     self.model = self._get_model()
-                    print(f"✅ 使用 DeepSeek API ({self.model})")
+                    logger.info(f"✅ 使用 DeepSeek API ({self.model})")
                     return "deepseek"
                 return None
 
-        print(f"⚠️  未知的API类型: {self.api_type}")
+        logger.warning(f"⚠️  未知的API类型: {self.api_type}")
         # 尝试回退到 DeepSeek
         if self.deepseek_key and \
            self.deepseek_key != "your_deepseek_api_key_here":
-            print("↩️  回退到 DeepSeek（未知 API 类型）")
+            logger.info("↩️  回退到 DeepSeek（未知 API 类型）")
             self.api_type = "deepseek"
             self.model = self._get_model()
-            print(f"✅ 使用 DeepSeek API ({self.model})")
+            logger.info(f"✅ 使用 DeepSeek API ({self.model})")
             return "deepseek"
         return None
 
@@ -226,7 +226,7 @@ class XiaoLeAgent:
 
         except Exception as e:
             error_msg = f"调用 AI API 时出错: {str(e)}"
-            print(f"❌ {error_msg}")
+            logger.error(f"❌ {error_msg}")
             return f"抱歉，我遇到了一些问题：{str(e)}"
 
     @retry_with_backoff(
@@ -326,6 +326,29 @@ class XiaoLeAgent:
         if not self.client:
             return  # 占位模式不提取
 
+        # v0.9.4: 对明显的“非事实类”请求跳过提取，避免不必要的LLM调用
+        try:
+            q = (user_message or '').strip()
+            q_lower = q.lower()
+            time_like = any(k in q for k in [
+                '现在几点', '几点了', '几点', '当前时间', '现在时间',
+                '今天几号', '今天日期', '今天星期几', '星期几', '周几'
+            ])
+            remind_like = any(k in q_lower for k in ['提醒', '闹钟'])
+            task_like = any(k in q_lower for k in ['任务', '待办'])
+            search_like = any(k in q_lower for k in [
+                              '搜索', '查一下', '搜一下', '帮我找', '帮我查', '百度', '谷歌'])
+
+            import re as _re
+            expr = q.replace('＝', '=').replace('？', '?')
+            is_math = _re.fullmatch(
+                r"[\s\d\.+\-\*/\(\)]+[=\s?]*", expr) is not None
+
+            if time_like or remind_like or task_like or search_like or is_math:
+                return
+        except Exception:
+            pass
+
         # 让AI判断是否包含需要记住的关键事实
         extraction_prompt = f"""分析用户的这句话，判断是否包含需要长期记住的关键信息。
 
@@ -338,7 +361,7 @@ class XiaoLeAgent:
 - 职业、工作
 - 家庭成员（**特别注意**：如果是家人的信息，必须明确标注关系，如"儿子"、"女儿"、"姑娘"、"妻子"等，不要写"用户"）
 - 重要日期
-- **用户的纠正和反馈**（例如"不算晨读"、"不包括..."）
+- **用户的纠正和反馈**（例如"不算晨读"、"不包括..."、"你记错了..."）
 - **用户的偏好和规则**（例如"我不喜欢..."、"只算..."）
 - **对AI回答的补充说明**（例如"实际上..."、"其实..."）
 - **用户的观点、看法或经历**（如果包含值得记忆的个人故事或独特见解）
@@ -353,9 +376,10 @@ class XiaoLeAgent:
 
 **重要规则：**
 1. 只提取用户主动告诉的**长期有效**的信息，不要推测
-2. **特别注意用户的纠正**：如果用户指出AI的错误，这是重要信息
+2. **特别注意用户的纠正**：如果用户指出AI的错误（特别是关于名字、关系），这是最高优先级的重要信息
 3. **区分主语**：家人的信息必须标注关系（如"儿子姓名：xxx"），不要写成"用户姓名"
-4. 提取格式：简洁的陈述句，例如"用户姓名：张三"、"儿子学校：逸夫中学"、"统计课程数量时不算晨读"
+4. **名字准确性**：如果涉及名字，必须逐字确认，不要搞混
+5. 提取格式：简洁的陈述句，例如"用户姓名：张三"、"儿子学校：逸夫中学"、"统计课程数量时不算晨读"
 
 请直接返回提取结果，如果没有需要记住的信息就返回"无"。"""
 
@@ -371,11 +395,31 @@ class XiaoLeAgent:
                     user_prompt=extraction_prompt
                 )
 
-            # 如果提取到了有效信息（不是"无"），存储到记忆
+            # 如果提取到了有效信息（不是"无"），进行校验与规范化后存储到记忆
             invalid_results = ["无", "无。", "None", "none", ""]
             if result and result.strip() not in invalid_results:
-                self.memory.remember(result.strip(), tag="facts")
-                logger.info(f"✅ 提取并存储关键事实: {result.strip()}")
+                extracted = result.strip()
+
+                # 家庭成员姓名硬性保护（防止儿子/女儿姓名对调被写入facts）
+                # 权威事实：女儿=高艺瑄，儿子=高艺篪
+                conflict_patterns = [
+                    r"女儿[：:，,\s]*.*高艺篪",
+                    r"儿子[：:，,\s]*.*高艺瑄",
+                ]
+                import re as _re
+                for _p in conflict_patterns:
+                    if _re.search(_p, extracted):
+                        logger.warning(
+                            "⛔ 阻止写入冲突家庭姓名事实: %s", extracted
+                        )
+                        # 不写入冲突内容，直接返回
+                        return
+
+                # 表述规范化：将“女儿姓名：可儿”更正为“小名”以避免伪冲突
+                extracted = extracted.replace("女儿姓名：可儿", "女儿小名：可儿")
+
+                self.memory.remember(extracted, tag="facts")
+                logger.info(f"✅ 提取并存储关键事实: {extracted}")
             else:
                 logger.info(f"ℹ️ 无需存储: {user_message}")
 
@@ -470,26 +514,40 @@ class XiaoLeAgent:
             user_id: 用户ID
             response_style: 响应风格 (concise/balanced/detailed/professional)
         """
+        # 性能监控
+        import time
+        start_time = time.time()
+
         # 如果没有session_id，创建新会话
+        logger.info(
+            f"💬 chat() 开始 - session_id参数: {session_id}, type: {type(session_id)}")
         if not session_id:
+            logger.info("🆕 session_id为空,准备创建新会话")
             session_id = self.conversation.create_session(
                 user_id=user_id,
                 title=prompt[:50] + "..." if len(prompt) > 50 else prompt
             )
+            logger.info(f"✅ 新会话已创建,ID: {session_id}")
+        else:
+            logger.info(f"📖 使用现有会话: {session_id}")
 
-        # v0.5.0: 检查未读提醒
+        # v0.5.0: 检查未读提醒 (仅在有相关关键词时执行)
         pending_reminders = []
-        try:
-            from reminder_manager import get_reminder_manager
-            reminder_mgr = get_reminder_manager()
-            pending_reminders = asyncio.run(
-                reminder_mgr.get_pending_reminders(user_id, limit=3)
-            )
-        except Exception as e:
-            logger.warning(f"检查提醒失败: {e}")
+        reminder_keywords = ['提醒', 'remind', '任务', 'task', '待办']
+        if any(kw in prompt.lower() for kw in reminder_keywords):
+            try:
+                from reminder_manager import get_reminder_manager
+                reminder_mgr = get_reminder_manager()
+                pending_reminders = reminder_mgr.get_pending_reminders(
+                    user_id, limit=3)
+                logger.info(f"⏰ 检查提醒耗时: {time.time() - start_time:.2f}s")
+            except Exception as e:
+                logger.warning(f"检查提醒失败: {e}")
 
         # 获取对话历史
         history = self.conversation.get_history(session_id, limit=5)
+        logger.info(f"📚 加载历史耗时: {time.time() - start_time:.2f}s")
+        precomputed_reply = None  # v0.9.3: 若命中直答，跳过后续LLM/工具流程
 
         # v0.4.0: 智能工具调用 - 先分析是否需要调用工具
         tool_result = None
@@ -523,7 +581,28 @@ class XiaoLeAgent:
             intent_prompt = f"{prompt}\n[系统提示：用户上传了图片 {image_path}，请优先考虑使用视觉工具分析]"
             context['image_path'] = image_path
 
-        if not skip_tool_check:
+        # v0.9.3: 直答规则（如儿子/女儿小名）优先，命中则跳过工具/意图分析
+        try:
+            direct = self._try_direct_family_fact_answer(prompt)
+            if direct:
+                precomputed_reply = direct
+                skip_tool_check = True
+                tool_result = None
+        except Exception as e:
+            logger.warning(f"直答规则执行失败: {e}")
+
+        # v0.9.4: 进一步的快速直达（时间/日期/简单计算等）
+        if precomputed_reply is None:
+            try:
+                quick_reply = self._try_quick_direct_answer(prompt)
+                if quick_reply:
+                    precomputed_reply = quick_reply
+                    skip_tool_check = True
+                    tool_result = None
+            except Exception as e:
+                logger.warning(f"快速直达失败: {e}")
+
+        if not skip_tool_check and precomputed_reply is None:
             try:
                 # v0.6.0 Phase 3: 使用增强的意图识别
                 tool_calls = self.enhanced_selector.analyze_intent(
@@ -645,10 +724,41 @@ class XiaoLeAgent:
             except Exception as e:
                 logger.warning(f"任务处理失败: {e}", exc_info=True)
 
+        # 如果是视觉工具的结果，保存到记忆
+        if (tool_result and tool_result.get('success') and
+                tool_result.get('tool_name') == 'vision_analysis'):
+            try:
+                data = tool_result.get('data', {})
+                description = data.get('description', '')
+                face_info = data.get('face_info', '')
+
+                # 组合完整描述
+                full_content = f"{face_info}\n{description}".strip()
+
+                if full_content:
+                    # 提取文件名作为标签的一部分
+                    filename = (
+                        os.path.basename(image_path)
+                        if image_path else 'unknown'
+                    )
+
+                    # 保存记忆，使用 image:filename 标签，并关联图片路径
+                    self.memory.remember(
+                        full_content,
+                        tag=f"image:{filename}",
+                        image_path=image_path
+                    )
+                    logger.info(f"✅ 已保存图片记忆: {filename}")
+            except Exception as e:
+                logger.warning(f"保存图片记忆失败: {e}")
+
         # v0.6.0: 调用 AI 生成回复（带上下文、工具结果和响应风格）
-        reply = self._think_with_context(
-            prompt, history, tool_result or task_result, response_style
-        )
+        if precomputed_reply is not None:
+            reply = precomputed_reply
+        else:
+            reply = self._think_with_context(
+                prompt, history, tool_result or task_result, response_style
+            )
 
         # v0.6.0 Phase 3 Day 4: 对话质量增强
         try:
@@ -772,7 +882,203 @@ class XiaoLeAgent:
                 tool_result.get('tool_name') == 'search'):
             result["search_results"] = tool_result.get('results', [])
 
+        # 性能监控：记录总耗时
+        total_time = time.time() - start_time
+        logger.info(f"⏱️ 响应完成，总耗时: {total_time:.2f}秒")
+        if total_time > 3:
+            logger.warning(f"⚠️ 响应较慢({total_time:.2f}s)，建议优化")
+
         return result
+
+    def _try_direct_family_fact_answer(self, prompt: str):
+        """
+        v0.9.3: 对“儿子/女儿的小名/昵称/乳名”类问题进行规则直答，避免在大量记忆中被LLM忽略。
+
+        命中条件：
+        - 问句包含：儿子/女儿 且 包含：小名/昵称/乳名
+        数据来源：
+        - 从 facts 标签召回（优先 family 关键词），解析类似“儿子小名：乐儿”的格式。
+        """
+        q = (prompt or '').strip()
+        if not q:
+            return None
+
+        q_lower = q.lower()
+        # 命中关键词
+        nick_words = ['小名', '昵称', '乳名']
+        target = None
+        if any(w in q for w in nick_words):
+            if '儿子' in q:
+                target = '儿子'
+            elif '女儿' in q:
+                target = '女儿'
+            elif '孩子' in q or '小孩' in q:
+                # 不明确对象时，不做直答
+                target = None
+
+        if not target:
+            return None
+
+        # 召回家庭相关facts
+        try:
+            keywords = [target, '小名', '昵称', '乳名']
+            results = self.memory.recall_by_keywords(
+                keywords, tag="facts", limit=20
+            )
+            contents = [m.get('content', '') for m in results]
+        except Exception as e:
+            logger.warning(f"直答召回失败: {e}")
+            contents = []
+
+        # 兜底：直接拉取全部facts后本地筛选
+        if not contents:
+            try:
+                facts = self.memory.recall(tag="facts", limit=50)
+                contents = facts
+            except Exception:
+                contents = []
+
+        import re
+        answer = None
+        if target == '儿子':
+            # 匹配：儿子小名：xxx 或 儿子的小名叫xxx
+            patterns = [
+                r"儿子小名[:：]\s*([\S ]{1,20})",
+                r"儿子的?小名[叫是为][:：]?\s*([\S ]{1,20})"
+            ]
+        else:  # 女儿
+            patterns = [
+                r"女儿小名[:：]\s*([\S ]{1,20})",
+                r"女儿的?小名[叫是为][:：]?\s*([\S ]{1,20})"
+            ]
+
+        for text in contents:
+            t = (text or '').strip()
+            if not t:
+                continue
+            for p in patterns:
+                m = re.search(p, t)
+                if m:
+                    name = m.group(1).strip().replace(
+                        '。', '').replace('\n', ' ')
+                    # 剔除噪声占位
+                    if any(bad in name for bad in ['未明确', '未知', '不详']):
+                        continue
+                    answer = name
+                    break
+            if answer:
+                break
+
+        if not answer:
+            return None
+
+        if target == '儿子':
+            return f"根据我的记忆，您的儿子小名叫**{answer}**。"
+        else:
+            return f"根据我的记忆，您的女儿小名叫**{answer}**。"
+
+    def _try_quick_direct_answer(self, prompt: str):
+        """
+        v0.9.4: 快速直答（绕过工具与LLM），进一步降低延迟。
+
+        - 时间/日期/星期：本地计算后直接返回
+        - 简单四则运算：本地安全求值（仅 + - * / () 和整数/小数）
+
+        返回：命中则返回字符串答复，否则返回 None。
+        """
+        q = (prompt or '').strip()
+        if not q:
+            return None
+
+        q_lower = q.lower()
+
+        # 1) 时间/日期/星期快速直答
+        time_keywords = [
+            '现在几点', '几点了', '几点', '当前时间', '现在时间',
+            '今天几号', '今天日期', '日期', '今天星期几', '星期几', '周几'
+        ]
+        if any(kw in q for kw in time_keywords):
+            now = datetime.now()
+            date_str = now.strftime('%Y年%m月%d日')
+            time_str = now.strftime('%H:%M')
+            weekday_names = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
+            weekday = weekday_names[now.weekday()]
+
+            # 判定用户更关心时间/日期/星期
+            if any(kw in q for kw in ['几点', '时间']):
+                return f"现在是 {time_str}（{date_str}，{weekday}）。"
+            if any(kw in q for kw in ['星期几', '周几']):
+                return f"今天是{weekday}（{date_str} {time_str}）。"
+            # 默认日期
+            return f"今天是 {date_str}（{weekday}）{time_str}。"
+
+        # 2) 简单计算器（安全求值）
+        import re as _re
+        expr = q.replace('＝', '=').replace('？', '?').replace('，', ',')
+        # 识别可能的运算表达式
+        # 仅允许数字、空格、小数点、()+-*/ 和末尾可选的 = 或 ?
+        if _re.fullmatch(r"[\s\d\.+\-\*/\(\)]+[=\s?]*", expr) and any(op in expr for op in ['+', '-', '*', '/', '×', '÷']):
+            safe = expr.replace('×', '*').replace('÷', '/')
+            # 去掉尾部 = 或 ?
+            safe = safe.rstrip('=? ').strip()
+
+            try:
+                import ast
+
+                def _safe_eval(node):
+                    if isinstance(node, ast.Expression):
+                        return _safe_eval(node.body)
+                    if isinstance(node, ast.BinOp) and isinstance(node.op, (ast.Add, ast.Sub, ast.Mult, ast.Div)):
+                        left = _safe_eval(node.left)
+                        right = _safe_eval(node.right)
+                        if isinstance(node.op, ast.Add):
+                            return left + right
+                        if isinstance(node.op, ast.Sub):
+                            return left - right
+                        if isinstance(node.op, ast.Mult):
+                            return left * right
+                        if isinstance(node.op, ast.Div):
+                            return left / right
+                    if isinstance(node, ast.UnaryOp) and isinstance(node.op, (ast.UAdd, ast.USub)):
+                        operand = _safe_eval(node.operand)
+                        return +operand if isinstance(node.op, ast.UAdd) else -operand
+                    if isinstance(node, ast.Num):
+                        return node.n
+                    if hasattr(ast, 'Constant') and isinstance(node, ast.Constant) and isinstance(node.value, (int, float)):
+                        return node.value
+                    if isinstance(node, ast.Expr):
+                        return _safe_eval(node.value)
+                    raise ValueError('不支持的表达式')
+
+                tree = ast.parse(safe, mode='eval')
+                value = _safe_eval(tree)
+                # 结果格式化：尽量简洁
+                if isinstance(value, float):
+                    # 去除无意义的小数位
+                    text = f"{value:.10g}"
+                else:
+                    text = str(value)
+                return f"结果：{text}"
+            except Exception:
+                # 失败则不拦截，交给工具/LLM
+                return None
+
+        return None
+
+        # 3) 身份/版本/能力自述（极简直答）
+        about_kws = ['你是谁', '关于你', '关于小乐', '你能做什么', '能做什么', '版本']
+        if any(kw in q for kw in about_kws):
+            try:
+                tool_count = len(self.tool_registry.get_tool_names())
+            except Exception:
+                tool_count = 0
+            app_ver = os.getenv('APP_VERSION', '0.8.0')
+            model_name = self.model or 'unknown-model'
+            # 简短直答，避免长段
+            return (
+                f"我是小乐 AI 管家。后端版本 {app_ver}，"
+                f"可用工具 {tool_count} 个，当前模型 {model_name}。"
+            )
 
     def _quick_intent_match(self, prompt):
         """
@@ -941,20 +1247,14 @@ class XiaoLeAgent:
 
                 # 同步查询当前提醒数量
                 try:
-                    import asyncio
                     from reminder_manager import get_reminder_manager
                     mgr = get_reminder_manager()
 
-                    # 创建事件循环来运行异步代码
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
-                    reminders = loop.run_until_complete(
-                        mgr.get_user_reminders(
-                            user_id="default_user",
-                            enabled_only=True
-                        )
+                    # ReminderManager是同步方法，直接调用
+                    reminders = mgr.get_user_reminders(
+                        user_id="default_user",
+                        enabled_only=True
                     )
-                    loop.close()
 
                     if len(reminders) == 1:
                         # 只有1个提醒，直接删除
@@ -1459,6 +1759,10 @@ class XiaoLeAgent:
                     f"   - 格式：时段+课程名称，例如\"晨读：科学(6)、第4节：科学(5)\"\n"
                     f"   - 如果某个时间段完全没课，明确说明\n"
                     f"   - 示例：\"今天上午有晨读的科学(6)和第4节的科学(5)\"\n"
+                    f"8. 【重要事实】：\n"
+                    f"   - 必须严格区分家庭成员：女儿是【高艺瑄】，儿子是【高艺篪】\n"
+                    f"   - 涉及名字、小名、家庭信息时，以【关键事实】或【facts】记忆为最高真理\n"
+                    f"   - 记忆库中标记为【关键事实】的信息是最权威的，优先级高于其他所有信息\n"
                     f"{style_instructions}\n"
                     f"当前时间：{current_datetime}（{current_weekday}）\n"
                 )
@@ -1621,7 +1925,7 @@ class XiaoLeAgent:
                 semantic_memories = self.memory.semantic_recall(
                     query=prompt,
                     tag=None,  # 不限制标签，搜索所有记忆
-                    limit=20,  # v0.9.2: 增加召回数量以改善跨对话记忆
+                    limit=10,  # 减少语义搜索数量，避免淹没关键信息
                     min_score=0.05  # 降低阈值，增加召回
                 )
 
@@ -1713,11 +2017,13 @@ class XiaoLeAgent:
                     all_memories.append(mem)
                     seen.add(mem)
 
-            # 新增：家庭成员信息 - 高优先级
+            # 新增：家庭成员信息 - 高优先级，加【关键事实】标记
             for mem in family_memories:
                 if mem not in seen and not is_outdated_reminder_memory(mem):
-                    all_memories.append(mem)
-                    seen.add(mem)
+                    # 给家庭成员信息加高亮标记，提高LLM注意力
+                    highlighted_mem = f"【关键事实】{mem}"
+                    all_memories.append(highlighted_mem)
+                    seen.add(mem)  # seen中存原始内容，避免重复
 
             # 第二优先级：facts 标签（关键事实，但限制数量）
             facts_count = 0
@@ -1730,7 +2036,7 @@ class XiaoLeAgent:
 
             # 第三优先级：对话摘要（了解之前的对话上下文）
             for mem in conversation_memories:
-                if (mem not in seen and len(all_memories) < 40 and
+                if (mem not in seen and len(all_memories) < 20 and
                         not is_outdated_reminder_memory(mem)):
                     all_memories.append(mem)
                     seen.add(mem)
@@ -1742,7 +2048,7 @@ class XiaoLeAgent:
                     mem if isinstance(mem, str)
                     else mem.get('content', str(mem))
                 )
-                if (mem_content not in seen and len(all_memories) < 40 and
+                if (mem_content not in seen and len(all_memories) < 20 and
                         not is_outdated_reminder_memory(mem_content)):
                     all_memories.append(mem_content)
                     seen.add(mem_content)
@@ -1793,6 +2099,13 @@ class XiaoLeAgent:
                 context = "记忆库（按时间倒序，最新在前）：\n" + \
                           "\n".join(all_memories)
                 system_prompt += f"\n\n{context}"
+
+                # 🔍 调试：检查"乐儿"是否在记忆中
+                le_in_memories = [m for m in all_memories if '乐儿' in m]
+                if le_in_memories:
+                    logger.info(f"✅ 记忆中包含'乐儿': {le_in_memories[0][:100]}")
+                else:
+                    logger.warning("⚠️ 记忆中未找到'乐儿'！")
 
             # 构建消息列表（包含历史）
             messages = []

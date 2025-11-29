@@ -151,15 +151,103 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, onBeforeUnmount, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import api from "@/services/api";
+
+const reminders = ref([]);
+const dueNotifiedIds = ref(new Set());
+let reminderTimer = null;
+
+async function loadReminders() {
+  try {
+    const enabledOnly = false;
+    const list = await api.getReminders(enabledOnly);
+    reminders.value = Array.isArray(list) ? list : list?.reminders || [];
+  } catch (e) {
+    console.error("加载提醒失败:", e);
+  }
+}
+
+function checkDueReminders(currentTaskId) {
+  const now = Date.now();
+  const related = reminders.value.filter(
+    (r) => r && r.task_id === currentTaskId
+  );
+  for (const r of related) {
+    // 期待字段：r.status === 'pending'，r.remind_at 或 r.due_time 为时间戳/ISO
+    const status = r.status || "pending";
+    const ts =
+      typeof r.remind_at === "string"
+        ? Date.parse(r.remind_at)
+        : typeof r.remind_at === "number"
+        ? r.remind_at
+        : typeof r.due_time === "string"
+        ? Date.parse(r.due_time)
+        : typeof r.due_time === "number"
+        ? r.due_time
+        : null;
+    if (!ts) continue;
+    if (status === "pending" && ts <= now && !dueNotifiedIds.value.has(r.id)) {
+      dueNotifiedIds.value.add(r.id);
+      // 前端提示：可替换为更优雅的 toast 组件
+      try {
+        // 使用浏览器通知（如果用户授权），否则使用 alert
+        if (window.Notification && Notification.permission === "granted") {
+          new Notification("提醒到期", {
+            body: r.title || "有一条提醒到期",
+            tag: `reminder-${r.id}`,
+          });
+        } else if (
+          window.Notification &&
+          Notification.permission !== "denied"
+        ) {
+          Notification.requestPermission().then((perm) => {
+            if (perm === "granted") {
+              new Notification("提醒到期", {
+                body: r.title || "有一条提醒到期",
+                tag: `reminder-${r.id}`,
+              });
+            } else {
+              alert(`🔔 提醒到期：${r.title || ""}`);
+            }
+          });
+        } else {
+          alert(`🔔 提醒到期：${r.title || ""}`);
+        }
+      } catch (e) {
+        alert(`🔔 提醒到期：${r.title || ""}`);
+      }
+    }
+  }
+}
+
+// 假设外部已提供当前 taskId（例如通过路由或 props）
+const currentTaskId = ref(null);
+
+onMounted(async () => {
+  await loadReminders();
+  // 初始检查
+  if (currentTaskId.value) checkDueReminders(currentTaskId.value);
+  // 每 30 秒轮询一次
+  reminderTimer = setInterval(async () => {
+    await loadReminders();
+    if (currentTaskId.value) checkDueReminders(currentTaskId.value);
+  }, 30000);
+});
+
+onBeforeUnmount(() => {
+  if (reminderTimer) {
+    clearInterval(reminderTimer);
+    reminderTimer = null;
+  }
+});
 
 const route = useRoute();
 const router = useRouter();
 const task = ref(null);
 const steps = ref([]);
-const reminders = ref([]); // 新增：关联提醒列表
+// 已上方定义 reminders，这里移除重复定义
 const loading = ref(false);
 
 const goBack = () => {
@@ -308,15 +396,8 @@ const loadTask = async () => {
       steps.value = data.steps || [];
 
       // 加载关联提醒
-      // 注意：这里我们假设后端有一个接口可以按 task_id 过滤提醒
-      // 如果没有，我们可能需要获取所有提醒然后在前端过滤（不推荐但可行）
-      // 或者我们修改后端 API 支持 task_id 过滤
-      // 暂时先尝试获取所有提醒并过滤
       try {
-        const allReminders = await api.getReminders(
-          task.value.user_id,
-          false // 获取所有状态的提醒
-        );
+        const allReminders = await api.getReminders(false); // false = 获取所有状态的提醒
         if (allReminders && Array.isArray(allReminders)) {
           reminders.value = allReminders.filter(
             (r) => r.task_id === parseInt(taskId)
@@ -349,9 +430,16 @@ const deleteTask = async () => {
   }
 };
 
-onMounted(() => {
-  loadTask();
-});
+// 监听路由参数变化，当从一个任务详情页跳到另一个时重新加载
+watch(
+  () => route.params.id,
+  (newId) => {
+    if (newId) {
+      loadTask();
+    }
+  },
+  { immediate: true } // immediate: true 替代 onMounted，首次加载也会触发
+);
 </script>
 
 <style scoped>

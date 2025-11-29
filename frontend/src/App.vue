@@ -8,9 +8,7 @@
       />
       <div class="content-wrapper">
         <router-view v-slot="{ Component }">
-          <transition name="page" mode="out-in">
-            <component :is="Component" />
-          </transition>
+          <component :is="Component" />
         </router-view>
       </div>
     </div>
@@ -22,10 +20,12 @@
 import SidebarModern from "@/components/layout/SidebarModern.vue";
 import TopBar from "@/components/layout/TopBar.vue";
 import ReminderNotification from "@/components/common/ReminderNotification.vue";
+import LoadingView from "@/views/LoadingView.vue";
 import { ref, onMounted, watch } from "vue";
 import { useWebSocket } from "@/composables/useWebSocket";
 import { useAuthStore } from "@/stores/auth";
 
+// Force rebuild comment
 const authStore = useAuthStore();
 const sidebarRef = ref(null);
 
@@ -75,5 +75,17 @@ watch(
   flex: 1;
   overflow: auto;
   background: var(--bg-secondary);
+  /* 为移动设备添加底部安全区内边距 */
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-bottom: constant(safe-area-inset-bottom);
+}
+
+@media (max-width: 768px) {
+  .main-content {
+    padding-top: 52px; /* 顶部栏固定后，所有页面都给内容留出空间 */
+  }
+  .content-wrapper {
+    padding-top: 0;
+  }
 }
 </style>

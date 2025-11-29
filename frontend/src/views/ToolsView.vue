@@ -41,11 +41,11 @@
           <div
             v-else
             v-for="item in history"
-            :key="item.id"
+            :key="item.execution_id"
             class="history-item"
           >
             <div class="history-tool">{{ item.tool_name }}</div>
-            <div class="history-time">{{ formatTime(item.created_at) }}</div>
+            <div class="history-time">{{ formatTime(item.executed_at) }}</div>
           </div>
         </div>
       </div>

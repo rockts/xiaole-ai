@@ -25,8 +25,19 @@ export const useMemoryStore = defineStore('memory', () => {
             memoriesLoading.value = true
             const data = await api.getRecentMemories(hours, limit, tag)
             console.log('[Memory Store] loadRecentMemories response:', data)
-            // 后端返回 memory 字段
-            memories.value = data.memory || []
+
+            // Handle different response formats
+            if (Array.isArray(data)) {
+                memories.value = data
+            } else if (data && Array.isArray(data.memory)) {
+                memories.value = data.memory
+            } else if (data && Array.isArray(data.memories)) {
+                memories.value = data.memories
+            } else {
+                console.warn('[Memory Store] Unexpected response format:', data)
+                memories.value = []
+            }
+
             console.log('[Memory Store] memories count:', memories.value.length)
         } catch (error) {
             console.error('Failed to load memories:', error)

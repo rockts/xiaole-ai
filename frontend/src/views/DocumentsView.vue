@@ -116,8 +116,12 @@ const documentToDelete = ref(null);
 const loadDocuments = async () => {
   try {
     loading.value = true;
+    console.log("📚 开始加载文档...");
     const data = await api.getDocuments();
+    console.log("📦 API返回数据:", data);
+    console.log("📄 文档数组:", data.documents);
     documents.value = data.documents || [];
+    console.log("✅ 文档加载完成，数量:", documents.value.length);
   } catch (error) {
     console.error("Failed to load documents:", error);
   } finally {
@@ -147,7 +151,7 @@ const handleUpload = async (e) => {
 const uploadFile = async (file) => {
   const formData = new FormData();
   formData.append("file", file);
-  formData.append("user_id", "default_user");
+  // 后端会使用JWT认证的用户ID
 
   // 乐观更新：先添加一个临时状态
   const tempId = Date.now();

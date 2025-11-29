@@ -18,12 +18,22 @@ load_dotenv()
 
 def get_db_connection():
     """获取数据库连接"""
+    host = os.getenv('DB_HOST')
+    port = os.getenv('DB_PORT', '5432')
+    dbname = os.getenv('DB_NAME')
+    user = os.getenv('DB_USER')
+    password = os.getenv('DB_PASS')
+
+    if not all([host, dbname, user, password]):
+        raise ValueError(
+            "Database configuration is missing. Please check environment variables.")
+
     conn = psycopg2.connect(
-        host=os.getenv('DB_HOST', '192.168.88.188'),
-        port=os.getenv('DB_PORT', '5432'),
-        database=os.getenv('DB_NAME', 'xiaole_ai'),
-        user=os.getenv('DB_USER', 'xiaole_user'),
-        password=os.getenv('DB_PASS', 'Xiaole2025User'),
+        host=host,
+        port=port,
+        database=dbname,
+        user=user,
+        password=password,
         client_encoding='UTF8'
     )
     return conn
@@ -63,8 +73,19 @@ class ReminderManager:
         self.last_cache_update = None
         self.cache_ttl = 300  # 缓存5分钟
         self.websocket_broadcast = websocket_broadcast_callback  # WebSocket推送回调
+        self._loop = None
 
-    async def create_reminder(
+    def set_loop(self, loop):
+        self._loop = loop
+
+    def _broadcast(self, message):
+        if self.websocket_broadcast and self._loop:
+            asyncio.run_coroutine_threadsafe(
+                self.websocket_broadcast(message),
+                self._loop
+            )
+
+    def create_reminder(
         self,
         user_id: str,
         reminder_type: str,
@@ -122,6 +143,27 @@ class ReminderManager:
                 logger.info(
                     f"Created reminder {reminder['reminder_id']} for user {user_id}")
 
+                # 保存到记忆系统
+                try:
+                    from memory import MemoryManager
+                    memory_mgr = MemoryManager()
+
+                    # 构建记忆内容
+                    trigger_str = ""
+                    if reminder_type == "time":
+                        trigger_cond = trigger_condition if isinstance(
+                            trigger_condition, dict) else json.loads(trigger_condition)
+                        trigger_str = f"时间: {trigger_cond.get('datetime', '未知')}"
+
+                    memory_content = f"用户创建了提醒「{title or content[:20]}」\n内容: {content}\n{trigger_str}"
+                    memory_mgr.remember(
+                        content=memory_content,
+                        tag="reminder"
+                    )
+                    logger.info(f"💾 提醒已保存到记忆系统")
+                except Exception as mem_error:
+                    logger.warning(f"保存提醒记忆失败: {mem_error}")
+
                 # 广播提醒创建事件，以便前端刷新列表
                 if self.websocket_broadcast:
                     try:
@@ -131,7 +173,7 @@ class ReminderManager:
                             reminder_data['created_at'] = reminder_data['created_at'].isoformat(
                             )
 
-                        await self.websocket_broadcast({
+                        self._broadcast({
                             "type": "reminder_created",
                             "data": reminder_data
                         })
@@ -147,7 +189,7 @@ class ReminderManager:
         finally:
             conn.close()
 
-    async def get_user_reminders(
+    def get_user_reminders(
         self,
         user_id: str,
         enabled_only: bool = True,
@@ -204,7 +246,7 @@ class ReminderManager:
         finally:
             conn.close()
 
-    async def update_reminder(
+    def update_reminder(
         self,
         reminder_id: int,
         **updates
@@ -257,7 +299,7 @@ class ReminderManager:
                     # 广播提醒更新事件
                     if self.websocket_broadcast:
                         try:
-                            await self.websocket_broadcast({
+                            self._broadcast({
                                 "type": "reminder_updated",
                                 "data": {
                                     "reminder_id": reminder_id,
@@ -279,7 +321,7 @@ class ReminderManager:
         finally:
             conn.close()
 
-    async def delete_reminder(self, reminder_id: int) -> bool:
+    def delete_reminder(self, reminder_id: int) -> bool:
         """删除提醒"""
         conn = get_db_connection()
         try:
@@ -304,7 +346,7 @@ class ReminderManager:
                 # 广播删除事件
                 if self.websocket_broadcast:
                     try:
-                        await self.websocket_broadcast({
+                        self._broadcast({
                             "type": "reminder_deleted",
                             "data": {
                                 "reminder_id": reminder_id
@@ -322,7 +364,7 @@ class ReminderManager:
         finally:
             conn.close()
 
-    async def check_time_reminders(self, user_id: str) -> List[Dict[str, Any]]:
+    def check_time_reminders(self, user_id: str) -> List[Dict[str, Any]]:
         """
         检查时间类型的提醒
 
@@ -330,7 +372,7 @@ class ReminderManager:
             需要触发的提醒列表
         """
         # 强制不使用缓存，确保获取最新的数据库状态（特别是Snooze更新后）
-        reminders = await self.get_user_reminders(
+        reminders = self.get_user_reminders(
             user_id,
             enabled_only=True,
             reminder_type=ReminderType.TIME,
@@ -351,10 +393,21 @@ class ReminderManager:
                 if not trigger_time_str:
                     continue
 
-                trigger_time = datetime.fromisoformat(trigger_time_str)
+                # 兼容多种时间格式
+                try:
+                    # 尝试 ISO 8601 格式(带时区)
+                    trigger_time = datetime.fromisoformat(trigger_time_str)
+                    # 如果带时区,转为本地时区并去除时区信息(与 now 统一为 naive datetime)
+                    if trigger_time.tzinfo is not None:
+                        trigger_time = trigger_time.astimezone().replace(tzinfo=None)
+                except ValueError:
+                    # 尝试简单格式 "YYYY-MM-DD HH:MM:SS"
+                    trigger_time = datetime.strptime(
+                        trigger_time_str, "%Y-%m-%d %H:%M:%S")
 
                 # DEBUG: 打印检查信息
-                # logger.info(f"Checking reminder {reminder['reminder_id']}: time={trigger_time}, now={now}")
+                logger.info(
+                    f"Checking reminder {reminder['reminder_id']}: trigger={trigger_time}, now={now}")
 
                 # 检查是否到时间
                 if now >= trigger_time:
@@ -398,7 +451,7 @@ class ReminderManager:
 
         return triggered
 
-    async def check_behavior_reminders(self, user_id: str) -> List[Dict[str, Any]]:
+    def check_behavior_reminders(self, user_id: str) -> List[Dict[str, Any]]:
         """
         检查行为类型的提醒（如长时间未聊天）
 
@@ -406,7 +459,7 @@ class ReminderManager:
             需要触发的提醒列表
         """
         # 强制不使用缓存
-        reminders = await self.get_user_reminders(
+        reminders = self.get_user_reminders(
             user_id,
             enabled_only=True,
             reminder_type=ReminderType.BEHAVIOR,
@@ -416,7 +469,7 @@ class ReminderManager:
         triggered = []
 
         # 获取用户最后活跃时间
-        last_active = await self._get_user_last_active(user_id)
+        last_active = self._get_user_last_active(user_id)
         if not last_active:
             return triggered
 
@@ -455,7 +508,7 @@ class ReminderManager:
 
         return triggered
 
-    async def check_and_notify_reminder(self, reminder_id: int) -> bool:
+    def check_and_notify_reminder(self, reminder_id: int) -> bool:
         """
         检查提醒并通过WebSocket推送通知（不写入历史）
 
@@ -521,7 +574,7 @@ class ReminderManager:
                 # WebSocket实时推送提醒（用户需要确认）
                 if self.websocket_broadcast:
                     try:
-                        await self.websocket_broadcast({
+                        self._broadcast({
                             "type": "reminder",
                             "data": {
                                 "reminder_id": reminder_id,
@@ -549,7 +602,66 @@ class ReminderManager:
         finally:
             conn.close()
 
-    async def confirm_reminder(self, reminder_id: int) -> bool:
+    def snooze_reminder(self, reminder_id: int, minutes: int = 5) -> bool:
+        """
+        延迟提醒（稍后提醒）
+        """
+        conn = get_db_connection()
+        try:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                # 获取当前提醒
+                cur.execute(
+                    "SELECT * FROM reminders WHERE reminder_id = %s",
+                    (reminder_id,)
+                )
+                reminder = cur.fetchone()
+
+                if not reminder:
+                    return False
+
+                # 计算新的触发时间
+                new_trigger_time = datetime.now() + timedelta(minutes=minutes)
+                new_time_str = new_trigger_time.strftime('%Y-%m-%d %H:%M:%S')
+
+                # 更新trigger_condition
+                raw_condition = reminder['trigger_condition']
+                if isinstance(raw_condition, str):
+                    trigger_condition = json.loads(raw_condition)
+                elif isinstance(raw_condition, dict):
+                    trigger_condition = raw_condition.copy()
+                else:
+                    trigger_condition = {}
+
+                trigger_condition['datetime'] = new_time_str
+                trigger_condition_json = json.dumps(trigger_condition)
+
+                cur.execute("""
+                    UPDATE reminders
+                    SET trigger_condition = %s,
+                        last_triggered = NULL,
+                        enabled = true,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE reminder_id = %s
+                """, (trigger_condition_json, reminder_id))
+
+                conn.commit()
+
+                if cur.rowcount > 0:
+                    self._clear_user_cache(reminder['user_id'])
+                    logger.info(
+                        f"Snoozed reminder {reminder_id} for {minutes} mins"
+                    )
+                    return True
+                return False
+
+        except Exception as e:
+            conn.rollback()
+            logger.error(f"Failed to snooze reminder: {e}")
+            return False
+        finally:
+            conn.close()
+
+    def confirm_reminder(self, reminder_id: int) -> bool:
         """
         用户确认提醒（点击"已知道"），记录历史并禁用
 
@@ -619,7 +731,7 @@ class ReminderManager:
                     # 广播更新事件
                     if self.websocket_broadcast:
                         try:
-                            await self.websocket_broadcast({
+                            self._broadcast({
                                 "type": "reminder_updated",
                                 "data": {
                                     "reminder_id": reminder_id,
@@ -652,7 +764,7 @@ class ReminderManager:
                 # 广播确认事件，通知前端关闭弹窗（解决多端/多标签页同步问题）
                 if self.websocket_broadcast:
                     try:
-                        await self.websocket_broadcast({
+                        self._broadcast({
                             "type": "reminder_confirmed",
                             "data": {
                                 "reminder_id": reminder_id
@@ -670,7 +782,7 @@ class ReminderManager:
         finally:
             conn.close()
 
-    async def get_reminder_history(
+    def get_reminder_history(
         self,
         user_id: str,
         limit: int = 50
@@ -695,7 +807,7 @@ class ReminderManager:
         finally:
             conn.close()
 
-    async def get_pending_reminders(
+    def get_pending_reminders(
         self, user_id: str, limit: int = 5
     ) -> List[Dict[str, Any]]:
         """
@@ -741,7 +853,7 @@ class ReminderManager:
         delta = datetime.now() - self.last_cache_update
         return delta.total_seconds() < self.cache_ttl
 
-    async def _get_user_last_active(self, user_id: str) -> Optional[datetime]:
+    def _get_user_last_active(self, user_id: str) -> Optional[datetime]:
         """获取用户最后活跃时间"""
         conn = get_db_connection()
         try:
