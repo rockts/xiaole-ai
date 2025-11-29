@@ -19,6 +19,18 @@
 
 ### 2025-11-29
 
+#### fix(reminder) 🔥 重要修复
+- 🐛 **修复提醒系统调度器和 WebSocket 推送**
+  - 将 AsyncIOScheduler 改为 BackgroundScheduler（解决 FastAPI 环境兼容性）
+  - 在 startup_event 中设置事件循环，使 ReminderManager 能从后台线程推送 WebSocket
+  - 优化提醒时间解析，支持 ISO 8601 带时区 + 简单格式
+  - 修复 RemindersView 中的 API 调用，使用认证用户 ID
+  - 移除重复提醒弹窗逻辑，统一使用 ReminderNotification 组件
+  - 添加提醒创建时保存到记忆系统功能
+  - 清理 TaskDetailView 中的重复代码
+  - **测试验证**: 调度器每分钟运行，WebSocket 推送成功，弹窗和语音正常
+  - 详见: `docs/v0.8.1_REMINDER_FIX.md`
+
 #### perf
 - ⚡ 优化 Agent 响应性能
   - 添加性能监控日志(总耗时、提醒检查、历史加载)
