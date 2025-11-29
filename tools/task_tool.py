@@ -52,10 +52,14 @@ class TaskTool(Tool):
                 param_type="string",
                 description=(
                     "任务状态（查询时过滤，修改时可选）："
-                    "pending, in_progress, completed, failed"
+                    "pending(待处理), in_progress(进行中), waiting(等待), "
+                    "completed(已完成), failed(失败), cancelled(已取消)"
                 ),
                 required=False,
-                enum=["pending", "in_progress", "completed", "failed"]
+                enum=[
+                    "pending", "in_progress", "waiting",
+                    "completed", "failed", "cancelled"
+                ]
             ),
             ToolParameter(
                 name="priority",
@@ -165,30 +169,34 @@ class TaskTool(Tool):
         lines = [f"📋 **当前的任务{status_text}** (共{total_count}个)：\n"]
 
         for t in tasks:
-            status_emoji = {
-                'pending': '⏳',
-                'in_progress': '▶️',
-                'completed': '✅',
-                'failed': '❌',
-                'waiting': '⏸️'
-            }.get(t['status'], '❓')
+            status_info = {
+                'pending': ('⏳', '待处理'),
+                'in_progress': ('▶️', '进行中'),
+                'completed': ('✅', '已完成'),
+                'failed': ('❌', '失败'),
+                'waiting': ('⏸️', '等待中'),
+                'cancelled': ('🚫', '已取消')
+            }.get(t['status'], ('❓', '未知'))
 
+            emoji, status_text = status_info
             lines.append(
-                f"- ID:{t['id']} | {status_emoji} {t['status']} | {t['title']}"
+                f"- ID:{t['id']} | {emoji} {status_text} | {t['title']}"
             )
 
         # 添加统计摘要
         if not status:  # 只有查询全部任务时才显示分类统计
             lines.append("\n**状态统计**:")
             for st, count in status_counts.items():
-                emoji = {
-                    'pending': '⏳',
-                    'in_progress': '▶️',
-                    'completed': '✅',
-                    'failed': '❌',
-                    'waiting': '⏸️'
-                }.get(st, '❓')
-                lines.append(f"  {emoji} {st}: {count}个")
+                status_info = {
+                    'pending': ('⏳', '待处理'),
+                    'in_progress': ('▶️', '进行中'),
+                    'completed': ('✅', '已完成'),
+                    'failed': ('❌', '失败'),
+                    'waiting': ('⏸️', '等待中'),
+                    'cancelled': ('🚫', '已取消')
+                }.get(st, ('❓', '未知'))
+                emoji, status_text = status_info
+                lines.append(f"  {emoji} {status_text}: {count}个")
 
         return {
             "success": True,
@@ -198,6 +206,8 @@ class TaskTool(Tool):
     async def _handle_update(self, mgr, kwargs) -> dict:
         """处理更新任务请求"""
         task_id = kwargs.get("task_id")
+        user_id = kwargs.get("user_id", "default_user")
+
         if not task_id:
             return {
                 "success": False,
@@ -212,6 +222,13 @@ class TaskTool(Tool):
                 "data": f"❌ 任务不存在 (ID: {task_id})"
             }
 
+        # 验证所有权
+        if task.get('user_id') != user_id:
+            return {
+                "success": False,
+                "data": f"❌ 无权修改此任务 (ID: {task_id})"
+            }
+
         updates = []
 
         # 更新状态
@@ -222,8 +239,10 @@ class TaskTool(Tool):
                 status_text = {
                     'pending': '待处理',
                     'in_progress': '执行中',
+                    'waiting': '等待中',
                     'completed': '已完成',
-                    'failed': '失败'
+                    'failed': '失败',
+                    'cancelled': '已取消'
                 }.get(status, status)
                 updates.append(f"状态 → {status_text}")
 

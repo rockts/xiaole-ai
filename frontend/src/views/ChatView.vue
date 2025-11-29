@@ -4792,49 +4792,6 @@ const feedbackMessage = async (message, type) => {
   }
 }
 
-.thinking-dots {
-  display: inline-flex !important;
-  align-items: center !important;
-  gap: 6px !important;
-}
-
-/* 使用多重选择器提高优先级，强制覆盖全局reset */
-.thinking-dot,
-.thinking-dot[style],
-span.thinking-dot {
-  display: inline-block !important;
-  width: 8px !important;
-  height: 8px !important;
-  min-width: 8px !important;
-  min-height: 8px !important;
-  background-color: #3b82f6 !important;
-  border-radius: 50% !important;
-  -webkit-border-radius: 50% !important;
-  -moz-border-radius: 50% !important;
-  overflow: hidden !important;
-  /* 使用box-shadow模拟圆形作为后备方案 */
-  box-shadow: 0 0 0 1px #3b82f6 !important;
-  animation: thinkingBounce 1.4s ease-in-out infinite !important;
-  -webkit-animation: thinkingBounce 1.4s ease-in-out infinite !important;
-}
-
-@keyframes thinkingBounce {
-  0%,
-  60%,
-  100% {
-    transform: translateY(0);
-  }
-  30% {
-    transform: translateY(-10px);
-  }
-}
-
-/* 强制思考动画 SVG 正常渲染，不受全局 box-sizing 影响 */
-svg[viewBox="0 0 8 8"] {
-  box-sizing: content-box !important;
-  display: block !important;
-}
-
 /* ===== 强制移除所有消息之间的横线/边框（覆盖现有样式） ===== */
 .chat-inner,
 .message,
