@@ -166,7 +166,7 @@ class TaskTool(Tool):
 
         # 格式化任务列表
         status_text = f"({status})" if status else ""
-        lines = [f"📋 **当前的任务{status_text}** (共{total_count}个)：\n"]
+        lines = [f"📋 **你的任务列表{status_text}** (共{total_count}个)：\n"]
 
         for t in tasks:
             status_info = {
@@ -178,9 +178,10 @@ class TaskTool(Tool):
                 'cancelled': ('🚫', '已取消')
             }.get(t['status'], ('❓', '未知'))
 
-            emoji, status_text = status_info
+            emoji, status_cn = status_info
+            # 强调状态显示,避免标题中的"完成"等词被误解
             lines.append(
-                f"- ID:{t['id']} | {emoji} {status_text} | {t['title']}"
+                f"- [ID:{t['id']}] **{emoji} {status_cn}** → {t['title']}"
             )
 
         # 添加统计摘要

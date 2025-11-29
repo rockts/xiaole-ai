@@ -4,6 +4,7 @@ import ChatView from '@/views/ChatView.vue'
 import MemoryView from '@/views/MemoryView.vue'
 import BehaviorView from '@/views/BehaviorView.vue'
 import TasksView from '@/views/TasksView.vue'
+import TaskDetailView from '@/views/TaskDetailView.vue'
 import DocumentsView from '@/views/DocumentsView.vue'
 import ToolsView from '@/views/ToolsView.vue'
 import { useAuthStore } from '@/stores/auth'
@@ -60,7 +61,7 @@ const router = createRouter({
         {
             path: '/task/:id',
             name: 'TaskDetail',
-            component: () => import('@/views/TaskDetailView.vue'),
+            component: TaskDetailView,
             meta: { title: '任务详情' }
         },
         {

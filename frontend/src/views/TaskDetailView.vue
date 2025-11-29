@@ -308,15 +308,8 @@ const loadTask = async () => {
       steps.value = data.steps || [];
 
       // 加载关联提醒
-      // 注意：这里我们假设后端有一个接口可以按 task_id 过滤提醒
-      // 如果没有，我们可能需要获取所有提醒然后在前端过滤（不推荐但可行）
-      // 或者我们修改后端 API 支持 task_id 过滤
-      // 暂时先尝试获取所有提醒并过滤
       try {
-        const allReminders = await api.getReminders(
-          task.value.user_id,
-          false // 获取所有状态的提醒
-        );
+        const allReminders = await api.getReminders(false); // false = 获取所有状态的提醒
         if (allReminders && Array.isArray(allReminders)) {
           reminders.value = allReminders.filter(
             (r) => r.task_id === parseInt(taskId)
