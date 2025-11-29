@@ -5,6 +5,7 @@ from reminder_manager import get_reminder_manager, ReminderManager
 from dependencies import get_scheduler
 from scheduler import ReminderScheduler
 from logger import logger
+from auth import get_current_user
 
 router = APIRouter(
     prefix="/api/reminders",
@@ -67,17 +68,20 @@ async def create_reminder(
 
 @router.get("", response_model=Dict[str, Any])
 async def get_reminders(
-    user_id: str = "default_user",
     enabled_only: bool = True,
     reminder_type: Optional[str] = None,
+    current_user: str = Depends(get_current_user),
     manager: ReminderManager = Depends(get_manager)
 ):
     """获取用户提醒列表"""
+    logger.info(
+        f"📋 获取提醒列表 - user_id: {current_user}, enabled_only: {enabled_only}")
     reminders = manager.get_user_reminders(
-        user_id=user_id,
+        user_id=current_user,
         enabled_only=enabled_only,
         reminder_type=reminder_type
     )
+    logger.info(f"📋 返回 {len(reminders)} 条提醒")
     return {
         "total": len(reminders),
         "reminders": reminders

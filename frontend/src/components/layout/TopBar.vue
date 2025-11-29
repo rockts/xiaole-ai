@@ -284,6 +284,7 @@ const loadReminders = async () => {
     const data = await api.getReminders(true);
     reminders.value = data.reminders || [];
     updateTimeRemaining();
+    // 移除前端弹窗逻辑，依赖后端 WebSocket 推送
   } catch (error) {
     console.error("Failed to load reminders:", error);
   } finally {
@@ -326,6 +327,22 @@ const startEditTitle = () => {
     }
   }, 0);
 };
+
+onMounted(() => {
+  // 顶栏常驻轮询：每 30 秒刷新提醒并检查是否到期
+  timerInterval = setInterval(() => {
+    loadReminders();
+  }, 30000);
+  // 初始加载
+  loadReminders();
+});
+
+onBeforeUnmount(() => {
+  if (timerInterval) {
+    clearInterval(timerInterval);
+    timerInterval = null;
+  }
+});
 
 const saveTitleEdit = async () => {
   const newTitle = editingTitle.value.trim();

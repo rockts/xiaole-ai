@@ -96,6 +96,11 @@ async def startup_event():
     """应用启动时初始化"""
     # 设置ReminderManager的WebSocket推送回调
     reminder_manager = get_reminder_manager(websocket_manager.broadcast)
+    
+    # 设置事件循环，使 ReminderManager 可以在后台线程中推送 WebSocket 消息
+    import asyncio
+    loop = asyncio.get_event_loop()
+    reminder_manager.set_loop(loop)
 
     # 启动提醒调度器
     scheduler = get_scheduler()

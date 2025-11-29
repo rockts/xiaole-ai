@@ -8,7 +8,7 @@
 import asyncio
 import logging
 from datetime import datetime
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 from apscheduler.triggers.cron import CronTrigger
 
@@ -19,6 +19,15 @@ from pathlib import Path
 from conflict_detector import ConflictDetector
 
 logger = logging.getLogger(__name__)
+
+# 确保 logger 配置正确
+if not logger.handlers:
+    handler = logging.StreamHandler()
+    handler.setFormatter(logging.Formatter(
+        '%(asctime)s [%(levelname)s] %(name)s: %(message)s'
+    ))
+    logger.addHandler(handler)
+    logger.setLevel(logging.INFO)
 
 
 class ReminderScheduler:
@@ -31,7 +40,7 @@ class ReminderScheduler:
     """
 
     def __init__(self):
-        self.scheduler = AsyncIOScheduler()
+        self.scheduler = BackgroundScheduler()
         self.reminder_manager = get_reminder_manager()
         self.proactive_chat = get_proactive_chat()
         self.memory_manager = MemoryManager()
@@ -110,20 +119,50 @@ class ReminderScheduler:
         self.is_running = False
         logger.info("Reminder scheduler stopped")
 
-    async def check_time_reminders(self):
+    def check_time_reminders(self):
         """检查所有用户的时间提醒"""
+        print("==== FUNCTION ENTERED ====", flush=True)
+        logger.info("==== CHECK_TIME_REMINDERS STARTED ====")
         try:
+            print("==== TRY BLOCK ENTERED ====", flush=True)
             logger.info("Checking time reminders...")
+            print("==== AFTER FIRST LOG ====", flush=True)
+            logger.info("Step 1: Importing database functions")
 
-            # TODO: 获取所有活跃用户列表
-            # 目前先检查默认用户
-            users = ["default_user"]
+            # 获取所有有提醒的用户
+            from reminder_manager import get_db_connection
+            from psycopg2.extras import RealDictCursor
+            print("==== IMPORTS DONE ====", flush=True)
 
+            logger.info("Step 2: Getting database connection")
+            conn = get_db_connection()
+            try:
+                logger.info("Step 3: Querying users")
+                with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                    cur.execute(
+                        "SELECT DISTINCT user_id FROM reminders WHERE enabled = true"
+                    )
+                    users = [row['user_id'] for row in cur.fetchall()]
+                    logger.info(f"Found users: {users}")
+            except Exception as db_error:
+                logger.error(f"Database query failed: {db_error}")
+                raise
+            finally:
+                logger.info("Step 4: Closing connection")
+                conn.close()
+
+            if not users:
+                logger.warning("No active users with reminders found!")
+                return
+
+            logger.info(f"Step 5: Checking reminders for {len(users)} users")
             total_triggered = 0
             for user_id in users:
+                logger.info(f"Checking user: {user_id}")
                 triggered = self.reminder_manager.check_time_reminders(
                     user_id
                 )
+                logger.info(f"User {user_id} has {len(triggered)} triggered")
 
                 for reminder in triggered:
                     success = self.reminder_manager.check_and_notify_reminder(
@@ -142,17 +181,33 @@ class ReminderScheduler:
                     f"Time reminder check complete: "
                     f"{total_triggered} reminders triggered"
                 )
+            else:
+                logger.info("No reminders triggered this cycle")
 
         except Exception as e:
-            logger.error(f"Error checking time reminders: {e}")
+            logger.error(f"Error checking time reminders: {e}", exc_info=True)
 
-    async def check_behavior_reminders(self):
+    def check_behavior_reminders(self):
         """检查所有用户的行为提醒"""
         try:
             logger.info("Checking behavior reminders...")
 
-            # TODO: 获取所有活跃用户列表
-            users = ["default_user"]
+            # 获取所有有提醒的用户
+            from reminder_manager import get_db_connection
+            from psycopg2.extras import RealDictCursor
+
+            conn = get_db_connection()
+            try:
+                with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                    cur.execute(
+                        "SELECT DISTINCT user_id FROM reminders WHERE enabled = true"
+                    )
+                    users = [row['user_id'] for row in cur.fetchall()]
+            finally:
+                conn.close()
+
+            if not users:
+                return
 
             total_triggered = 0
             for user_id in users:
@@ -181,7 +236,7 @@ class ReminderScheduler:
         except Exception as e:
             logger.error(f"Error checking behavior reminders: {e}")
 
-    async def cleanup_expired_reminders(self):
+    def cleanup_expired_reminders(self):
         """清理过期的非重复提醒"""
         try:
             logger.info("Cleaning up expired reminders...")
@@ -194,7 +249,7 @@ class ReminderScheduler:
         except Exception as e:
             logger.error(f"Error cleaning up reminders: {e}")
 
-    async def check_proactive_chat(self):
+    def check_proactive_chat(self):
         """检查是否需要发起主动对话"""
         try:
             logger.info("Checking proactive chat conditions...")
@@ -213,14 +268,18 @@ class ReminderScheduler:
 
                     # 通过WebSocket推送主动对话
                     if self.reminder_manager.websocket_callback:
-                        await self.reminder_manager.websocket_callback({
-                            "type": "proactive_chat",
-                            "user_id": user_id,
-                            "reason": result["reason"],
-                            "message": result["message"],
-                            "priority": result["priority"],
-                            "metadata": result.get("metadata", {})
-                        })
+                        # websocket_callback 是一个 async 函数,但我们不能在同步函数中 await
+                        # 使用 asyncio.create_task 在后台执行
+                        asyncio.create_task(
+                            self.reminder_manager.websocket_callback({
+                                "type": "proactive_chat",
+                                "user_id": user_id,
+                                "reason": result["reason"],
+                                "message": result["message"],
+                                "priority": result["priority"],
+                                "metadata": result.get("metadata", {})
+                            })
+                        )
 
                         # 标记已发起
                         self.proactive_chat.mark_chat_initiated(
@@ -255,7 +314,7 @@ class ReminderScheduler:
             "jobs": self.get_jobs()
         }
 
-    async def cleanup_old_memories(self):
+    def cleanup_old_memories(self):
         """清理旧记忆 - 每天凌晨4点执行"""
         try:
             logger.info("Starting memory cleanup...")
@@ -271,7 +330,7 @@ class ReminderScheduler:
         except Exception as e:
             logger.error(f"Error cleaning up memories: {e}")
 
-    async def run_conflict_detector_job(self):
+    def run_conflict_detector_job(self):
         """运行记忆冲突检测 - 每天凌晨2点执行，输出到日志文件"""
         try:
             logger.info("Running conflict detector job...")

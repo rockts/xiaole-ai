@@ -143,6 +143,27 @@ class ReminderManager:
                 logger.info(
                     f"Created reminder {reminder['reminder_id']} for user {user_id}")
 
+                # 保存到记忆系统
+                try:
+                    from memory import MemoryManager
+                    memory_mgr = MemoryManager()
+
+                    # 构建记忆内容
+                    trigger_str = ""
+                    if reminder_type == "time":
+                        trigger_cond = trigger_condition if isinstance(
+                            trigger_condition, dict) else json.loads(trigger_condition)
+                        trigger_str = f"时间: {trigger_cond.get('datetime', '未知')}"
+
+                    memory_content = f"用户创建了提醒「{title or content[:20]}」\n内容: {content}\n{trigger_str}"
+                    memory_mgr.remember(
+                        content=memory_content,
+                        tag="reminder"
+                    )
+                    logger.info(f"💾 提醒已保存到记忆系统")
+                except Exception as mem_error:
+                    logger.warning(f"保存提醒记忆失败: {mem_error}")
+
                 # 广播提醒创建事件，以便前端刷新列表
                 if self.websocket_broadcast:
                     try:
@@ -372,10 +393,21 @@ class ReminderManager:
                 if not trigger_time_str:
                     continue
 
-                trigger_time = datetime.fromisoformat(trigger_time_str)
+                # 兼容多种时间格式
+                try:
+                    # 尝试 ISO 8601 格式(带时区)
+                    trigger_time = datetime.fromisoformat(trigger_time_str)
+                    # 如果带时区,转为本地时区并去除时区信息(与 now 统一为 naive datetime)
+                    if trigger_time.tzinfo is not None:
+                        trigger_time = trigger_time.astimezone().replace(tzinfo=None)
+                except ValueError:
+                    # 尝试简单格式 "YYYY-MM-DD HH:MM:SS"
+                    trigger_time = datetime.strptime(
+                        trigger_time_str, "%Y-%m-%d %H:%M:%S")
 
                 # DEBUG: 打印检查信息
-                # logger.info(f"Checking reminder {reminder['reminder_id']}: time={trigger_time}, now={now}")
+                logger.info(
+                    f"Checking reminder {reminder['reminder_id']}: trigger={trigger_time}, now={now}")
 
                 # 检查是否到时间
                 if now >= trigger_time:
