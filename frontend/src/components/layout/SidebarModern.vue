@@ -151,27 +151,27 @@
           <template v-else>
             <div
               v-for="session in displayedSessions"
-              :key="session.id || session.session_id"
+              :key="session.session_id || session.id"
               class="session-item"
               :class="{
                 active: isCurrentSession(session),
                 pinned: session.pinned,
               }"
-              @click="loadSession(session.id || session.session_id)"
-              @mouseenter="hoveredSessionId = session.id || session.session_id"
+              @click="loadSession(session.session_id || session.id)"
+              @mouseenter="hoveredSessionId = session.session_id || session.id"
               @mouseleave="hoveredSessionId = null"
             >
               <div
                 class="session-content"
-                @click="loadSession(session.id || session.session_id)"
+                @click="loadSession(session.session_id || session.id)"
               >
                 <input
-                  v-if="editingSessionId === (session.id || session.session_id)"
+                  v-if="editingSessionId === (session.session_id || session.id)"
                   v-model="editingTitle"
                   class="session-title-input"
-                  @keydown.enter="saveRename(session.id || session.session_id)"
+                  @keydown.enter="saveRename(session.session_id || session.id)"
                   @keydown.esc="cancelRename"
-                  @blur="saveRename(session.id || session.session_id)"
+                  @blur="saveRename(session.session_id || session.id)"
                   @click.stop
                 />
                 <div v-else class="session-title">
@@ -194,20 +194,20 @@
               </div>
               <button
                 v-if="
-                  hoveredSessionId === (session.id || session.session_id) ||
-                  activeMenuSessionId === (session.id || session.session_id) ||
+                  hoveredSessionId === (session.session_id || session.id) ||
+                  activeMenuSessionId === (session.session_id || session.id) ||
                   isCurrentSession(session)
                 "
                 class="session-menu-btn"
                 aria-label="会话操作菜单"
                 aria-haspopup="menu"
-                :id="`menu-btn-${session.id || session.session_id}`"
+                :id="`menu-btn-${session.session_id || session.id}`"
                 :ref="
-                  (el) => setMenuBtnRef(el, session.id || session.session_id)
+                  (el) => setMenuBtnRef(el, session.session_id || session.id)
                 "
                 @mousedown.stop.prevent
                 @click.stop.prevent="
-                  toggleSessionMenu(session.id || session.session_id, $event)
+                  toggleSessionMenu(session.session_id || session.id, $event)
                 "
               >
                 <svg
@@ -228,7 +228,7 @@
               <teleport to="body">
                 <div
                   v-if="
-                    activeMenuSessionId === (session.id || session.session_id)
+                    activeMenuSessionId === (session.session_id || session.id)
                   "
                   class="session-menu"
                   :style="{
@@ -246,7 +246,7 @@
                   <div :class="['menu-arrow', menuPosition.placement]"></div>
                   <button
                     class="menu-item"
-                    @click="renameSession(session.id || session.session_id)"
+                    @click="renameSession(session.session_id || session.id)"
                   >
                     <svg
                       width="14"
@@ -267,7 +267,7 @@
                   </button>
                   <button
                     class="menu-item"
-                    @click="shareSession(session.id || session.session_id)"
+                    @click="shareSession(session.session_id || session.id)"
                   >
                     <svg
                       width="14"
@@ -287,7 +287,7 @@
                   </button>
                   <button
                     class="menu-item"
-                    @click="pinSession(session.id || session.session_id)"
+                    @click="pinSession(session.session_id || session.id)"
                   >
                     <svg
                       width="14"
@@ -305,7 +305,7 @@
                   </button>
                   <button
                     class="menu-item danger"
-                    @click="confirmDelete(session.id || session.session_id)"
+                    @click="confirmDelete(session.session_id || session.id)"
                   >
                     <svg
                       width="14"
@@ -558,7 +558,7 @@ const navItems = [
 
 const isActive = (path) => route.path.startsWith(path);
 const isCurrentSession = (session) =>
-  route.params.sessionId == (session.id || session.session_id);
+  route.params.sessionId == (session.session_id || session.id);
 
 const handleMobileNav = () => {
   if (isMobile.value) {
@@ -773,7 +773,7 @@ const toggleSessionMenu = async (id, evt) => {
 
 const startRenaming = (session) => {
   activeMenuSessionId.value = null;
-  editingSessionId.value = session.id || session.session_id;
+  editingSessionId.value = session.session_id || session.id;
   editingTitle.value = session.title || "未命名对话";
   // 等待DOM更新后聚焦输入框
   nextTick(() => {
@@ -790,7 +790,7 @@ const saveRename = async (id) => {
   if (
     !newTitle ||
     newTitle ===
-      sessions.value.find((s) => (s.id || s.session_id) === id)?.title
+      sessions.value.find((s) => (s.session_id || s.id) === id)?.title
   ) {
     cancelRename();
     return;
@@ -799,7 +799,7 @@ const saveRename = async (id) => {
   try {
     await api.updateSession(id, { title: newTitle });
 
-    const session = sessions.value.find((s) => (s.id || s.session_id) === id);
+    const session = sessions.value.find((s) => (s.session_id || s.id) === id);
     if (session) {
       session.title = newTitle;
     }
@@ -824,8 +824,13 @@ const cancelRename = () => {
 };
 
 const renameSession = async (id) => {
-  const session = sessions.value.find((s) => (s.id || s.session_id) === id);
-  if (!session) return;
+  console.log("重命名会话:", id);
+  const session = sessions.value.find((s) => (s.session_id || s.id) === id);
+  if (!session) {
+    console.error("未找到会话:", id);
+    return;
+  }
+  console.log("找到会话:", session);
   startRenaming(session);
 };
 
@@ -834,7 +839,7 @@ const shareDialogUrl = ref("");
 const shareDialogTitle = ref("分享对话");
 const shareSession = async (id) => {
   activeMenuSessionId.value = null;
-  const session = sessions.value.find((s) => (s.id || s.session_id) === id);
+  const session = sessions.value.find((s) => (s.session_id || s.id) === id);
   const title = session?.title || "未命名对话";
   shareDialogTitle.value = title;
   shareDialogUrl.value = `${window.location.origin}/share/${id}`;
@@ -842,16 +847,22 @@ const shareSession = async (id) => {
 };
 
 const pinSession = async (id) => {
+  console.log("置顶会话:", id);
   activeMenuSessionId.value = null;
-  const session = sessions.value.find((s) => (s.id || s.session_id) === id);
-  if (!session) return;
+  const session = sessions.value.find((s) => (s.session_id || s.id) === id);
+  if (!session) {
+    console.error("未找到会话:", id);
+    return;
+  }
 
   try {
     // 切换置顶状态
     const isPinned = session.pinned || false;
+    console.log("当前置顶状态:", isPinned, "→ 切换为:", !isPinned);
     await api.updateSession(id, { pinned: !isPinned });
 
     session.pinned = !isPinned;
+    console.log("置顶成功");
     // 重新排序会话列表,置顶的会话排在前面
     await chatStore.loadSessions(true);
   } catch (error) {
@@ -882,7 +893,7 @@ const deleteSession = async () => {
 
     // 从列表中移除
     const index = sessions.value.findIndex(
-      (s) => (s.id || s.session_id) === id
+      (s) => (s.session_id || s.id) === id
     );
     if (index > -1) {
       sessions.value.splice(index, 1);

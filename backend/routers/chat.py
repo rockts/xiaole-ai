@@ -501,14 +501,29 @@ def get_session(
     }
 
 
-@router.patch("/api/chat/sessions/{session_id}")
+@router.patch("/chat/sessions/{session_id}")
 def update_session(
     session_id: str,
     update_data: Dict[str, Any],
+    current_user: str = Depends(get_current_user),
     agent: XiaoLeAgent = Depends(get_agent)
 ):
     """更新会话信息"""
     try:
+        # 验证会话所有权
+        from db_setup import SessionLocal, Conversation
+        db = SessionLocal()
+        try:
+            conv = db.query(Conversation).filter(
+                Conversation.session_id == session_id,
+                Conversation.user_id == current_user
+            ).first()
+
+            if not conv:
+                raise HTTPException(status_code=404, detail="会话不存在或无权访问")
+        finally:
+            db.close()
+
         if "title" in update_data:
             agent.conversation.update_session_title(
                 session_id, update_data["title"])
@@ -518,6 +533,8 @@ def update_session(
                 session_id, update_data["pinned"])
 
         return {"message": "Session updated successfully"}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
