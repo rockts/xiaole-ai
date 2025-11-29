@@ -40,8 +40,7 @@ export NVM_DIR="$HOME/.nvm"
 # 自动使用 .nvmrc 中指定的版本
 if [ -f .nvmrc ]; then
     echo "📦 使用 .nvmrc 指定的 Node 版本..."
-    nvm install
-    nvm use
+    nvm use || nvm install
 else
     echo "⚠️  未找到 .nvmrc，使用 Node 20..."
     nvm use 20 2>/dev/null || nvm install 20

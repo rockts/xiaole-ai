@@ -197,11 +197,10 @@ def delete_task(
         return {
             "success": success
         }
+    except HTTPException:
+        raise
     except Exception as e:
-        return {
-            "success": False,
-            "error": str(e)
-        }
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/stats/{user_id}", response_model=Dict[str, Any])

@@ -69,10 +69,9 @@
             <template v-if="message.status === 'thinking'">
               <div class="thinking-wrapper">
                 <div class="thinking-animation">
-                  <div class="thinking-bar"></div>
-                  <div class="thinking-bar"></div>
-                  <div class="thinking-bar"></div>
-                  <div class="thinking-bar"></div>
+                  <div class="thinking-dot"></div>
+                  <div class="thinking-dot"></div>
+                  <div class="thinking-dot"></div>
                 </div>
                 <span class="thinking-label">思考中</span>
               </div>
@@ -3955,101 +3954,71 @@ const feedbackMessage = async (message, type) => {
 }
 
 .thinking-wrapper {
-  background: linear-gradient(
-    135deg,
-    var(--bg-secondary) 0%,
-    var(--bg-tertiary, var(--bg-secondary)) 100%
-  );
-  padding: 14px 18px;
-  border-radius: 18px;
-  border-bottom-left-radius: 4px;
-  min-width: 90px;
+  background: var(--bg-secondary);
+  padding: 10px 14px;
+  border-radius: var(--radius-xl);
+  border-bottom-left-radius: var(--radius-xs);
+  min-width: 80px;
   display: flex !important;
   align-items: center;
-  gap: 14px;
+  gap: 8px;
   visibility: visible !important;
   opacity: 1 !important;
-  min-height: 48px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  min-height: 40px;
+  box-shadow: var(--shadow-sm);
   margin-top: 4px;
   margin-bottom: 80px;
   scroll-margin-bottom: 120px;
   position: relative;
   z-index: 999 !important;
-  border: 1px solid rgba(99, 102, 241, 0.1);
+  border: 1px solid var(--border-light);
 }
 
 .thinking-animation {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   gap: 4px;
-  height: 20px;
+  height: 16px;
 }
 
-.thinking-bar {
-  width: 3px;
-  height: 100%;
-  background: linear-gradient(
-    180deg,
-    var(--brand-primary),
-    var(--brand-secondary, var(--brand-primary))
-  );
-  border-radius: 2px;
+.thinking-dot {
+  width: 6px;
+  height: 6px;
+  background: var(--text-primary);
+  border-radius: 50%;
   animation: thinkingWave 1.2s ease-in-out infinite;
 }
 
-.thinking-bar:nth-child(1) {
+.thinking-dot:nth-child(1) {
   animation-delay: 0s;
 }
 
-.thinking-bar:nth-child(2) {
+.thinking-dot:nth-child(2) {
   animation-delay: 0.15s;
 }
 
-.thinking-bar:nth-child(3) {
+.thinking-dot:nth-child(3) {
   animation-delay: 0.3s;
-}
-
-.thinking-bar:nth-child(4) {
-  animation-delay: 0.45s;
 }
 
 @keyframes thinkingWave {
   0%,
+  60%,
   100% {
-    height: 30%;
-    opacity: 0.5;
+    opacity: 0.2;
+    transform: scale(0.8);
   }
-  50% {
-    height: 100%;
+  30% {
     opacity: 1;
+    transform: scale(1);
   }
 }
 
 .thinking-label {
   color: var(--text-secondary);
   font-size: 13px;
-  font-weight: 500;
-  letter-spacing: 0.3px;
-  background: linear-gradient(
-    90deg,
-    var(--brand-primary),
-    var(--brand-secondary, var(--brand-primary))
-  );
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  animation: thinkingTextShimmer 2s ease-in-out infinite;
-}
-
-@keyframes thinkingTextShimmer {
-  0%,
-  100% {
-    opacity: 0.7;
-  }
-  50% {
-    opacity: 1;
-  }
+  font-weight: 400;
+  letter-spacing: 0.2px;
 }
 
 .typing-indicator span {

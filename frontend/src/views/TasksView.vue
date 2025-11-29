@@ -96,13 +96,19 @@ const deleteTask = async () => {
   try {
     const result = await api.deleteTask(id);
     if (result.success) {
-      await loadTasks();
+      // 直接从列表中移除，不需要重新加载
+      const index = tasks.value.findIndex((t) => t.id === id);
+      if (index > -1) {
+        tasks.value.splice(index, 1);
+      }
     } else {
       alert("删除失败: " + (result.error || "未知错误"));
     }
   } catch (error) {
     console.error("Failed to delete task:", error);
-    alert("删除出错");
+    const errorMsg =
+      error.response?.data?.detail || error.message || "删除出错";
+    alert(`删除失败: ${errorMsg}`);
   } finally {
     taskToDelete.value = null;
   }
