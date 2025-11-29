@@ -3620,16 +3620,22 @@ const feedbackMessage = async (message, type) => {
   padding: 4px 0;
   transition: opacity 0.2s;
   flex-wrap: wrap;
-}
-.message.assistant .message-toolbar {
-  opacity: 1;
-}
-.message.user .message-toolbar {
   opacity: 0;
-  justify-content: flex-end;
 }
-.message.user:hover .message-toolbar {
+
+/* PC端：鼠标悬停时显示工具栏 */
+.chat-view .message:hover .message-toolbar {
   opacity: 1;
+}
+
+/* Assistant消息工具栏对齐方式 */
+.message.assistant .message-toolbar {
+  justify-content: flex-start;
+}
+
+/* User消息工具栏对齐方式 */
+.message.user .message-toolbar {
+  justify-content: flex-end;
 }
 .toolbar-icon {
   background: none;
@@ -3658,6 +3664,27 @@ const feedbackMessage = async (message, type) => {
 .toolbar-icon.active {
   background: var(--bg-active);
   color: var(--text-primary);
+}
+
+/* 桌面端：仅用户消息的工具栏需要悬停显示，AI消息工具栏始终显示 */
+@media (min-width: 481px) {
+  .message.user .message-toolbar {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+  .chat-view .message.user:hover .message-toolbar,
+  .chat-view .message.user .message-toolbar:hover {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+  }
+  /* AI消息工具栏始终显示 */
+  .message.assistant .message-toolbar {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+  }
 }
 .message.user .toolbar-icon {
   color: rgba(255, 255, 255, 0.5);
@@ -4087,7 +4114,7 @@ const feedbackMessage = async (message, type) => {
 }
 
 /* 移动端适配优化 */
-@media (max-width: 768px) {
+@media (max-width: 480px) {
   .chat-view {
     height: 100dvh; /* 适配移动端动态视口高度 */
   }
@@ -4195,12 +4222,11 @@ const feedbackMessage = async (message, type) => {
   }
 
   /* 移动端始终显示工具栏，避免无法操作 */
-  .message-toolbar {
-    opacity: 1 !important;
+  .message .message-toolbar {
+    opacity: 1;
     margin-top: 8px;
     gap: 6px;
   }
-
   /* 最后一条消息的工具栏添加更多底部间距，确保不被输入框遮挡 */
   .message:last-child .message-toolbar {
     margin-bottom: 32px;
