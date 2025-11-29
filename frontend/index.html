@@ -3,6 +3,18 @@
 
 <head>
     <meta charset="UTF-8">
+    <!-- 适配浏览器主题颜色，提升地址栏/标签栏一致性 -->
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#0b0f19" media="(prefers-color-scheme: dark)">
+    <!-- Apple Touch Icon 保留为你的 logo（不影响桌面浏览器 favicon 选择） -->
+    <link rel="apple-touch-icon" href="/src/assets/logo-xiaole.png" />
+    <!-- 主题自适配：仅使用媒体查询，避免回退覆盖选择；先放深色，再放浅色 -->
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-dark.png" media="(prefers-color-scheme: dark)" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-dark.png" media="(prefers-color-scheme: dark)" />
+    <link rel="icon" type="image/png" sizes="48x48" href="/favicon-dark.png" media="(prefers-color-scheme: dark)" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-light.png" media="(prefers-color-scheme: light)" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-light.png" media="(prefers-color-scheme: light)" />
+    <link rel="icon" type="image/png" sizes="48x48" href="/favicon-light.png" media="(prefers-color-scheme: light)" />
     <meta name="viewport"
         content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content">
     <title>小乐 AI 管家 v0.8.0</title>

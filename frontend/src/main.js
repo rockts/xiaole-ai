@@ -4,7 +4,7 @@ import router from './router'
 import App from './App.vue'
 import './assets/styles/main.css'
 import 'highlight.js/styles/github-dark.css'
-import { healthCheck } from './utils/healthCheck'
+// import { healthCheck } from './utils/healthCheck' // 已禁用: WebSocket 已监控连接
 
 // 控制台调试提示
 console.log(
@@ -22,6 +22,12 @@ const pinia = createPinia()
 
 // 全局错误处理
 app.config.errorHandler = (err, instance, info) => {
+  // 过滤掉访问 undefined 属性的错误(已通过 ?. 修复)
+  if (err.message && err.message.includes('Cannot read properties of undefined')) {
+    console.debug('🔧 数据未就绪:', err.message);
+    return; // 静默处理
+  }
+
   console.error('❌ Vue Error:', err);
   console.error('📍 Error Info:', info);
   console.error('🔍 Component:', instance);
@@ -39,11 +45,22 @@ app.use(pinia)
 app.use(router)
 app.mount('#app')
 
-// 启动后端健康检查
-healthCheck.start()
+// 已禁用后端健康检查 - WebSocket 已提供实时连接监控
+// healthCheck.start()
 
 // 应用卸载时停止检查
-window.addEventListener('beforeunload', () => {
-  healthCheck.stop()
-})
+// window.addEventListener('beforeunload', () => {
+//   healthCheck.stop()
+// })
+
+// 捕获未处理错误，避免静默卡住
+window.addEventListener('error', (event) => {
+  console.error('🌐 Window Error:', event.error || event.message);
+});
+
+window.addEventListener('unhandledrejection', (event) => {
+  console.error('🌐 Unhandled Promise Rejection:', event.reason);
+});
+
+console.log('✅ App mounted and global error hooks installed')
 

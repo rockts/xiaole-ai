@@ -151,7 +151,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import api from "@/services/api";
 
@@ -349,9 +349,16 @@ const deleteTask = async () => {
   }
 };
 
-onMounted(() => {
-  loadTask();
-});
+// 监听路由参数变化，当从一个任务详情页跳到另一个时重新加载
+watch(
+  () => route.params.id,
+  (newId) => {
+    if (newId) {
+      loadTask();
+    }
+  },
+  { immediate: true } // immediate: true 替代 onMounted，首次加载也会触发
+);
 </script>
 
 <style scoped>

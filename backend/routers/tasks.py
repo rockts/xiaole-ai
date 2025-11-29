@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from typing import Dict, Any, Optional
 from dependencies import get_xiaole_agent
 from agent import XiaoLeAgent
+from auth import get_current_user
 from logger import logger
 
 router = APIRouter(
@@ -17,11 +18,12 @@ def get_agent():
 @router.post("", response_model=Dict[str, Any])
 def create_task(
     request: Dict[str, Any],
+    current_user: str = Depends(get_current_user),
     agent: XiaoLeAgent = Depends(get_agent)
 ):
     """创建任务"""
     try:
-        user_id = request.get('user_id', 'default_user')
+        user_id = current_user
         session_id = request.get('session_id')
         title = request.get('title')
         description = request.get('description', '')
@@ -51,13 +53,14 @@ def create_task(
 
 @router.get("", response_model=Dict[str, Any])
 def get_tasks_list(
-    user_id: str = "default_user",
     status: Optional[str] = None,
     limit: int = 50,
+    current_user: str = Depends(get_current_user),
     agent: XiaoLeAgent = Depends(get_agent)
 ):
     """获取当前用户的任务列表"""
     try:
+        user_id = current_user
         tasks = agent.task_manager.get_tasks_by_user(
             user_id=user_id,
             status=status,
@@ -78,6 +81,7 @@ def get_tasks_list(
 @router.get("/{task_id}", response_model=Dict[str, Any])
 def get_task(
     task_id: int,
+    current_user: str = Depends(get_current_user),
     agent: XiaoLeAgent = Depends(get_agent)
 ):
     """获取任务详情"""
@@ -86,12 +90,16 @@ def get_task(
         if not task:
             raise HTTPException(status_code=404, detail="任务不存在")
 
+        # 验证所有权
+        if task.get('user_id') != current_user:
+            raise HTTPException(status_code=403, detail="无权查看此任务")
+
         # 获取步骤
         steps = agent.task_manager.get_task_steps(task_id)
 
         return {
             "success": True,
-            "task": dict(task),
+            "task": task,
             "steps": steps
         }
     except HTTPException:
@@ -132,11 +140,12 @@ def update_task_status(
 def execute_task(
     task_id: int,
     request: Dict[str, Any],
+    current_user: str = Depends(get_current_user),
     agent: XiaoLeAgent = Depends(get_agent)
 ):
     """执行任务"""
     try:
-        user_id = request.get('user_id', 'default_user')
+        user_id = current_user
         session_id = request.get('session_id', '')
 
         result = agent.task_executor.execute_task(
@@ -172,10 +181,18 @@ def cancel_task(
 @router.delete("/{task_id}", response_model=Dict[str, Any])
 def delete_task(
     task_id: int,
+    current_user: str = Depends(get_current_user),
     agent: XiaoLeAgent = Depends(get_agent)
 ):
     """删除任务"""
     try:
+        # 验证所有权
+        task = agent.task_manager.get_task(task_id)
+        if not task:
+            raise HTTPException(status_code=404, detail="任务不存在")
+        if task.get('user_id') != current_user:
+            raise HTTPException(status_code=403, detail="无权删除此任务")
+
         success = agent.task_manager.delete_task(task_id)
         return {
             "success": success

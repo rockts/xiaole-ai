@@ -239,8 +239,10 @@ export default {
     },
 
     // 任务相关
-    getTasks(userId = 'default_user', status = '', limit = 50) {
-        return api.get('/api/tasks', { params: { user_id: userId, status, limit } })
+    getTasks(status = '', limit = 50) {
+        const params = { limit };
+        if (status) params.status = status;
+        return api.get('/api/tasks', { params });
     },
 
     getTask(taskId) {
@@ -260,8 +262,8 @@ export default {
     },
 
     // 提醒相关
-    getReminders(userId = 'default_user', enabledOnly = false) {
-        return api.get('/api/reminders', { params: { user_id: userId, enabled_only: enabledOnly } })
+    getReminders(enabledOnly = false) {
+        return api.get('/api/reminders', { params: { enabled_only: enabledOnly } })
     },
 
     createReminder(data) {
@@ -282,6 +284,11 @@ export default {
 
     snoozeReminder(reminderId, minutes = 5) {
         return api.post(`/api/reminders/${reminderId}/snooze`, null, { params: { minutes } })
+    },
+
+    // 行为分析相关
+    getBehaviorAnalytics(days = 30) {
+        return api.get('/api/analytics/behavior', { params: { days } })
     },
 
     // 文档相关

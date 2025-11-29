@@ -45,14 +45,16 @@ export const healthCheck = {
 
     try {
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 5000)
+      const timeoutId = setTimeout(() => controller.abort(), 8000) // 增加超时时间到8秒
 
-      // 使用后端API路径而不是前端根路径
+      // 使用简单的 API 端点进行健康检查
       const apiBase = import.meta.env.VITE_API_BASE || ''
-      // 调整为 reminders 调度器端点，避免 404
-      const response = await fetch(`${apiBase}/api/reminders/scheduler/status`, {
+      const response = await fetch(`${apiBase}/api/sessions`, {
         method: 'GET',
-        signal: controller.signal
+        signal: controller.signal,
+        headers: {
+          'Accept': 'application/json'
+        }
       })
 
       clearTimeout(timeoutId)
@@ -63,7 +65,10 @@ export const healthCheck = {
         this.notifyListeners('offline')
       }
     } catch (error) {
-      console.warn('后端连接失败:', error.message)
+      // 不要输出错误日志,避免控制台污染
+      if (error.name !== 'AbortError') {
+        console.debug('后端连接检查:', error.message)
+      }
       this.notifyListeners('offline')
     } finally {
       isChecking = false

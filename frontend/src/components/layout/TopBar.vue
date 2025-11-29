@@ -281,7 +281,7 @@ const loadReminders = async () => {
   try {
     loadingReminders.value = true;
     // 只获取启用的提醒
-    const data = await api.getReminders("default_user", true);
+    const data = await api.getReminders(true);
     reminders.value = data.reminders || [];
     updateTimeRemaining();
   } catch (error) {

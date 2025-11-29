@@ -525,29 +525,78 @@ def update_session(
 @router.delete("/session/{session_id}")
 def delete_session(
     session_id: str,
+    current_user: str = Depends(get_current_user),
     agent: XiaoLeAgent = Depends(get_agent)
 ):
     """删除会话"""
+    user_id = current_user
+    # 验证会话所有权
+    from db_setup import SessionLocal, Conversation
+    db = SessionLocal()
+    try:
+        conv = db.query(Conversation).filter(
+            Conversation.session_id == session_id,
+            Conversation.user_id == user_id
+        ).first()
+        if not conv:
+            raise HTTPException(status_code=403, detail="无权删除此会话")
+    finally:
+        db.close()
+
     agent.conversation.delete_session(session_id)
     return {"message": "Session deleted"}
 
 
-@router.delete("/api/chat/sessions/{session_id}")
+@router.delete("/chat/sessions/{session_id}")
 def delete_session_api(
     session_id: str,
+    current_user: str = Depends(get_current_user),
     agent: XiaoLeAgent = Depends(get_agent)
 ):
-    """删除会话 (新API路径)"""
+    """删除会话"""
+    user_id = current_user
+    # 验证会话所有权
+    from db_setup import SessionLocal, Conversation
+    db = SessionLocal()
+    try:
+        conv = db.query(Conversation).filter(
+            Conversation.session_id == session_id,
+            Conversation.user_id == user_id
+        ).first()
+        if not conv:
+            raise HTTPException(status_code=403, detail="无权删除此会话")
+    finally:
+        db.close()
+
     agent.conversation.delete_session(session_id)
     return {"message": "Session deleted"}
 
 
-@router.delete("/api/messages/{message_id}")
+@router.delete("/messages/{message_id}")
 def delete_message_api(
     message_id: int,
+    current_user: str = Depends(get_current_user),
     agent: XiaoLeAgent = Depends(get_agent)
 ):
     """删除消息及其后续消息"""
+    user_id = current_user
+    # 验证消息所有权
+    from db_setup import SessionLocal, Message, Conversation
+    db = SessionLocal()
+    try:
+        msg = db.query(Message).filter(Message.id == message_id).first()
+        if not msg:
+            raise HTTPException(status_code=404, detail="消息不存在")
+
+        conv = db.query(Conversation).filter(
+            Conversation.session_id == msg.session_id,
+            Conversation.user_id == user_id
+        ).first()
+        if not conv:
+            raise HTTPException(status_code=403, detail="无权删除此消息")
+    finally:
+        db.close()
+
     success = agent.conversation.delete_message_and_following(message_id)
     if success:
         return {"success": True, "message": "Messages deleted"}

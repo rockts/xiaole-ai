@@ -4,6 +4,7 @@ from dependencies import get_xiaole_agent, get_reminder_manager, get_task_manage
 from agent import XiaoLeAgent
 from reminder_manager import ReminderManager
 from task_manager import TaskManager
+from auth import get_current_user
 import psutil
 import os
 
@@ -27,12 +28,13 @@ def get_tasks():
 
 @router.get("/snapshot")
 def get_dashboard_snapshot(
-    user_id: str = "default_user",
+    current_user: str = Depends(get_current_user),
     agent: XiaoLeAgent = Depends(get_agent),
     reminder_mgr: ReminderManager = Depends(get_reminders),
     task_mgr: TaskManager = Depends(get_tasks)
 ):
     """获取仪表盘快照数据"""
+    user_id = current_user
     try:
         # 1. 获取系统状态
         system_status = {

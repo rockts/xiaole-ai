@@ -516,7 +516,7 @@ const handleTaskClick = (task) => {
 // 移动端检测
 const isMobile = ref(window.innerWidth <= 768);
 
-// 使用新的 logo
+// 使用项目 logo
 const logoSrc = computed(() => logoImage);
 // 从 localStorage 读取收起状态，移动端默认收起
 const savedCollapsed = localStorage.getItem("sidebar-collapsed");
@@ -894,7 +894,9 @@ const deleteSession = async () => {
     }
   } catch (error) {
     console.error("删除失败:", error);
-    alert("删除失败,请重试");
+    const errorMsg =
+      error.response?.data?.detail || error.message || "删除失败";
+    alert(`删除失败: ${errorMsg}`);
   }
 };
 

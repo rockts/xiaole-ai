@@ -308,7 +308,8 @@ const confirmDelete = async (id) => {
     if (route.params.sessionId == id) router.push("/chat");
   } catch (e) {
     console.error("删除失败:", e);
-    alert("删除失败,请重试");
+    const errorMsg = e.response?.data?.detail || e.message || "删除失败";
+    alert(`删除失败: ${errorMsg}`);
   }
 };
 
