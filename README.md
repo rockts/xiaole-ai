@@ -255,9 +255,14 @@ npm run dev
 API 文档: http://localhost:8000/docs
 ```
 
-**默认登录账号**:
+**默认测试账号**（仅用于本地开发）:
 - 用户名: `admin`
 - 密码: `admin123`
+
+⚠️ **生产环境安全提示**：请在 NAS 的 `.env` 文件中设置 `ADMIN_PASSWORD_HASH` 环境变量，使用强密码。生成方法：
+```bash
+python -c "import bcrypt; print(bcrypt.hashpw(b'your_password', bcrypt.gensalt()).decode())"
+```
 
 打开浏览器访问：
 

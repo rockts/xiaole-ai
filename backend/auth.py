@@ -18,10 +18,11 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7天过期
 # 简单的单用户认证 (生产环境建议使用数据库)
 ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
 ADMIN_PASSWORD_HASH = os.getenv("ADMIN_PASSWORD_HASH")
-# 如果没有设置HASH，使用默认密码的 hash
+# 如果没有设置HASH，使用默认测试密码 admin123 的 hash
 if not ADMIN_PASSWORD_HASH:
+    # default: admin123 (仅用于本地测试,生产环境请在.env中设置ADMIN_PASSWORD_HASH)
     ADMIN_PASSWORD_HASH = (
-        "$2b$12$XdpfzbBMZvpVXgBUVgA63ug5xubhhrkNV80ChIhE/Bs9toHJEkMVa"
+        "$2b$12$cnta7InMv1goBb1uISQ7dekGA864y5RwK2QEd0td1IpbQ0LGcsh4G"
     )
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
