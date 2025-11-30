@@ -1,6 +1,6 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from pydantic import BaseModel
-from backend.tools.baidu_voice_tool import baidu_voice_tool
+from tools.baidu_voice_tool import baidu_voice_tool
 import base64
 from backend.logger import logger
 

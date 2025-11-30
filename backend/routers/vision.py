@@ -9,7 +9,7 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from backend.memory import MemoryManager  # noqa: E402
-from backend.tools.vision_tool import VisionTool  # noqa: E402
+from tools.vision_tool import VisionTool  # noqa: E402
 
 router = APIRouter(
     prefix="/api/vision",
