@@ -2,14 +2,14 @@ from fastapi import APIRouter, UploadFile, File, HTTPException
 from fastapi import Body
 import os
 import time
-from config import UPLOADS_DIR
+from backend.config import UPLOADS_DIR
 import sys
 
 # 允许导入项目根目录下的 tools 包
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from memory import MemoryManager  # noqa: E402
-from tools.vision_tool import VisionTool  # noqa: E402
+from backend.memory import MemoryManager  # noqa: E402
+from backend.tools.vision_tool import VisionTool  # noqa: E402
 
 router = APIRouter(
     prefix="/api/vision",

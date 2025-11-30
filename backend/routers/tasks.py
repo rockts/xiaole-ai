@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException
 from typing import Dict, Any, Optional
-from dependencies import get_xiaole_agent
-from agent import XiaoLeAgent
-from auth import get_current_user
-from logger import logger
+from backend.dependencies import get_xiaole_agent
+from backend.agent import XiaoLeAgent
+from backend.auth import get_current_user
+from backend.logger import logger
 
 router = APIRouter(
     prefix="/api/tasks",
