@@ -132,9 +132,14 @@
               <template v-else>
                 <div
                   class="md-content"
-                  :class="{ typing: message.status === 'typing' }"
+                  :class="{
+                    typing: message.status === 'typing',
+                    collapsed: isMessageCollapsed(message.id),
+                  }"
                   v-html="renderMarkdown(getDisplayContent(message))"
                 ></div>
+
+
 
                 <div
                   v-if="message.status === 'typing'"
@@ -216,8 +221,32 @@
             >
               <div
                 class="md-content"
+                :class="{ collapsed: isMessageCollapsed(message.id) }"
                 v-html="renderMarkdown(message.content)"
               ></div>
+
+              <!-- 展开/折叠按钮 -->
+              <button
+                v-if="shouldShowExpandButton(message.content, 'user')"
+                class="expand-btn"
+                @click="toggleMessageExpand(message.id)"
+              >
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  :style="{
+                    transform: isMessageCollapsed(message.id)
+                      ? 'rotate(0deg)'
+                      : 'rotate(180deg)',
+                  }"
+                >
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+              </button>
 
               <!-- 语音消息额外信息：麦克风图标 + 时长 -->
               <div v-if="message.messageType === 'voice'" class="voice-meta">
@@ -1075,6 +1104,49 @@ const feedbackTags = [
   "与事实不符",
   "未完全遵循指令",
 ];
+
+// 消息折叠状态
+const collapsedMessages = ref(new Set());
+const MESSAGE_COLLAPSE_THRESHOLD = 800; // 字符数阈值
+
+const shouldShowExpandButton = (content, role) => {
+  // 只折叠用户消息
+  if (role !== 'user') return false;
+  if (!content) return false;
+  // 去除HTML标签后计算纯文本长度
+  const textLength = content.replace(/<[^>]*>/g, "").length;
+  return textLength > MESSAGE_COLLAPSE_THRESHOLD;
+};
+
+const isMessageCollapsed = (messageId) => {
+  return collapsedMessages.value.has(messageId);
+};
+
+const toggleMessageExpand = (messageId) => {
+  if (collapsedMessages.value.has(messageId)) {
+    collapsedMessages.value.delete(messageId);
+  } else {
+    collapsedMessages.value.add(messageId);
+  }
+  // 强制触发响应式更新
+  collapsedMessages.value = new Set(collapsedMessages.value);
+};
+
+// 监听新消息，自动折叠长消息
+watch(
+  messages,
+  (newMessages) => {
+    newMessages.forEach((msg) => {
+      if (shouldShowExpandButton(msg.content, msg.role)) {
+        // 新消息默认折叠
+        if (!collapsedMessages.value.has(msg.id)) {
+          collapsedMessages.value.add(msg.id);
+        }
+      }
+    });
+  },
+  { deep: true }
+);
 
 // 判断是否有输入内容
 const hasInputContent = computed(() => {
@@ -3260,6 +3332,79 @@ const feedbackMessage = async (message, type) => {
 }
 .user-bubble :deep(p:last-child) {
   margin-bottom: 0;
+}
+
+/* 消息折叠样式 */
+.md-content.collapsed {
+  max-height: 200px;
+  overflow: hidden;
+  position: relative;
+}
+
+.md-content.collapsed::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 80px;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    var(--bg-primary) 70%,
+    var(--bg-primary)
+  );
+  pointer-events: none;
+}
+
+.user-bubble .md-content.collapsed::after {
+  background: linear-gradient(to bottom, transparent, #2f2f2f 70%, #2f2f2f);
+}
+
+[data-theme="light"] .user-bubble .md-content.collapsed::after {
+  background: linear-gradient(to bottom, transparent, #f3f4f6 70%, #f3f4f6);
+}
+
+.expand-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--text-secondary);
+  padding: 6px 12px;
+  border-radius: 12px;
+  font-size: 13px;
+  cursor: pointer;
+  margin-top: 8px;
+  transition: all 0.2s ease;
+  align-self: center;
+}
+
+.expand-btn svg {
+  transition: transform 0.2s ease;
+}
+
+.expand-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.18);
+  color: var(--text-primary);
+}
+
+.expand-btn.assistant {
+  align-self: flex-start;
+  margin-left: 0;
+}
+
+[data-theme="light"] .expand-btn {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .expand-btn:hover {
+  background: rgba(0, 0, 0, 0.08);
+  border-color: rgba(0, 0, 0, 0.12);
 }
 
 /* 语音会话结束标签 */
