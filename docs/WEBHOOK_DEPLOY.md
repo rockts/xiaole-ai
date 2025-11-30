@@ -7,35 +7,85 @@ Push 到 `main` 分支后,NAS 自动拉取代码并重新部署。
 
 ### 1. 在 NAS 上安装 Flask
 ```bash
-pip3 install flask
+# 群晖 DSM 6.2.3 使用 pip 而不是 pip3
+sudo pip install flask
 ```
 
-### 2. 设置 Webhook 密钥
-编辑 `webhook_deploy.service`,修改 `WEBHOOK_SECRET`:
+### 2. 生成并设置 Webhook 密钥
 ```bash
-Environment="WEBHOOK_SECRET=your-strong-random-secret"
-```
-生成随机密钥:
-```bash
-openssl rand -hex 32
+cd /volume2/docker/xiaole-ai
+
+# 生成随机密钥
+python -c "import os; print(os.urandom(32).hex())"
+# 记下生成的密钥,稍后在 GitHub 和启动脚本中使用
 ```
 
-### 3. 启动 Webhook 服务
-```bash
-# 复制服务文件
-sudo cp webhook_deploy.service /etc/systemd/system/
+### 3. 创建启动脚本
+群晖 DSM 6.2.3 不支持 systemd,需要手动创建启动脚本:
 
-# 重载配置
-sudo systemctl daemon-reload
+```bash
+# 创建启动脚本
+sudo nano /volume2/docker/xiaole-ai/start_webhook.sh
+```
+
+填入以下内容:
+```bash
+#!/bin/bash
+cd /volume2/docker/xiaole-ai
+
+export WEBHOOK_SECRET="your-generated-secret-here"
+export DB_USER="xiaole_user"
+export DB_PASS="Xiaole2025User"
+export DEEPSEEK_API_KEY="sk-2e77a6c7837b4e0badb17b86fa980098"
+export QWEN_API_KEY="sk-69ef2e83e8f44fb58d35911b9ae51091"
+export BAIDU_APP_ID="120791683"
+export BAIDU_API_KEY="yq6CZ2dqQnGdevtiQgDa1vPW"
+export BAIDU_SECRET_KEY="VcDVu97wz506w9TApXWURVkutCtJI49S"
+
+nohup python webhook_deploy.py > /var/log/webhook_deploy.log 2>&1 &
+echo $! > /var/run/webhook_deploy.pid
+echo "Webhook 服务已启动,PID: $(cat /var/run/webhook_deploy.pid)"
+```
+
+```bash
+# 添加执行权限
+sudo chmod +x /volume2/docker/xiaole-ai/start_webhook.sh
 
 # 启动服务
-sudo systemctl start webhook_deploy
+sudo bash /volume2/docker/xiaole-ai/start_webhook.sh
 
-# 开机自启
-sudo systemctl enable webhook_deploy
+# 查看日志
+tail -f /var/log/webhook_deploy.log
+```
 
-# 查看状态
-sudo systemctl status webhook_deploy
+### 4. 配置 Cloudflare Tunnel
+在群晖 DSM 控制面板中:
+1. 打开 **控制面板** → **任务计划**
+2. 新增 → **触发的任务** → **用户定义的脚本**
+3. 常规设置:
+   - 任务名称: `Webhook Auto Deploy`
+   - 用户: `root`
+   - 事件: `开机`
+4. 任务设置 → 运行命令:
+   ```bash
+   bash /volume2/docker/xiaole-ai/start_webhook.sh
+   ```
+5. 点击确定
+
+### 5. 管理 Webhook 服务
+```bash
+# 查看进程
+ps aux | grep webhook_deploy
+
+# 停止服务
+sudo kill $(cat /var/run/webhook_deploy.pid)
+
+# 重启服务
+sudo kill $(cat /var/run/webhook_deploy.pid)
+sudo bash /volume2/docker/xiaole-ai/start_webhook.sh
+
+# 查看日志
+tail -f /var/log/webhook_deploy.log
 ```
 
 ### 4. 配置 Cloudflare Tunnel
@@ -48,7 +98,7 @@ ingress:
     service: http://192.168.88.188:9000
 ```
 
-### 5. 在 GitHub 仓库设置 Webhook
+### 6. 在 GitHub 仓库设置 Webhook
 1. 进入仓库 Settings → Webhooks → Add webhook
 2. Payload URL: `https://webhook.leke.xyz/webhook`
 3. Content type: `application/json`
