@@ -5,13 +5,13 @@ cd /volume2/docker/xiaole-ai
 
 # 设置环境变量
 export WEBHOOK_SECRET="change-this-to-your-secret"
-export DB_USER="xiaole_user"
-export DB_PASS="Xiaole2025User"
-export DEEPSEEK_API_KEY="sk-2e77a6c7837b4e0badb17b86fa980098"
-export QWEN_API_KEY="sk-69ef2e83e8f44fb58d35911b9ae51091"
-export BAIDU_APP_ID="120791683"
-export BAIDU_API_KEY="yq6CZ2dqQnGdevtiQgDa1vPW"
-export BAIDU_SECRET_KEY="VcDVu97wz506w9TApXWURVkutCtJI49S"
+export DB_USER="your_db_user"
+export DB_PASS="your_db_password"
+export DEEPSEEK_API_KEY="your_deepseek_api_key"
+export QWEN_API_KEY="your_qwen_api_key"
+export BAIDU_APP_ID="your_baidu_app_id"
+export BAIDU_API_KEY="your_baidu_api_key"
+export BAIDU_SECRET_KEY="your_baidu_secret_key"
 
 # 启动服务
 nohup python webhook_deploy.py > /var/log/webhook_deploy.log 2>&1 &
