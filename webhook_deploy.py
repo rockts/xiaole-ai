@@ -36,10 +36,20 @@ def verify_signature(payload_body, signature_header):
 def webhook():
     """处理 GitHub Webhook 请求"""
     signature = request.headers.get("X-Hub-Signature-256")
+    
+    # 调试日志
+    print(f"[DEBUG] Webhook received")
+    print(f"[DEBUG] Signature from GitHub: {signature}")
+    print(f"[DEBUG] WEBHOOK_SECRET (first 8): {WEBHOOK_SECRET[:8]}...")
+    print(f"[DEBUG] WEBHOOK_SECRET (last 8): ...{WEBHOOK_SECRET[-8:]}")
+    print(f"[DEBUG] Payload size: {len(request.data)} bytes")
 
     # 验证签名
     if not verify_signature(request.data, signature):
+        print("[DEBUG] ❌ Signature verification FAILED!")
         return jsonify({"error": "Invalid signature"}), 403
+    
+    print("[DEBUG] ✅ Signature verification SUCCESS!")
 
     payload = request.json
 
