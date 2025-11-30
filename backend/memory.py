@@ -1,10 +1,10 @@
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine, func, or_
-from db_setup import Memory
+from backend.db_setup import Memory
 import os
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
-from semantic_search import SemanticSearchManager
+from backend.semantic_search import SemanticSearchManager
 
 load_dotenv()
 
