@@ -4,6 +4,7 @@ GitHub Webhook 自动部署服务
 监听 GitHub push 事件,自动拉取代码并重新部署
 """
 import os
+import sys
 import hmac
 import hashlib
 import subprocess
@@ -36,20 +37,23 @@ def verify_signature(payload_body, signature_header):
 def webhook():
     """处理 GitHub Webhook 请求"""
     signature = request.headers.get("X-Hub-Signature-256")
-    
-    # 调试日志
-    print(f"[DEBUG] Webhook received")
-    print(f"[DEBUG] Signature from GitHub: {signature}")
-    print(f"[DEBUG] WEBHOOK_SECRET (first 8): {WEBHOOK_SECRET[:8]}...")
-    print(f"[DEBUG] WEBHOOK_SECRET (last 8): ...{WEBHOOK_SECRET[-8:]}")
-    print(f"[DEBUG] Payload size: {len(request.data)} bytes")
+
+    # 调试日志 - 强制输出到 stderr
+    sys.stderr.write(f"[DEBUG] Webhook received\n")
+    sys.stderr.write(f"[DEBUG] Signature from GitHub: {signature}\n")
+    sys.stderr.write(f"[DEBUG] WEBHOOK_SECRET (first 8): {WEBHOOK_SECRET[:8]}...\n")
+    sys.stderr.write(f"[DEBUG] WEBHOOK_SECRET (last 8): ...{WEBHOOK_SECRET[-8:]}\n")
+    sys.stderr.write(f"[DEBUG] Payload size: {len(request.data)} bytes\n")
+    sys.stderr.flush()
 
     # 验证签名
     if not verify_signature(request.data, signature):
-        print("[DEBUG] ❌ Signature verification FAILED!")
+        sys.stderr.write("[DEBUG] ❌ Signature verification FAILED!\n")
+        sys.stderr.flush()
         return jsonify({"error": "Invalid signature"}), 403
-    
-    print("[DEBUG] ✅ Signature verification SUCCESS!")
+
+    sys.stderr.write("[DEBUG] ✅ Signature verification SUCCESS!\n")
+    sys.stderr.flush()
 
     payload = request.json
 
