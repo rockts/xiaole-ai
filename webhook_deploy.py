@@ -47,21 +47,27 @@ def webhook():
     if payload.get("ref") != "refs/heads/main":
         return jsonify({"message": "Not main branch, skipped"}), 200
 
-    # 执行部署
+    # 执行部署(容器内 git pull)
     try:
-        result = subprocess.run(
-            ["bash", DEPLOY_SCRIPT],
-            cwd=REPO_DIR,
+        # 拉取最新代码
+        pull_result = subprocess.run(
+            ["git", "pull", "origin", "main"],
+            cwd="/app",
             capture_output=True,
             text=True,
-            timeout=300
+            timeout=60
         )
+
+        # 如果有更新,触发容器重启(通过退出让 Docker 自动重启)
+        if "Already up to date" not in pull_result.stdout:
+            # 记录日志后退出,Docker restart=always 会自动重启
+            subprocess.Popen(["bash", "-c", "sleep 2 && kill 1"])
 
         return jsonify({
             "message": "Deployment triggered",
-            "stdout": result.stdout,
-            "stderr": result.stderr,
-            "returncode": result.returncode
+            "stdout": pull_result.stdout,
+            "stderr": pull_result.stderr,
+            "returncode": pull_result.returncode
         }), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500

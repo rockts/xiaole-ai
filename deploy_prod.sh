@@ -46,6 +46,7 @@ sudo docker rm -f xiaole-ai 2>/dev/null || true
 sudo docker run -d --name xiaole-ai \
   --restart=always \
   -p 8000:8000 \
+  -p 9000:9000 \
   -v $LOGS_DIR:/app/logs \
   --env-file .env \
   xiaole-ai:prod
