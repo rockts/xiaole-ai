@@ -39,11 +39,11 @@ fi
 mkdir -p $LOGS_DIR
 
 echo "🚀 构建镜像"
-docker build -t xiaole-ai:prod .
+sudo docker build -t xiaole-ai:prod .
 
 echo "🚀 重启后端容器"
-docker rm -f xiaole-ai 2>/dev/null || true
-docker run -d --name xiaole-ai \
+sudo docker rm -f xiaole-ai 2>/dev/null || true
+sudo docker run -d --name xiaole-ai \
   --restart=always \
   -p 8000:8000 \
   -v $LOGS_DIR:/app/logs \
