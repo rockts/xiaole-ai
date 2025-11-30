@@ -151,6 +151,12 @@ app.include_router(dashboard.router)
 app.include_router(vision.router)
 
 
+@app.get("/health")
+def health():
+    """健康检查端点"""
+    return {"status": "ok"}
+
+
 @app.post("/think")
 def think(prompt: str):
     agent = get_xiaole_agent()
