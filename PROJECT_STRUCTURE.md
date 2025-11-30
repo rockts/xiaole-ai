@@ -1,5 +1,51 @@
 # 小乐 AI 项目结构
 
+## 📁 根目录结构
+
+```
+xiaole-ai/
+├── backend/              # 后端代码 (FastAPI)
+│   ├── main.py          # 应用入口
+│   ├── agent.py         # AI Agent 核心
+│   ├── routers/         # API 路由
+│   ├── tools/           # 后端工具目录(暂空,使用根目录 tools/)
+│   └── ...
+├── frontend/            # 前端代码 (Vue 3)
+│   ├── src/            # 源码
+│   ├── dist/           # 构建产物(生产环境)
+│   └── ...
+├── tools/              # AI 工具集
+│   ├── weather_tool.py
+│   ├── search_tool.py
+│   └── ...
+├── scripts/            # 开发和部署脚本
+│   ├── auto_commit.sh  # 自动提交工具
+│   ├── check_env.sh    # 环境检查
+│   ├── fix_nas_pg.sh   # PostgreSQL 修复
+│   └── ...
+├── docs/               # 项目文档
+│   ├── INDEX.md        # 文档索引
+│   ├── WEBHOOK_DEPLOY.md
+│   ├── NETWORK_ACCESS.md
+│   ├── PROGRESS.md
+│   └── ...
+├── tests/              # 测试文件
+├── files/              # 用户上传文件
+├── logs/               # 应用日志
+├── .env                # 环境变量(不提交)
+├── .dockerignore       # Docker 构建忽略
+├── Dockerfile          # Docker 镜像定义
+├── docker-compose.yml  # Docker Compose 配置
+├── deploy_prod.sh      # 生产环境部署脚本
+├── start.sh            # 本地开发启动(前后端)
+├── stop.sh             # 停止服务
+├── restart.sh          # 重启服务
+├── requirements.txt    # Python 依赖
+├── README.md           # 项目说明
+├── CHANGELOG.md        # 版本日志
+└── PROJECT_STRUCTURE.md # 本文件
+```
+
 > 最后更新：2025-11-24
 
 ## 📁 目录结构

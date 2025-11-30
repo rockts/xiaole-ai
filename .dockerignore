@@ -1,0 +1,72 @@
+# Git
+.git/
+.gitignore
+.github/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# 日志和临时文件
+logs/
+*.log
+.DS_Store
+*.pid
+
+# 测试
+tests/
+*.pyc
+.pytest_cache/
+.coverage
+
+# 文档和脚本(生产环境不需要)
+docs/
+scripts/
+README*.md
+CHANGELOG.md
+PROJECT_STRUCTURE.md
+
+# 本地配置
+.env
+.env.local
+.env.*.local
+
+# 前端源码(只需要构建产物)
+frontend/src/
+frontend/node_modules/
+frontend/public/
+frontend/*.json
+frontend/*.js
+frontend/*.sh
+frontend/*.md
+
+# 静态文件(已复制到 dist)
+static/
+
+# 其他
+files/
+webhook_deploy.py
+webhook_deploy.service
+start_webhook.sh
