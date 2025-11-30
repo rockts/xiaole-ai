@@ -12,7 +12,8 @@ from flask import Flask, request, jsonify
 app = Flask(__name__)
 
 # 配置
-WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET", "your-secret-key-here")  # 在 .env 中设置
+WEBHOOK_SECRET = os.getenv(
+    "WEBHOOK_SECRET", "your-secret-key-here")  # 在 .env 中设置
 REPO_DIR = "/volume2/docker/xiaole-ai"
 DEPLOY_SCRIPT = f"{REPO_DIR}/deploy_prod.sh"
 
@@ -21,7 +22,7 @@ def verify_signature(payload_body, signature_header):
     """验证 GitHub Webhook 签名"""
     if not signature_header:
         return False
-    
+
     hash_object = hmac.new(
         WEBHOOK_SECRET.encode('utf-8'),
         msg=payload_body,
@@ -35,17 +36,17 @@ def verify_signature(payload_body, signature_header):
 def webhook():
     """处理 GitHub Webhook 请求"""
     signature = request.headers.get("X-Hub-Signature-256")
-    
+
     # 验证签名
     if not verify_signature(request.data, signature):
         return jsonify({"error": "Invalid signature"}), 403
-    
+
     payload = request.json
-    
+
     # 只处理 push 到 main 分支的事件
     if payload.get("ref") != "refs/heads/main":
         return jsonify({"message": "Not main branch, skipped"}), 200
-    
+
     # 执行部署
     try:
         result = subprocess.run(
@@ -55,7 +56,7 @@ def webhook():
             text=True,
             timeout=300
         )
-        
+
         return jsonify({
             "message": "Deployment triggered",
             "stdout": result.stdout,

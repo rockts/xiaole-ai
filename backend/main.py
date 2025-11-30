@@ -186,22 +186,22 @@ if os.path.exists(FRONTEND_DIST):
     async def serve_frontend(full_path: str):
         """提供前端页面,所有未匹配的路由返回 index.html"""
         # 如果是API路由或特殊路径,跳过(让其他路由处理)
-        if (full_path.startswith("api/") or 
-            full_path.startswith("docs") or 
+        if (full_path.startswith("api/") or
+            full_path.startswith("docs") or
             full_path == "openapi.json" or
-            full_path == "health"):
+                full_path == "health"):
             raise HTTPException(status_code=404)
 
         # 尝试返回具体文件
         file_path = os.path.join(FRONTEND_DIST, full_path)
         if os.path.isfile(file_path):
             return FileResponse(file_path)
-        
+
         # SPA fallback: 返回 index.html
         index_path = os.path.join(FRONTEND_DIST, "index.html")
         if os.path.isfile(index_path):
             return FileResponse(index_path)
-        
+
         raise HTTPException(status_code=404, detail="Frontend not found")
 
     logger.info(f"✅ 前端静态文件已挂载: {FRONTEND_DIST}")
