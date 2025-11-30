@@ -41,8 +41,10 @@ def webhook():
     # 调试日志 - 强制输出到 stderr
     sys.stderr.write(f"[DEBUG] Webhook received\n")
     sys.stderr.write(f"[DEBUG] Signature from GitHub: {signature}\n")
-    sys.stderr.write(f"[DEBUG] WEBHOOK_SECRET (first 8): {WEBHOOK_SECRET[:8]}...\n")
-    sys.stderr.write(f"[DEBUG] WEBHOOK_SECRET (last 8): ...{WEBHOOK_SECRET[-8:]}\n")
+    sys.stderr.write(
+        f"[DEBUG] WEBHOOK_SECRET (first 8): {WEBHOOK_SECRET[:8]}...\n")
+    sys.stderr.write(
+        f"[DEBUG] WEBHOOK_SECRET (last 8): ...{WEBHOOK_SECRET[-8:]}\n")
     sys.stderr.write(f"[DEBUG] Payload size: {len(request.data)} bytes\n")
     sys.stderr.flush()
 
