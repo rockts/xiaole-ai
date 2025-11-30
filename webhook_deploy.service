@@ -1,0 +1,22 @@
+[Unit]
+Description=GitHub Webhook Auto Deploy Service
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/volume2/docker/xiaole-ai
+Environment="WEBHOOK_SECRET=your-webhook-secret-change-me"
+Environment="DB_USER=xiaole_user"
+Environment="DB_PASS=Xiaole2025User"
+Environment="DEEPSEEK_API_KEY=sk-2e77a6c7837b4e0badb17b86fa980098"
+Environment="QWEN_API_KEY=sk-69ef2e83e8f44fb58d35911b9ae51091"
+Environment="BAIDU_APP_ID=120791683"
+Environment="BAIDU_API_KEY=yq6CZ2dqQnGdevtiQgDa1vPW"
+Environment="BAIDU_SECRET_KEY=VcDVu97wz506w9TApXWURVkutCtJI49S"
+ExecStart=/usr/bin/python3 /volume2/docker/xiaole-ai/webhook_deploy.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
