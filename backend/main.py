@@ -4,7 +4,7 @@ from fastapi.staticfiles import StaticFiles
 from typing import List
 import os
 
-from routers import (
+from .routers import (
     auth, chat, memories, reminders, tasks,
     tools, analytics, documents, voice,
     schedule, feedback, faces, dashboard, vision
@@ -96,7 +96,7 @@ async def startup_event():
     """应用启动时初始化"""
     # 设置ReminderManager的WebSocket推送回调
     reminder_manager = get_reminder_manager(websocket_manager.broadcast)
-    
+
     # 设置事件循环，使 ReminderManager 可以在后台线程中推送 WebSocket 消息
     import asyncio
     loop = asyncio.get_event_loop()
