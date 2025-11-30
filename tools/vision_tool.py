@@ -4,7 +4,7 @@ import base64
 import requests
 import json
 from typing import Dict, Any, List, Optional
-from tool_manager import Tool, ToolParameter
+from backend.tool_manager import Tool, ToolParameter
 from backend.face_manager import FaceManager
 
 logger = logging.getLogger(__name__)
