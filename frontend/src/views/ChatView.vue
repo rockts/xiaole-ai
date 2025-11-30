@@ -139,8 +139,6 @@
                   v-html="renderMarkdown(getDisplayContent(message))"
                 ></div>
 
-
-
                 <div
                   v-if="message.status === 'typing'"
                   class="typing-indicator"
@@ -1111,7 +1109,7 @@ const MESSAGE_COLLAPSE_THRESHOLD = 800; // 字符数阈值
 
 const shouldShowExpandButton = (content, role) => {
   // 只折叠用户消息
-  if (role !== 'user') return false;
+  if (role !== "user") return false;
   if (!content) return false;
   // 去除HTML标签后计算纯文本长度
   const textLength = content.replace(/<[^>]*>/g, "").length;

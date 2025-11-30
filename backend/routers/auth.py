@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from datetime import timedelta
 from pydantic import BaseModel
-from auth import (
+from backend.auth import (
     create_access_token,
     verify_password,
     ADMIN_USERNAME,
@@ -22,15 +22,15 @@ class Token(BaseModel):
 
 @router.post("/token", response_model=Token)
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
-    if not verify_password(form_data.password, ADMIN_PASSWORD_HASH):
+    # 先验证用户名，再验证密码，避免信息泄露
+    if form_data.username != ADMIN_USERNAME:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    # 简单起见，只验证密码，用户名可以是任意的或者必须是admin
-    # 这里我们强制用户名必须匹配
-    if form_data.username != ADMIN_USERNAME:
+
+    if not verify_password(form_data.password, ADMIN_PASSWORD_HASH):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",

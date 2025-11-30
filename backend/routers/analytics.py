@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, Request, HTTPException
 from typing import Dict, Any, Optional
-from dependencies import get_xiaole_agent
-from agent import XiaoLeAgent
-from auth import get_current_user
+from backend.dependencies import get_xiaole_agent
+from backend.agent import XiaoLeAgent
+from backend.auth import get_current_user
 
 router = APIRouter(
     prefix="/api",
