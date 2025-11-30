@@ -168,6 +168,34 @@ def act(command: str):
     return {"result": agent.act(command)}
 
 
+# 挂载前端静态文件(放在最后,避免覆盖API路由)
+FRONTEND_DIST = os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend", "dist")
+if os.path.exists(FRONTEND_DIST):
+    from fastapi.responses import FileResponse
+    
+    @app.get("/assets/{path:path}")
+    async def serve_assets(path: str):
+        """提供前端资源文件"""
+        return FileResponse(os.path.join(FRONTEND_DIST, "assets", path))
+    
+    @app.get("/{full_path:path}")
+    async def serve_frontend(full_path: str):
+        """提供前端页面,所有未匹配的路由返回 index.html"""
+        # 如果是API路由,跳过
+        if full_path.startswith("api/") or full_path.startswith("docs") or full_path.startswith("openapi.json"):
+            return {"detail": "Not Found"}, 404
+        
+        file_path = os.path.join(FRONTEND_DIST, full_path)
+        if os.path.isfile(file_path):
+            return FileResponse(file_path)
+        # SPA fallback: 返回 index.html
+        return FileResponse(os.path.join(FRONTEND_DIST, "index.html"))
+    
+    logger.info(f"✅ 前端静态文件已挂载: {FRONTEND_DIST}")
+else:
+    logger.warning(f"⚠️ 前端 dist 目录不存在: {FRONTEND_DIST}")
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
