@@ -151,11 +151,6 @@ app.include_router(dashboard.router)
 app.include_router(vision.router)
 
 
-@app.get("/")
-def hello():
-    return {"message": "你好，我是小乐AI管家，我已启动。"}
-
-
 @app.post("/think")
 def think(prompt: str):
     agent = get_xiaole_agent()
