@@ -135,7 +135,7 @@ async def websocket_endpoint(websocket: WebSocket):
         websocket_manager.disconnect(websocket)
 
 # 注册路由
-app.include_router(auth.router)
+app.include_router(auth.router, prefix="/api")
 app.include_router(chat.router)
 app.include_router(memories.router)
 app.include_router(reminders.router)

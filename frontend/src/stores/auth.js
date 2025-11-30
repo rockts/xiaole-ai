@@ -20,7 +20,7 @@ export const useAuthStore = defineStore('auth', () => {
 
             // 使用 axios 直接请求，避免循环依赖 api.js
             const API_BASE_URL = import.meta.env.VITE_API_BASE || ''
-            const response = await axios.post(`${API_BASE_URL}/token`, formData)
+            const response = await axios.post(`${API_BASE_URL}/api/token`, formData)
 
             const { access_token } = response.data
             token.value = access_token
