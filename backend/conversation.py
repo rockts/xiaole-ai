@@ -2,10 +2,10 @@
 对话上下文管理模块
 管理多轮对话会话和消息历史
 """
-from db_setup import Conversation, Message, SessionLocal
+from backend.db_setup import Conversation, Message, SessionLocal
 from datetime import datetime
 import uuid
-from logger import logger
+from backend.logger import logger
 
 # 使用db_setup中统一的Session工厂
 Session = SessionLocal

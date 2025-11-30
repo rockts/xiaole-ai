@@ -16,10 +16,10 @@ v0.6.2更新:
 """
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from db_setup import ProactiveQuestion, Message
+from backend.db_setup import ProactiveQuestion, Message
 from datetime import datetime, timedelta
-from memory import MemoryManager
-from learning import get_learning_manager  # v0.7.0 学习层集成
+from backend.memory import MemoryManager
+from backend.learning import get_learning_manager  # v0.7.0 学习层集成
 import os
 import re
 import json

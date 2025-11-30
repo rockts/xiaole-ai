@@ -1,13 +1,13 @@
-from memory import MemoryManager
-from conversation import ConversationManager
-from behavior_analytics import BehaviorAnalyzer
-from proactive_qa import ProactiveQA  # v0.3.0 主动问答
-from pattern_learning import PatternLearner  # v0.3.0 模式学习
-from tool_manager import get_tool_registry  # v0.4.0 工具管理
-from enhanced_intent import EnhancedToolSelector, ContextEnhancer
-from dialogue_enhancer import DialogueEnhancer  # v0.6.0
-from task_manager import TaskManager  # v0.8.0 任务管理
-from error_handler import (
+from backend.memory import MemoryManager
+from backend.conversation import ConversationManager
+from backend.behavior_analytics import BehaviorAnalyzer
+from backend.proactive_qa import ProactiveQA  # v0.3.0 主动问答
+from backend.pattern_learning import PatternLearner  # v0.3.0 模式学习
+from backend.tool_manager import get_tool_registry  # v0.4.0 工具管理
+from backend.enhanced_intent import EnhancedToolSelector, ContextEnhancer
+from backend.dialogue_enhancer import DialogueEnhancer  # v0.6.0
+from backend.task_manager import TaskManager  # v0.8.0 任务管理
+from backend.error_handler import (
     retry_with_backoff, log_execution, handle_api_errors,
     logger
 )

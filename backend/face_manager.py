@@ -1,7 +1,7 @@
 import face_recognition
 import numpy as np
 from sqlalchemy.orm import Session
-from db_setup import SessionLocal, FaceEncoding
+from backend.db_setup import SessionLocal, FaceEncoding
 import logging
 import os
 
