@@ -1,4 +1,3 @@
-import face_recognition
 import numpy as np
 from sqlalchemy.orm import Session
 from backend.db_setup import SessionLocal, FaceEncoding
@@ -61,6 +60,7 @@ class FaceManager:
 
         db = self.get_db()
         try:
+            import face_recognition
             # Load image
             image = face_recognition.load_image_file(image_path)
 
@@ -149,6 +149,7 @@ class FaceManager:
         known_encodings, known_names = self.get_known_faces(user_id)
 
         try:
+            import face_recognition
             image = face_recognition.load_image_file(image_path)
             face_locations = face_recognition.face_locations(image)
 
