@@ -5,6 +5,45 @@
 
 ---
 
+## 2025-12-02 - v0.9.1 视觉增强与事务修复
+
+### 讨论主题
+
+#### 1. 数据库事务回滚错误 ("Network Error")
+**问题**: 用户反馈上传图片或对话时频繁出现 "Network Error"。
+**日志分析**: 后端日志显示 `PendingRollbackError: Can't reconnect until invalid transaction is rolled back`。
+**原因**: `XiaoLeAgent` 是单例模式，但其内部的 `MemoryManager` 在 `__init__` 中初始化了一个持久的 `self.session`。在多线程/异步环境下（如并发请求或后台任务），一旦某个操作报错导致事务回滚，该共享 `session` 就会进入无效状态，阻塞后续所有请求。
+**解决**:
+- **重构 `backend/agent.py`**: 移除了所有直接访问 `self.memory.session` 的代码。改为使用 `MemoryManager` 提供的 `recall` / `recall_recent` 方法（它们内部会创建并关闭独立的短生命周期 Session）。
+- **重构 `backend/proactive_qa.py`**: 将 `SmartTrigger` 中使用的共享 `memory.session` 替换为局部的 `SessionLocal()`，确保每次数据库操作都使用独立的 Session。
+
+#### 2. 视觉能力升级 (v0.9.1)
+**功能**:
+- 集成 Qwen-VL 视觉模型，支持图片内容深度分析。
+- 新增本地人脸识别功能：
+    - `register_face_tool`: 用户说 "这是xxx" 时，提取人脸特征并注册到本地库。
+    - `vision_tool`: 分析图片时自动识别已注册的人脸。
+- 隐私保护：人脸特征仅存储在本地，不上传云端。
+
+#### 3. 前端架构升级 (v0.9.0)
+**重构**:
+- 全面迁移至 **Vue 3 + Vite + Pinia**。
+- 组件化拆分：TopBar, Sidebar, ChatView, MemoryView, SettingsView。
+- 引入 JWT 安全认证。
+- 优化交互体验：三态主按钮、思考占位动画、逐字打字效果。
+
+### 技术决策
+
+#### 数据库 Session 管理
+决定彻底弃用在单例对象中持有长连接 Session 的模式。改为 "Session per Request" 或 "Session per Operation" 模式。虽然频繁创建 Session 会有轻微开销，但对于 Web 应用来说，这是保证事务隔离和并发安全的标准做法。
+
+### 完成功能清单
+- [x] 修复数据库事务回滚导致的 "Network Error"
+- [x] 升级 `README.md` 和 `PROJECT_STRUCTURE.md` 到 v0.9.1
+- [x] 合并 `develop` 分支到 `main` 并发布
+
+---
+
 ## 2025-11-23 - v0.8.1 任务与提醒联动
 
 ### 讨论主题
