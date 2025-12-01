@@ -1568,20 +1568,22 @@ class XiaoLeAgent:
             # 新增：获取最近的文档记忆，让意图分析器知道用户最近上传了什么
             document_memories = []
             try:
-                from backend.db_setup import Memory
-                recent_docs = self.memory.session.query(Memory).filter(
-                    Memory.tag.like('document:%')
-                ).order_by(Memory.created_at.desc()).limit(3).all()
+                # 使用 recall_recent 获取最近30天的文档记忆
+                recent_docs = self.memory.recall_recent(
+                    hours=720, tag="document", limit=3
+                )
                 # 提取文件名和简要内容
                 document_memories = []
                 for mem in recent_docs:
                     # 从tag中提取文件名 document:filename
-                    if ':' in mem.tag:
-                        filename = mem.tag.split(':', 1)[1]
+                    tag = mem.get('tag', '')
+                    content = mem.get('content', '')
+                    if ':' in tag:
+                        filename = tag.split(':', 1)[1]
                     else:
                         filename = "unknown"
                     # 提取前150个字符
-                    preview = mem.content[:150].replace('\n', ' ')
+                    preview = content[:150].replace('\n', ' ')
                     document_memories.append(
                         f"已上传文档[{filename}]: {preview}..."
                     )
@@ -1875,11 +1877,9 @@ class XiaoLeAgent:
                 schedule_memories = []
                 if need_schedule:
                     try:
-                        from db_setup import Memory
-                        schedules = self.memory.session.query(Memory).filter(
-                            Memory.tag == 'schedule'
-                        ).order_by(Memory.created_at.desc()).limit(1).all()
-                        schedule_memories = [mem.content for mem in schedules]
+                        schedule_memories = self.memory.recall(
+                            tag='schedule', limit=1
+                        )
                     except Exception as e:
                         logger.warning(f"voice_call 课程表获取失败: {e}")
                 # 组装精简记忆（昵称 + 课程表）
@@ -1934,50 +1934,30 @@ class XiaoLeAgent:
             # 3. 获取最近的 image 记忆（课程表等重要信息）
             image_memories = []
             try:
-                from backend.db_setup import Memory
-                recent_images = self.memory.session.query(Memory).filter(
-                    Memory.tag.like('image:%')
-                ).order_by(Memory.created_at.desc()).limit(3).all()
-                image_memories = [mem.content for mem in recent_images]
+                image_memories = self.memory.recall(tag="image", limit=3)
             except Exception as e:
                 logger.warning(f"获取图片记忆失败: {e}")
 
             # 3.1 获取课程表记忆 (schedule) - 修复：增加对 schedule 标签的检索
             schedule_memories = []
             try:
-                from backend.db_setup import Memory
-                # 获取最新的课程表
-                schedules = self.memory.session.query(Memory).filter(
-                    Memory.tag == 'schedule'
-                ).order_by(Memory.created_at.desc()).limit(1).all()
-                schedule_memories = [mem.content for mem in schedules]
+                schedule_memories = self.memory.recall(tag="schedule", limit=1)
             except Exception as e:
                 logger.warning(f"获取课程表失败: {e}")
 
             # 3.2 获取文档记忆 (document) - 新增：显式检索最近上传的文档
             document_memories = []
             try:
-                from backend.db_setup import Memory
-                # 获取最新的文档总结
-                recent_docs = self.memory.session.query(Memory).filter(
-                    Memory.tag.like('document:%')
-                ).order_by(Memory.created_at.desc()).limit(3).all()
-                document_memories = [mem.content for mem in recent_docs]
+                document_memories = self.memory.recall(tag="document", limit=3)
             except Exception as e:
                 logger.warning(f"获取文档记忆失败: {e}")
 
             # 4. 获取最近的对话摘要（了解之前聊了什么）
             conversation_memories = []
             try:
-                from backend.db_setup import Memory
-                recent_conversations = self.memory.session.query(
-                    Memory
-                ).filter(
-                    Memory.tag.like('conversation:%')
-                ).order_by(Memory.created_at.desc()).limit(10).all()
-                conversation_memories = [
-                    mem.content for mem in recent_conversations
-                ]
+                conversation_memories = self.memory.recall(
+                    tag="conversation", limit=10
+                )
             except Exception as e:
                 logger.warning(f"获取对话摘要失败: {e}")
 

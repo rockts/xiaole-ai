@@ -213,37 +213,45 @@ class SmartTrigger:
 
         场景：AI执行了文件操作/提醒设置，但用户没有确认效果
         """
-        # 获取最近5条消息
-        recent = self.memory.session.query(Message).filter(
-            Message.session_id == session_id
-        ).order_by(Message.created_at.desc()).limit(5).all()
+        session = SessionLocal()
+        try:
+            # 获取最近5条消息
+            recent = session.query(Message).filter(
+                Message.session_id == session_id
+            ).order_by(Message.created_at.desc()).limit(5).all()
 
-        if not recent:
+            if not recent:
+                return False, ""
+
+            # 检测任务执行标志
+            task_keywords = ["已设置", "已保存", "已创建", "完成", "done", "created"]
+            feedback_keywords = ["谢谢", "好的", "收到", "明白了", "不错", "很好"]
+
+            for msg in recent[:3]:  # 只检查最近3条
+                if msg.role == "assistant":
+                    content = msg.content.lower()
+                    # AI提到完成任务
+                    if any(kw in content for kw in task_keywords):
+                        # 检查后续是否有用户反馈
+                        has_feedback = False
+                        for next_msg in recent:
+                            if (next_msg.created_at > msg.created_at and
+                                    next_msg.role == "user"):
+                                if any(kw in next_msg.content
+                                       for kw in feedback_keywords):
+                                    has_feedback = True
+                                    break
+
+                        if not has_feedback:
+                            # 提取任务描述
+                            task_desc = self._extract_task_description(
+                                msg.content
+                            )
+                            return True, task_desc
+
             return False, ""
-
-        # 检测任务执行标志
-        task_keywords = ["已设置", "已保存", "已创建", "完成", "done", "created"]
-        feedback_keywords = ["谢谢", "好的", "收到", "明白了", "不错", "很好"]
-
-        for msg in recent[:3]:  # 只检查最近3条
-            if msg.role == "assistant":
-                content = msg.content.lower()
-                # AI提到完成任务
-                if any(kw in content for kw in task_keywords):
-                    # 检查后续是否有用户反馈
-                    has_feedback = False
-                    for next_msg in recent:
-                        if next_msg.created_at > msg.created_at and next_msg.role == "user":
-                            if any(kw in next_msg.content for kw in feedback_keywords):
-                                has_feedback = True
-                                break
-
-                    if not has_feedback:
-                        # 提取任务描述
-                        task_desc = self._extract_task_description(msg.content)
-                        return True, task_desc
-
-        return False, ""
+        finally:
+            session.close()
 
     def _extract_task_description(self, text: str) -> str:
         """从AI回复中提取任务描述"""
@@ -265,38 +273,42 @@ class SmartTrigger:
 
         v0.7.0新增: 情感感知，避免过度追问
         """
-        # 获取最近3条用户消息
-        recent_user_msgs = self.memory.session.query(Message).filter(
-            Message.session_id == session_id,
-            Message.role == "user"
-        ).order_by(Message.created_at.desc()).limit(3).all()
+        session = SessionLocal()
+        try:
+            # 获取最近3条用户消息
+            recent_user_msgs = session.query(Message).filter(
+                Message.session_id == session_id,
+                Message.role == "user"
+            ).order_by(Message.created_at.desc()).limit(3).all()
 
-        if len(recent_user_msgs) < 2:
+            if len(recent_user_msgs) < 2:
+                return False, ""
+
+            # 不耐烦标志词
+            impatience_markers = [
+                "别问了", "不要问", "够了", "算了", "随便", "无所谓",
+                "不想说", "不用", "不需要", "停", "别", "烦",
+                "知道了", "明白了", "懂了", "行了", "好了"
+            ]
+
+            # 检查最近的消息
+            latest_msg = recent_user_msgs[0].content
+            for marker in impatience_markers:
+                if marker in latest_msg:
+                    return True, f"用户表达不耐烦: '{marker}'"
+
+            # 检测重复短回复（如连续的"嗯"、"好"）
+            if len(recent_user_msgs) >= 2:
+                msg1 = recent_user_msgs[0].content.strip()
+                msg2 = recent_user_msgs[1].content.strip()
+
+                if len(msg1) <= 2 and len(msg2) <= 2:
+                    if msg1 == msg2 or msg1 in ["嗯", "哦", "好", "行"]:
+                        return True, "用户连续短回复，可能失去兴趣"
+
             return False, ""
-
-        # 不耐烦标志词
-        impatience_markers = [
-            "别问了", "不要问", "够了", "算了", "随便", "无所谓",
-            "不想说", "不用", "不需要", "停", "别", "烦",
-            "知道了", "明白了", "懂了", "行了", "好了"
-        ]
-
-        # 检查最近的消息
-        latest_msg = recent_user_msgs[0].content
-        for marker in impatience_markers:
-            if marker in latest_msg:
-                return True, f"用户表达不耐烦: '{marker}'"
-
-        # 检测重复短回复（如连续的"嗯"、"好"）
-        if len(recent_user_msgs) >= 2:
-            msg1 = recent_user_msgs[0].content.strip()
-            msg2 = recent_user_msgs[1].content.strip()
-
-            if len(msg1) <= 2 and len(msg2) <= 2:
-                if msg1 == msg2 or msg1 in ["嗯", "哦", "好", "行"]:
-                    return True, "用户连续短回复，可能失去兴趣"
-
-        return False, ""
+        finally:
+            session.close()
 
 
 class ProactiveQA:
@@ -564,8 +576,10 @@ class ProactiveQA:
                     ai_response = next_msg.content
 
                     # 1. 知识空白检测
-                    has_gap, gap_type = self.smart_trigger.detect_knowledge_gap(
-                        user_text, ai_response
+                    has_gap, gap_type = (
+                        self.smart_trigger.detect_knowledge_gap(
+                            user_text, ai_response
+                        )
                     )
                     if has_gap:
                         needs_followup_list.append({
@@ -828,7 +842,6 @@ class ProactiveQA:
         try:
             # 检查是否已存在相同的未回答问题（基于user_id去重，避免跨会话重复）
             # 只检查最近10分钟内的记录，避免误删旧记录
-            from datetime import datetime, timedelta
             ten_minutes_ago = datetime.now() - timedelta(minutes=10)
 
             existing = (
