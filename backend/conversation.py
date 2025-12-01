@@ -80,7 +80,10 @@ class ConversationManager:
 
             messages = session.query(Message).filter(
                 Message.session_id == session_id
-            ).order_by(Message.created_at.desc()).limit(limit).all()
+            ).order_by(
+                Message.created_at.desc(),
+                Message.id.desc()
+            ).limit(limit).all()
 
             # 反转顺序，使最早的消息在前
             messages.reverse()
