@@ -39,6 +39,8 @@ if [ ! -z "$BAIDU_APP_ID" ]; then
 fi
 
 mkdir -p $LOGS_DIR
+mkdir -p $REPO_DIR/backend/uploads
+mkdir -p $REPO_DIR/files
 
 echo "🚀 构建镜像"
 sudo docker build -t xiaole-ai:prod .
@@ -50,6 +52,8 @@ sudo docker run -d --name xiaole-ai \
   -p 8000:8000 \
   -p 9000:9000 \
   -v $LOGS_DIR:/app/logs \
+  -v $REPO_DIR/backend/uploads:/app/backend/uploads \
+  -v $REPO_DIR/files:/app/files \
   --env-file .env \
   xiaole-ai:prod
 
