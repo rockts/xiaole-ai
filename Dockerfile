@@ -43,7 +43,6 @@ COPY tools/ ./tools/
 COPY scripts/ ./scripts/
 COPY requirements.txt ./
 COPY start_services.sh ./
-COPY webhook_deploy.py ./
 
 # 复制前端构建产物(从 frontend-builder stage)
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
