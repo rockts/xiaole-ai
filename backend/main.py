@@ -71,8 +71,9 @@ class ConnectionManager:
 
     def disconnect(self, websocket: WebSocket):
         """断开连接"""
-        self.active_connections.remove(websocket)
-        logger.info(f"👋 WebSocket客户端已断开，当前连接数: {len(self.active_connections)}")
+        if websocket in self.active_connections:
+            self.active_connections.remove(websocket)
+            logger.info(f"👋 WebSocket客户端已断开，当前连接数: {len(self.active_connections)}")
 
     async def broadcast(self, message: dict):
         """广播消息给所有连接的客户端"""
