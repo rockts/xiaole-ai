@@ -1,6 +1,5 @@
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy import create_engine, func, or_
-from backend.db_setup import Memory
+from sqlalchemy import func, or_
+from backend.db_setup import Memory, SessionLocal
 import os
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
@@ -8,22 +7,8 @@ from backend.semantic_search import SemanticSearchManager
 
 load_dotenv()
 
-# 优先使用 DATABASE_URL，如果没有则构建PostgreSQL URL
-if os.getenv('DATABASE_URL'):
-    DB_URL = os.getenv('DATABASE_URL')
-else:
-    DB_URL = (
-        f"postgresql://{os.getenv('DB_USER')}:{os.getenv('DB_PASS')}"
-        f"@{os.getenv('DB_HOST')}:{os.getenv('DB_PORT')}"
-        f"/{os.getenv('DB_NAME')}"
-    )
-
-engine = create_engine(
-    DB_URL,
-    connect_args={'check_same_thread': False} if DB_URL.startswith('sqlite')
-    else {'client_encoding': 'utf8'}
-)
-Session = sessionmaker(bind=engine)
+# 使用统一的 Session 工厂
+Session = SessionLocal
 
 
 class MemoryManager:
@@ -41,10 +26,6 @@ class MemoryManager:
                 self.semantic_search = None
         else:
             self.semantic_search = None
-
-        # 兼容性：为 agent.py 提供 session 属性
-        # 注意：这会创建一个持久的 session，请确保正确管理
-        self.session = Session()
 
     def remember(
         self,
