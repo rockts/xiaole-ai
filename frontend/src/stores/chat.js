@@ -351,10 +351,12 @@ export const useChatStore = defineStore('chat', () => {
 
     const uploadImage = async (file) => {
         try {
+            console.log('📤 chatStore.uploadImage called with:', file)
             const formData = new FormData()
             formData.append('file', file)
 
             const response = await api.uploadImage(formData)
+            console.log('✅ chatStore.uploadImage success:', response)
             return response.file_path
         } catch (error) {
             console.error('Failed to upload image:', error)

@@ -2263,12 +2263,11 @@ const sendMessage = async () => {
   messages.value.push(userMsg);
 
   console.log("✅ 用户消息已添加:", userMsg);
-  console.log("📊 当前消息总数:", messages.value.length);
   console.log(
-    "📝 最后3条消息:",
-    messages.value
-      .slice(-3)
-      .map((m) => ({ role: m.role, content: m.content?.substring(0, 30) }))
+    "📤 准备发送消息. 内容长度:",
+    content?.length,
+    "是否有文件:",
+    !!currentFile
   );
 
   // 设置标志位：需要滚动到底部
@@ -2277,9 +2276,13 @@ const sendMessage = async () => {
   try {
     // 如果有文件，先上传
     if (currentFile) {
+      console.log("📤 开始上传图片...", currentFile.name);
       // 显示上传状态（可选，目前直接用打字状态覆盖）
       imagePath = await chatStore.uploadImage(currentFile);
+      console.log("✅ 图片上传结果:", imagePath);
+
       if (!imagePath) {
+        console.error("❌ 图片上传返回空路径");
         // 上传失败处理
         messages.value.push({
           id: `error-${Date.now()}`,
