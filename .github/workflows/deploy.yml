@@ -27,5 +27,3 @@ jobs:
       context: .
       push: true
       tags: rockts/xiaole-ai:latest
-      cache-from: type=registry,ref=rockts/xiaole-ai:buildcache
-      cache-to: type=registry,ref=rockts/xiaole-ai:buildcache,mode=max
