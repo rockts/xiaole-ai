@@ -37,7 +37,6 @@ tests/
 
 # 文档和脚本(生产环境不需要)
 docs/
-scripts/
 README*.md
 CHANGELOG.md
 PROJECT_STRUCTURE.md
