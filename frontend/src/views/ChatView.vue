@@ -1662,7 +1662,7 @@ const saveEdit = async (message) => {
 
       // 4. 重新发送请求
       // 注意：chatStore.sendMessage 不会重复添加用户消息，只会触发 AI 回复
-      await chatStore.sendMessage(newContent, null, router);
+      await chatStore.sendMessage(newContent, message.image_path, router);
     }
   } catch (e) {
     console.error("Save edit failed:", e);
@@ -1763,6 +1763,7 @@ const regenerateMessage = async (message) => {
     // 保存必要信息
     const userMsgId = lastUserMessage.id;
     const content = lastUserMessage.content;
+    const imagePath = lastUserMessage.image_path;
 
     // 1. 立即从前端移除 (防止重复点击)
     const userMsgIndex = messages.value.findIndex((m) => m.id === userMsgId);
@@ -1780,6 +1781,7 @@ const regenerateMessage = async (message) => {
       id: `temp-regen-${Date.now()}`,
       role: "user",
       content: content,
+      image_path: imagePath,
       timestamp: new Date().toISOString(),
     });
 
@@ -1789,7 +1791,7 @@ const regenerateMessage = async (message) => {
     }
 
     // 4. 重新发送
-    await chatStore.sendMessage(content, null, router);
+    await chatStore.sendMessage(content, imagePath, router);
   } catch (e) {
     console.error("Regenerate failed:", e);
   }
