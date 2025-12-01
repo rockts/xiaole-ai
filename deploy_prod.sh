@@ -42,6 +42,11 @@ mkdir -p $LOGS_DIR
 mkdir -p $REPO_DIR/backend/uploads
 mkdir -p $REPO_DIR/files
 
+# 确保目录权限开放,防止容器无权写入
+chmod -R 777 $REPO_DIR/backend/uploads
+chmod -R 777 $REPO_DIR/files
+chmod -R 777 $LOGS_DIR
+
 echo "🚀 构建镜像"
 sudo docker build -t xiaole-ai:prod .
 
