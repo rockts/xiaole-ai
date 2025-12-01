@@ -6,6 +6,7 @@ import json
 from typing import Dict, Any, List, Optional
 from backend.tool_manager import Tool, ToolParameter
 from backend.face_manager import FaceManager
+from backend.config import UPLOADS_DIR
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +31,15 @@ class VisionTool(Tool):
 
     def _resolve_path(self, image_path: str) -> Optional[str]:
         """Resolve image path relative to backend or project root"""
+        # Handle /uploads/ prefix mapping
+        if image_path.startswith("/uploads/") or image_path.startswith("uploads/"):
+            # Remove prefix
+            clean_path = image_path.lstrip("/").replace("uploads/", "", 1)
+            # Map to UPLOADS_DIR
+            potential_path = os.path.join(UPLOADS_DIR, clean_path)
+            if os.path.exists(potential_path):
+                return potential_path
+
         if os.path.exists(image_path):
             return image_path
 
@@ -373,6 +383,15 @@ class RegisterFaceTool(Tool):
 
     def _resolve_path(self, image_path: str) -> Optional[str]:
         """Resolve image path relative to backend or project root"""
+        # Handle /uploads/ prefix mapping
+        if image_path.startswith("/uploads/") or image_path.startswith("uploads/"):
+            # Remove prefix
+            clean_path = image_path.lstrip("/").replace("uploads/", "", 1)
+            # Map to UPLOADS_DIR
+            potential_path = os.path.join(UPLOADS_DIR, clean_path)
+            if os.path.exists(potential_path):
+                return potential_path
+
         if os.path.exists(image_path):
             return image_path
 

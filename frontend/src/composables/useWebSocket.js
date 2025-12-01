@@ -3,8 +3,18 @@ import { ref, onUnmounted } from 'vue'
 let ws = null
 const connected = ref(false)
 const listeners = new Map()
+let heartbeatTimer = null
 
 export function useWebSocket() {
+    const startHeartbeat = () => {
+        if (heartbeatTimer) clearInterval(heartbeatTimer)
+        heartbeatTimer = setInterval(() => {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send("ping")
+            }
+        }, 30000)
+    }
+
     const connect = () => {
         if (ws && ws.readyState === WebSocket.OPEN) {
             return
@@ -18,11 +28,14 @@ export function useWebSocket() {
         ws.onopen = () => {
             console.log('WebSocket connected')
             connected.value = true
+            startHeartbeat()
         }
 
         ws.onmessage = (event) => {
             try {
                 const data = JSON.parse(event.data)
+                if (data.type === 'pong') return // Ignore pong
+
                 console.log('WebSocket message:', data)
 
                 // 触发所有监听器
@@ -41,6 +54,7 @@ export function useWebSocket() {
         ws.onclose = () => {
             console.log('WebSocket disconnected')
             connected.value = false
+            if (heartbeatTimer) clearInterval(heartbeatTimer)
 
             // 5秒后重连
             setTimeout(() => {
