@@ -50,7 +50,7 @@ class XiaoLeAgent:
         self.task_manager = TaskManager(db_config)
 
         # v0.8.0 任务执行器(延迟导入避免循环依赖)
-        from task_executor import TaskExecutor
+        from backend.task_executor import TaskExecutor
         self.task_executor = TaskExecutor(
             self.task_manager, self.tool_registry
         )
@@ -547,6 +547,13 @@ class XiaoLeAgent:
         # 获取对话历史
         history = self.conversation.get_history(session_id, limit=5)
         logger.info(f"📚 加载历史耗时: {time.time() - start_time:.2f}s")
+
+        # 立即保存用户消息，防止刷新丢失
+        user_message = original_user_prompt if original_user_prompt else prompt
+        user_msg_id = self.conversation.add_message(
+            session_id, "user", user_message, image_path=image_path
+        )
+
         precomputed_reply = None  # v0.9.3: 若命中直答，跳过后续LLM/工具流程
 
         # v0.4.0: 智能工具调用 - 先分析是否需要调用工具
@@ -773,12 +780,7 @@ class XiaoLeAgent:
             reminder_text = self._format_reminders(pending_reminders)
             reply = reminder_text + "\n\n" + reply
 
-        # 保存用户消息和助手回复到会话表
-        # 如果有original_user_prompt，保存原始输入；否则保存完整prompt
-        user_message = original_user_prompt if original_user_prompt else prompt
-        user_msg_id = self.conversation.add_message(
-            session_id, "user", user_message, image_path=image_path
-        )
+        # 保存助手回复到会话表
         assistant_msg_id = self.conversation.add_message(
             session_id, "assistant", reply
         )
@@ -1566,7 +1568,7 @@ class XiaoLeAgent:
             # 新增：获取最近的文档记忆，让意图分析器知道用户最近上传了什么
             document_memories = []
             try:
-                from db_setup import Memory
+                from backend.db_setup import Memory
                 recent_docs = self.memory.session.query(Memory).filter(
                     Memory.tag.like('document:%')
                 ).order_by(Memory.created_at.desc()).limit(3).all()
@@ -1932,7 +1934,7 @@ class XiaoLeAgent:
             # 3. 获取最近的 image 记忆（课程表等重要信息）
             image_memories = []
             try:
-                from db_setup import Memory
+                from backend.db_setup import Memory
                 recent_images = self.memory.session.query(Memory).filter(
                     Memory.tag.like('image:%')
                 ).order_by(Memory.created_at.desc()).limit(3).all()
@@ -1943,7 +1945,7 @@ class XiaoLeAgent:
             # 3.1 获取课程表记忆 (schedule) - 修复：增加对 schedule 标签的检索
             schedule_memories = []
             try:
-                from db_setup import Memory
+                from backend.db_setup import Memory
                 # 获取最新的课程表
                 schedules = self.memory.session.query(Memory).filter(
                     Memory.tag == 'schedule'
@@ -1955,7 +1957,7 @@ class XiaoLeAgent:
             # 3.2 获取文档记忆 (document) - 新增：显式检索最近上传的文档
             document_memories = []
             try:
-                from db_setup import Memory
+                from backend.db_setup import Memory
                 # 获取最新的文档总结
                 recent_docs = self.memory.session.query(Memory).filter(
                     Memory.tag.like('document:%')
@@ -1967,7 +1969,7 @@ class XiaoLeAgent:
             # 4. 获取最近的对话摘要（了解之前聊了什么）
             conversation_memories = []
             try:
-                from db_setup import Memory
+                from backend.db_setup import Memory
                 recent_conversations = self.memory.session.query(
                     Memory
                 ).filter(

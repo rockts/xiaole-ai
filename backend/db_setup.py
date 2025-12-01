@@ -88,6 +88,9 @@ class UserBehavior(Base):
     duration_seconds = Column(Integer, default=0)  # 会话时长（秒）
     # 话题标签（从记忆中提取）
     topics = Column(Text)  # JSON格式存储话题列表
+    # v0.8.2: 新增情感分析和交互类型
+    sentiment_score = Column(Float, default=0.0)  # 情感分数 (-1.0 ~ 1.0)
+    interaction_type = Column(String(50), default="chat")  # 交互类型: chat/task/qa
     # 记录时间
     created_at = Column(DateTime, default=datetime.now)
 

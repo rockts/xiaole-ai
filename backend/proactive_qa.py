@@ -875,7 +875,7 @@ class ProactiveQA:
         session = SessionLocal()
         try:
             # 先获取该会话的user_id
-            from db_setup import Message
+            from backend.db_setup import Message
             msg = session.query(Message).filter_by(
                 session_id=session_id).first()
             user_id = msg.user_id if msg else "default_user"
@@ -937,7 +937,7 @@ class ProactiveQA:
         try:
             # 如果没有指定user_id，尝试从session_id获取
             if not user_id and session_id:
-                from db_setup import Message
+                from backend.db_setup import Message
                 msg = session.query(Message).filter_by(
                     session_id=session_id
                 ).first()

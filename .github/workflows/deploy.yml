@@ -1,0 +1,50 @@
+name: Build and Deploy
+
+on:
+ push:
+  branches: ['main']
+ workflow_dispatch:
+
+jobs:
+ build-and-push:
+  runs-on: ubuntu-latest
+  steps:
+   - name: Checkout code
+     uses: actions/checkout@v4
+
+   - name: Set up Docker Buildx
+     uses: docker/setup-buildx-action@v3
+
+   - name: Login to Docker Hub
+     uses: docker/login-action@v3
+     with:
+      username: ${{ secrets.DOCKER_USERNAME }}
+      password: ${{ secrets.DOCKER_PASSWORD }}
+
+   - name: Build and push
+     uses: docker/build-push-action@v5
+     with:
+      context: .
+      push: true
+      tags: ${{ secrets.DOCKER_USERNAME }}/xiaole-ai:latest
+      cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/xiaole-ai:buildcache
+      cache-to: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/xiaole-ai:buildcache,mode=max
+
+   - name: Trigger NAS Webhook
+     env:
+      WEBHOOK_URL: ${{ secrets.NAS_WEBHOOK_URL }}
+      WEBHOOK_SECRET: ${{ secrets.WEBHOOK_SECRET }}
+     run: |
+      # 构造与 GitHub 原生 Webhook 兼容的 Payload
+      PAYLOAD='{"ref": "refs/heads/main", "after": "latest", "repository": {"name": "xiaole-ai"}}'
+
+      # 生成 HMAC-SHA256 签名 (适配现有的 webhook_deploy.py)
+      SIGNATURE=$(echo -n "$PAYLOAD" | openssl dgst -sha256 -hmac "$WEBHOOK_SECRET" | sed 's/^.* //')
+
+      echo "🚀 Triggering Webhook at $WEBHOOK_URL..."
+
+      # 发送请求
+      curl -v -X POST "$WEBHOOK_URL" \
+        -H "Content-Type: application/json" \
+        -H "X-Hub-Signature-256: sha256=$SIGNATURE" \
+        -d "$PAYLOAD"

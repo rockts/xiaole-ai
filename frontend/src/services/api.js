@@ -83,11 +83,11 @@ api.interceptors.response.use(
 export default {
     // 会话相关
     getSessions(allSessions = true) {
-        return api.get('/api/sessions', { params: { all_sessions: allSessions } })
+        return api.get('/api/sessions', { params: { all_sessions: allSessions, _t: Date.now() } })
     },
 
     getSession(sessionId, limit = 200) {
-        return api.get(`/api/session/${sessionId}`, { params: { limit } })
+        return api.get(`/api/session/${sessionId}`, { params: { limit, _t: Date.now() } })
     },
 
     deleteSession(sessionId) {

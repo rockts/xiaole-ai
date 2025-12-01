@@ -75,6 +75,9 @@ class ConversationManager:
         """获取对话历史"""
         session = SessionLocal()
         try:
+            # 强制刷新，确保获取最新数据
+            session.expire_all()
+
             messages = session.query(Message).filter(
                 Message.session_id == session_id
             ).order_by(Message.created_at.desc()).limit(limit).all()
