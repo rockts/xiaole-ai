@@ -40,6 +40,7 @@ WORKDIR /app
 # 复制后端代码
 COPY backend/ ./backend/
 COPY tools/ ./tools/
+COPY scripts/ ./scripts/
 COPY requirements.txt ./
 COPY start_services.sh ./
 COPY webhook_deploy.py ./
