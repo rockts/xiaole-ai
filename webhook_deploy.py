@@ -96,4 +96,12 @@ def health():
 
 
 if __name__ == "__main__":
+    # 启动时输出日志确认服务已启动
+    sys.stderr.write("=" * 50 + "\n")
+    sys.stderr.write("🚀 Webhook 服务启动中...\n")
+    sys.stderr.write(f"📍 监听地址: 0.0.0.0:9000\n")
+    sys.stderr.write(f"🔑 WEBHOOK_SECRET 已加载: {WEBHOOK_SECRET[:8]}...{WEBHOOK_SECRET[-8:]}\n")
+    sys.stderr.write("=" * 50 + "\n")
+    sys.stderr.flush()
+    
     app.run(host="0.0.0.0", port=9000)
