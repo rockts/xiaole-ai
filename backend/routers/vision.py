@@ -36,8 +36,11 @@ async def upload_image(file: UploadFile = File(...)):
             os.makedirs(images_dir, exist_ok=True)
 
         # Generate unique filename
-        timestamp = int(time.time())
-        filename = f"{timestamp}_{file.filename}"
+        import uuid
+        ext = os.path.splitext(file.filename)[1]
+        if not ext:
+            ext = ".png"  # Default fallback
+        filename = f"{int(time.time())}_{uuid.uuid4().hex[:8]}{ext}"
         file_path = os.path.join(images_dir, filename)
 
         # Save file
