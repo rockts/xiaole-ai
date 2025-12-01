@@ -52,8 +52,19 @@ sudo docker run -d --name xiaole-ai \
   xiaole-ai:prod
 
 echo "🩺 健康检查..."
-sleep 3
-curl -s http://127.0.0.1:8000/health || echo "⚠️ FastAPI 未响应，请检查 docker logs xiaole-ai"
+# 循环检查服务状态,最多等待 30 秒
+for i in {1..15}; do
+    if curl -s http://127.0.0.1:8000/health > /dev/null; then
+        echo "✅ FastAPI 服务已启动"
+        break
+    fi
+    echo "⏳ 等待服务启动... ($i/15)"
+    sleep 2
+done
+
+if ! curl -s http://127.0.0.1:8000/health > /dev/null; then
+    echo "⚠️ FastAPI 未响应，请检查 docker logs xiaole-ai"
+fi
 
 
 
