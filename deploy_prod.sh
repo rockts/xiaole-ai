@@ -39,7 +39,7 @@ if [ ! -z "$BAIDU_APP_ID" ]; then
 fi
 
 mkdir -p $LOGS_DIR
-mkdir -p $REPO_DIR/backend/uploads
+mkdir -p $REPO_DIR/backend/uploads/images
 mkdir -p $REPO_DIR/files
 
 # 确保目录权限开放,防止容器无权写入
@@ -56,6 +56,8 @@ sudo docker run -d --name xiaole-ai \
   --restart=always \
   -p 8000:8000 \
   -p 9000:9000 \
+  -v /etc/localtime:/etc/localtime:ro \
+  -e TZ=Asia/Shanghai \
   -v $LOGS_DIR:/app/logs \
   -v $REPO_DIR/backend/uploads:/app/backend/uploads \
   -v $REPO_DIR/files:/app/files \

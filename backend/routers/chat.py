@@ -192,6 +192,10 @@ def chat_stream(
 
         # 处理图片（沿用同步路径，保持稳定）
         if image_path:
+            # 发送处理中提示，防止连接超时
+            loading_msg = {'type': 'delta', 'data': '正在分析图片内容，请稍候...\n\n'}
+            yield f"data: {json.dumps(loading_msg, ensure_ascii=False)}\n\n"
+
             from tools.vision_tool import VisionTool
             vision_tool = VisionTool()
             try:
