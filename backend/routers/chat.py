@@ -35,10 +35,10 @@ def chat(
     user_id: str = "default_user",
     response_style: str = "balanced",
     memorize: bool = False,
-    body: Optional[ChatBody] = None,
     current_user: str = Depends(get_current_user),
     agent: XiaoLeAgent = Depends(get_agent),
-    qa: ProactiveQA = Depends(get_qa)
+    qa: ProactiveQA = Depends(get_qa),
+    body: Optional[ChatBody] = None
 ):
     """支持上下文的对话接口"""
     # 使用认证用户ID覆盖请求中的user_id
@@ -175,10 +175,10 @@ def chat_stream(
     user_id: str = "default_user",
     response_style: str = "balanced",
     memorize: bool = False,
-    body: Optional[ChatBody] = None,
     current_user: str = Depends(get_current_user),
     agent: XiaoLeAgent = Depends(get_agent),
-    qa: ProactiveQA = Depends(get_qa)
+    qa: ProactiveQA = Depends(get_qa),
+    body: Optional[ChatBody] = None
 ):
     """流式对话接口（SSE 兼容）。
 
