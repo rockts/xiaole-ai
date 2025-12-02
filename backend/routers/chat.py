@@ -1,11 +1,17 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Body
 from fastapi.responses import StreamingResponse
 from typing import Dict, Any, Optional
+from pydantic import BaseModel
 from backend.dependencies import get_xiaole_agent, get_proactive_qa
 from backend.agent import XiaoLeAgent
 from backend.proactive_qa import ProactiveQA
 from backend.auth import get_current_user
 from backend.logger import logger
+
+
+# 请求体模型（用于接收POST body中的图片路径）
+class ChatBody(BaseModel):
+    image_path: Optional[str] = None
 
 router = APIRouter(
     prefix="/api",
@@ -27,8 +33,8 @@ def chat(
     session_id: Optional[str] = None,
     user_id: str = "default_user",
     response_style: str = "balanced",
-    image_path: Optional[str] = None,
     memorize: bool = False,
+    body: Optional[ChatBody] = None,
     current_user: str = Depends(get_current_user),
     agent: XiaoLeAgent = Depends(get_agent),
     qa: ProactiveQA = Depends(get_qa)
@@ -36,6 +42,9 @@ def chat(
     """支持上下文的对话接口"""
     # 使用认证用户ID覆盖请求中的user_id
     user_id = current_user
+    
+    # 从body中获取image_path
+    image_path = body.image_path if body else None
 
     # 如果有图片，先进行图片识别
     if image_path:
@@ -164,8 +173,8 @@ def chat_stream(
     session_id: Optional[str] = None,
     user_id: str = "default_user",
     response_style: str = "balanced",
-    image_path: Optional[str] = None,
     memorize: bool = False,
+    body: Optional[ChatBody] = None,
     current_user: str = Depends(get_current_user),
     agent: XiaoLeAgent = Depends(get_agent),
     qa: ProactiveQA = Depends(get_qa)
@@ -179,6 +188,10 @@ def chat_stream(
     """
     # 使用认证后的用户名作为user_id,支持多用户
     user_id = current_user
+    
+    # 从body中获取image_path
+    image_path = body.image_path if body else None
+    
     logger.info(
         f"📥 Stream收到请求 - session_id: {session_id}, "
         f"user_id: {user_id}, prompt: {prompt[:50]}"

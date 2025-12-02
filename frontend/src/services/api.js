@@ -103,20 +103,20 @@ export default {
     },
 
     sendMessage(data) {
-        // 后端使用查询参数而不是 POST body
+        // 基本参数使用查询参数
         const params = new URLSearchParams()
-        // 即使是空字符串也要发送 prompt 参数
         params.append('prompt', data.prompt || '')
-
         if (data.session_id) params.append('session_id', data.session_id)
         if (data.user_id) params.append('user_id', data.user_id)
         if (data.response_style) params.append('response_style', data.response_style)
-        if (data.image_path) params.append('image_path', data.image_path)
+
+        // 图片路径通过body传输(避免URL长度限制)
+        const body = data.image_path ? { image_path: data.image_path } : null
 
         // 增加超时时间到 120 秒，并禁用自动重试
-        return api.post(`/api/chat?${params.toString()}`, null, {
+        return api.post(`/api/chat?${params.toString()}`, body, {
             timeout: 120000,
-            retryCount: MAX_RETRIES // 设置为最大重试次数，防止拦截器重试
+            retryCount: MAX_RETRIES
         })
     },
 
@@ -128,14 +128,19 @@ export default {
         if (data.session_id) params.append('session_id', data.session_id)
         if (data.user_id) params.append('user_id', data.user_id)
         if (data.response_style) params.append('response_style', data.response_style)
-        if (data.image_path) params.append('image_path', data.image_path)
 
         const authStore = useAuthStore()
-        const headers = { 'Accept': 'text/event-stream' }
+        const headers = { 
+            'Accept': 'text/event-stream',
+            'Content-Type': 'application/json'
+        }
         if (authStore.token) headers['Authorization'] = `Bearer ${authStore.token}`
 
+        // 图片路径通过body传输
+        const body = data.image_path ? JSON.stringify({ image_path: data.image_path }) : null
+
         const url = `${API_BASE_URL}/api/chat/stream?${params.toString()}`
-        const res = await fetch(url, { method: 'POST', headers, signal })
+        const res = await fetch(url, { method: 'POST', headers, body, signal })
         if (!res.ok || !res.body) {
             const text = await res.text().catch(() => '')
             throw new Error(text || `HTTP ${res.status}`)
