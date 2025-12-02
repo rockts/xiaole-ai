@@ -205,11 +205,26 @@ def chat_stream(
                 else:
                     ocr_prompt = '请详细描述这张图片的内容（主体/文字/颜色/品牌等）。'
 
-                vision_result = vision_tool.analyze_image(
-                    image_path=image_path,
-                    prompt=ocr_prompt,
-                    prefer_model="auto"
-                )
+                # 使用线程池执行耗时操作，同时发送心跳包
+                import concurrent.futures
+                import time
+                
+                vision_result = {}
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    future = executor.submit(
+                        vision_tool.analyze_image,
+                        image_path=image_path,
+                        prompt=ocr_prompt,
+                        prefer_model="auto"
+                    )
+                    
+                    # 等待结果，每2秒发送一次心跳
+                    while not future.done():
+                        time.sleep(2)
+                        # 发送SSE注释作为心跳，避免干扰前端解析
+                        yield ": keep-alive\n\n"
+                    
+                    vision_result = future.result()
 
                 if vision_result.get('success'):
                     desc = vision_result.get('description', '')
