@@ -213,6 +213,13 @@ export const useChatStore = defineStore('chat', () => {
     // 流式发送消息（SSE 切片流）
     const sendMessageStreamed = async (content, imagePath = null, router = null, options = {}) => {
         const responseStyle = options.responseStyle || 'balanced'
+
+        // 🔧 修复: 当有图片时使用非流式接口(避免Cloudflare HTTP/2错误)
+        if (imagePath) {
+            console.warn('⚠️ 检测到图片,使用非流式接口')
+            return await sendMessage(content, imagePath, router, options)
+        }
+
         try {
             // 插入思考占位消息
             isTyping.value = true
