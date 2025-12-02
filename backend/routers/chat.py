@@ -208,7 +208,7 @@ def chat_stream(
                 # 使用线程池执行耗时操作，同时发送心跳包
                 import concurrent.futures
                 import time
-                
+
                 vision_result = {}
                 with concurrent.futures.ThreadPoolExecutor() as executor:
                     future = executor.submit(
@@ -217,13 +217,16 @@ def chat_stream(
                         prompt=ocr_prompt,
                         prefer_model="auto"
                     )
-                    
+
                     # 等待结果，每2秒发送一次心跳
                     while not future.done():
                         time.sleep(2)
                         # 发送SSE注释作为心跳，避免干扰前端解析
-                        yield ": keep-alive\n\n"
-                    
+                        # Cloudflare 可能会缓冲响应，发送足够长的数据以强制刷新
+                        # 填充 2KB 的空格注释
+                        padding = " " * 2048
+                        yield f": keep-alive {padding}\n\n"
+
                     vision_result = future.result()
 
                 if vision_result.get('success'):
@@ -314,7 +317,12 @@ def chat_stream(
         }
         yield f"data: {json.dumps(end_payload, ensure_ascii=False)}\n\n"
 
-    return StreamingResponse(event_stream(), media_type="text/event-stream")
+    headers = {
+        "Cache-Control": "no-cache",
+        "X-Accel-Buffering": "no",
+        "Connection": "keep-alive"
+    }
+    return StreamingResponse(event_stream(), media_type="text/event-stream", headers=headers)
 
 
 @router.get("/sessions")
