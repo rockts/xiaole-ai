@@ -114,7 +114,7 @@ export const useChatStore = defineStore('chat', () => {
                     messages.value[msgIndex].id = response.assistant_message_id
                 }
 
-                // 2. 更新用户消息的 ID
+                // 2. 更新用户消息的 ID 和 image_path
                 if (response.user_message_id) {
                     // 向前查找最近的一条临时ID的用户消息
                     for (let i = msgIndex - 1; i >= 0; i--) {
@@ -122,6 +122,11 @@ export const useChatStore = defineStore('chat', () => {
                         if (msg.role === 'user' && String(msg.id).startsWith('temp-')) {
                             console.log('✅ Syncing user message ID:', msg.id, '->', response.user_message_id)
                             messages.value[i].id = response.user_message_id
+                            // 同步服务器图片路径,替换本地blob URL
+                            if (imagePath) {
+                                console.log('🖼️ Syncing user message image_path:', imagePath)
+                                messages.value[i].image_path = imagePath
+                            }
                             break
                         }
                     }
@@ -280,12 +285,18 @@ export const useChatStore = defineStore('chat', () => {
                     if (payload?.assistant_message_id) {
                         messages.value[msgIndex].id = payload.assistant_message_id
                     }
-                    // 同步前一条用户消息 ID
+                    // 同步前一条用户消息 ID 和 image_path
                     if (payload?.user_message_id) {
                         for (let i = msgIndex - 1; i >= 0; i--) {
                             const msg = messages.value[i]
                             if (msg.role === 'user' && String(msg.id).startsWith('temp-')) {
+                                console.log('✅ Syncing user message ID:', msg.id, '->', payload.user_message_id)
                                 messages.value[i].id = payload.user_message_id
+                                // 同步服务器图片路径,替换本地blob URL
+                                if (payload?.image_path) {
+                                    console.log('🖼️ Syncing user message image_path:', payload.image_path)
+                                    messages.value[i].image_path = payload.image_path
+                                }
                                 break
                             }
                         }
