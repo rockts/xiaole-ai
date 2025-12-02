@@ -13,6 +13,7 @@ from backend.logger import logger
 class ChatBody(BaseModel):
     image_path: Optional[str] = None
 
+
 router = APIRouter(
     prefix="/api",
     tags=["chat"]
@@ -42,7 +43,7 @@ def chat(
     """支持上下文的对话接口"""
     # 使用认证用户ID覆盖请求中的user_id
     user_id = current_user
-    
+
     # 从body中获取image_path
     image_path = body.image_path if body else None
 
@@ -188,10 +189,10 @@ def chat_stream(
     """
     # 使用认证后的用户名作为user_id,支持多用户
     user_id = current_user
-    
+
     # 从body中获取image_path
     image_path = body.image_path if body else None
-    
+
     logger.info(
         f"📥 Stream收到请求 - session_id: {session_id}, "
         f"user_id: {user_id}, prompt: {prompt[:50]}"

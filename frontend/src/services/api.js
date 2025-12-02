@@ -130,7 +130,7 @@ export default {
         if (data.response_style) params.append('response_style', data.response_style)
 
         const authStore = useAuthStore()
-        const headers = { 
+        const headers = {
             'Accept': 'text/event-stream',
             'Content-Type': 'application/json'
         }

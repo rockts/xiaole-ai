@@ -1663,11 +1663,11 @@ const saveEdit = async (message) => {
       // 4. 重新发送请求
       // 注意：如果原消息有图片但是base64数据,则忽略
       let imagePath = message.image_path;
-      if (imagePath && !imagePath.startsWith('/uploads')) {
-        console.warn('⚠️ Edit: 忽略base64图片数据,仅支持已上传的图片');
+      if (imagePath && !imagePath.startsWith("/uploads")) {
+        console.warn("⚠️ Edit: 忽略base64图片数据,仅支持已上传的图片");
         imagePath = null;
       }
-      
+
       // chatStore.sendMessage 不会重复添加用户消息，只会触发 AI 回复
       await chatStore.sendMessage(newContent, imagePath, router);
     }
@@ -1774,8 +1774,8 @@ const regenerateMessage = async (message) => {
 
     // 如果imagePath是base64数据,过滤掉(因为后端无法处理base64路径)
     // 只保留服务器路径(以/uploads开头)
-    if (imagePath && !imagePath.startsWith('/uploads')) {
-      console.warn('⚠️ Regenerate: 忽略base64图片数据,仅支持已上传的图片');
+    if (imagePath && !imagePath.startsWith("/uploads")) {
+      console.warn("⚠️ Regenerate: 忽略base64图片数据,仅支持已上传的图片");
       imagePath = null;
     }
 
