@@ -210,6 +210,7 @@ def chat_stream(
                 import time
 
                 vision_result = {}
+                heartbeat_count = 0
                 with concurrent.futures.ThreadPoolExecutor() as executor:
                     future = executor.submit(
                         vision_tool.analyze_image,
@@ -218,14 +219,16 @@ def chat_stream(
                         prefer_model="auto"
                     )
 
-                    # 等待结果，每2秒发送一次心跳
+                    # 等待结果，每5秒发送一次心跳
                     while not future.done():
-                        time.sleep(2)
-                        # 发送SSE注释作为心跳，避免干扰前端解析
-                        # Cloudflare 可能会缓冲响应，发送足够长的数据以强制刷新
-                        # 填充 2KB 的空格注释
-                        padding = " " * 2048
-                        yield f": keep-alive {padding}\n\n"
+                        time.sleep(5)
+                        heartbeat_count += 1
+                        # 发送进度提示，让用户知道还在处理
+                        progress_msg = {
+                            'type': 'delta',
+                            'data': f'.' if heartbeat_count % 3 != 0 else ''
+                        }
+                        yield f"data: {json.dumps(progress_msg, ensure_ascii=False)}\n\n"
 
                     vision_result = future.result()
 
@@ -320,9 +323,14 @@ def chat_stream(
     headers = {
         "Cache-Control": "no-cache",
         "X-Accel-Buffering": "no",
-        "Connection": "keep-alive"
+        "Connection": "keep-alive",
+        "Content-Type": "text/event-stream; charset=utf-8"
     }
-    return StreamingResponse(event_stream(), media_type="text/event-stream", headers=headers)
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers=headers
+    )
 
 
 @router.get("/sessions")
