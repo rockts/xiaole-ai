@@ -1661,8 +1661,15 @@ const saveEdit = async (message) => {
       cancelEdit();
 
       // 4. 重新发送请求
-      // 注意：chatStore.sendMessage 不会重复添加用户消息，只会触发 AI 回复
-      await chatStore.sendMessage(newContent, message.image_path, router);
+      // 注意：如果原消息有图片但是base64数据,则忽略
+      let imagePath = message.image_path;
+      if (imagePath && !imagePath.startsWith('/uploads')) {
+        console.warn('⚠️ Edit: 忽略base64图片数据,仅支持已上传的图片');
+        imagePath = null;
+      }
+      
+      // chatStore.sendMessage 不会重复添加用户消息，只会触发 AI 回复
+      await chatStore.sendMessage(newContent, imagePath, router);
     }
   } catch (e) {
     console.error("Save edit failed:", e);
@@ -1763,7 +1770,14 @@ const regenerateMessage = async (message) => {
     // 保存必要信息
     const userMsgId = lastUserMessage.id;
     const content = lastUserMessage.content;
-    const imagePath = lastUserMessage.image_path;
+    let imagePath = lastUserMessage.image_path;
+
+    // 如果imagePath是base64数据,过滤掉(因为后端无法处理base64路径)
+    // 只保留服务器路径(以/uploads开头)
+    if (imagePath && !imagePath.startsWith('/uploads')) {
+      console.warn('⚠️ Regenerate: 忽略base64图片数据,仅支持已上传的图片');
+      imagePath = null;
+    }
 
     // 1. 立即从前端移除 (防止重复点击)
     const userMsgIndex = messages.value.findIndex((m) => m.id === userMsgId);
