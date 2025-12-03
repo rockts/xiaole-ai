@@ -59,8 +59,6 @@ sudo docker run -d --name xiaole-ai \
   -v /etc/localtime:/etc/localtime:ro \
   -e TZ=Asia/Shanghai \
   -v $LOGS_DIR:/app/logs \
-  -v $REPO_DIR/backend:/app/backend \
-  -v $REPO_DIR/tools:/app/tools \
   -v $REPO_DIR/backend/uploads:/app/backend/uploads \
   -v $REPO_DIR/files:/app/files \
   --env-file .env \
