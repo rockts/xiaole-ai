@@ -331,7 +331,9 @@ def chat_stream(
                 result.get('assistant_message_id')
                 if isinstance(result, dict) else None
             ),
-            "image_path": body.image_path if body else None,
+            "image_path": (
+                body.image_path if body and hasattr(body, 'image_path') else None
+            ),
         }
         yield f"data: {json.dumps(end_payload, ensure_ascii=False)}\n\n"
 
