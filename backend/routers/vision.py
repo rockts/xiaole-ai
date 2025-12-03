@@ -6,7 +6,13 @@ from backend.config import UPLOADS_DIR
 import sys
 
 # 允许导入项目根目录下的 tools 包
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# 修正：需要添加项目根目录（backend的父目录），而不是backend目录
+current_dir = os.path.dirname(os.path.abspath(__file__))
+backend_dir = os.path.dirname(current_dir)
+project_root = os.path.dirname(backend_dir)
+if project_root not in sys.path:
+    sys.path.append(project_root)
 
 from backend.memory import MemoryManager  # noqa: E402
 from tools.vision_tool import VisionTool  # noqa: E402
