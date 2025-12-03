@@ -1,4 +1,8 @@
-import numpy as np
+try:
+    import numpy as np
+except ImportError:
+    np = None
+
 from sqlalchemy.orm import Session
 from backend.db_setup import SessionLocal, FaceEncoding
 import logging

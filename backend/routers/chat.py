@@ -74,11 +74,11 @@ def chat(
 
     # 如果有图片，先进行图片识别
     if effective_image_path:
-        from tools.vision_tool import VisionTool
-        vision_tool = VisionTool()
-
-        logger.info("🔍 开始图片识别流程: %s", effective_image_path)
         try:
+            from tools.vision_tool import VisionTool
+            vision_tool = VisionTool()
+
+            logger.info("🔍 开始图片识别流程: %s", effective_image_path)
             # 智能选择识别prompt
             important_kw = ['课程表', '课表', '时间表', '上课']
             if prompt and any(kw in prompt for kw in important_kw):
