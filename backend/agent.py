@@ -604,11 +604,26 @@ class XiaoLeAgent:
             isinstance(prompt, str) and "<vision_result>" in prompt
         )
         has_image_ctx = bool(image_path)
-        if precomputed_reply is None and not contains_vision_result and not has_image_ctx:
+
+        ask_what_phrases = [
+            "这是什么",
+            "这张图是什么",
+            "这张图片是什么",
+            "这张照片是什么",
+            "这是什么东西"
+        ]
+        base_query = original_user_prompt or prompt
+        is_ask_what = any(p in base_query for p in ask_what_phrases)
+
+        allow_quick_time = (
+            precomputed_reply is None
+            and not contains_vision_result
+            and not has_image_ctx
+            and not is_ask_what
+        )
+
+        if allow_quick_time:
             try:
-                base_query = (
-                    original_user_prompt if original_user_prompt else prompt
-                )
                 quick_reply = self._try_quick_direct_answer(base_query)
                 if quick_reply:
                     precomputed_reply = quick_reply
@@ -619,7 +634,8 @@ class XiaoLeAgent:
 
         # 增强的意图识别与工具执行
         try:
-            tool_calls = self.enhanced_selector.analyze_intent(intent_prompt, context)
+            tool_calls = self.enhanced_selector.analyze_intent(
+                intent_prompt, context)
 
             if tool_calls:
                 for tool_call in tool_calls:
@@ -635,11 +651,13 @@ class XiaoLeAgent:
                         break
 
             if not tool_result:
-                tool_result = self._auto_call_tool(intent_prompt, user_id, session_id)
+                tool_result = self._auto_call_tool(
+                    intent_prompt, user_id, session_id)
         except Exception as e:
             logger.warning(f"增强工具调用失败: {e}")
             try:
-                tool_result = self._auto_call_tool(intent_prompt, user_id, session_id)
+                tool_result = self._auto_call_tool(
+                    intent_prompt, user_id, session_id)
             except Exception as e2:
                 logger.warning(f"旧工具调用也失败: {e2}")
 
@@ -760,9 +778,35 @@ class XiaoLeAgent:
         if precomputed_reply is not None:
             reply = precomputed_reply
         else:
-            reply = self._think_with_context(
-                prompt, history, tool_result or task_result, response_style
-            )
+            # 🔥 终极修复: 如果prompt包含vision_result,强制覆盖precomputed防止时间回复
+            if '<vision_result>' in prompt or 'vision_result' in prompt.lower():
+                logger.warning("🚨 检测到vision_result在prompt中,强制屏蔽时间回复!")
+                # 直接从vision_result提取描述
+                desc_start = prompt.find('<vision_result>')
+                desc_end = prompt.find('</vision_result>')
+                if desc_start != -1 and desc_end != -1:
+                    vision_desc = prompt[desc_start+15:desc_end].strip()
+                    if vision_desc and "我通过视觉能力识别到的图片内容：" in vision_desc:
+                        vision_desc = vision_desc.split(
+                            "我通过视觉能力识别到的图片内容：", 1)[-1].strip()
+                    # 检查是否是"这是什么"类提问
+                    user_q = original_user_prompt or ""
+                    if any(p in user_q for p in ["这是什么", "这张图", "这个是什么"]):
+                        reply = f"根据图片识别:\n\n{vision_desc}"
+                        logger.info("✅ 使用vision直接回复,跳过LLM")
+                    else:
+                        # 其他情况走正常LLM,但添加强制指令
+                        reply = self._think_with_context(
+                            prompt, history, tool_result or task_result, response_style
+                        )
+                else:
+                    reply = self._think_with_context(
+                        prompt, history, tool_result or task_result, response_style
+                    )
+            else:
+                reply = self._think_with_context(
+                    prompt, history, tool_result or task_result, response_style
+                )
 
         # v0.6.0 Phase 3 Day 4: 对话质量增强
         try:
@@ -984,12 +1028,19 @@ class XiaoLeAgent:
         - 简单四则运算：本地安全求值（仅 + - * / () 和整数/小数）
 
         返回：命中则返回字符串答复，否则返回 None。
+
+        ⚠️ 重要：此方法只应在纯文本对话时使用。
+        调用前必须已确保没有图片上下文（image_path/vision_result）。
         """
         q = (prompt or '').strip()
         if not q:
             return None
 
         q_lower = q.lower()
+
+        # 安全检查：如果prompt包含vision_result标记，绝不返回时间
+        if '<vision_result>' in q or 'vision_result' in q_lower:
+            return None
 
         # 1) 时间/日期/星期快速直答
         time_keywords = [
@@ -1720,6 +1771,25 @@ class XiaoLeAgent:
             return f"（占位模式）你说的是：{prompt}"
 
         try:
+            # 🔥 最终防线: 检测vision_result直接返回
+            if '<vision_result>' in prompt:
+                logger.warning("🚨 _think_with_context检测到vision_result,直接提取!")
+                desc_start = prompt.find('<vision_result>')
+                desc_end = prompt.find('</vision_result>')
+                if desc_start != -1 and desc_end != -1:
+                    vision_desc = prompt[desc_start+15:desc_end].strip()
+                    if "我通过视觉能力识别到的图片内容：" in vision_desc:
+                        vision_desc = vision_desc.split(
+                            "我通过视觉能力识别到的图片内容：", 1
+                        )[-1].strip()
+                    # 提取用户问题
+                    user_q_match = prompt.find("用户问题：")
+                    if user_q_match != -1:
+                        user_q = prompt[user_q_match+5:].split('\n')[0].strip()
+                        if any(kw in user_q for kw in ["什么", "啥", "是", "?"]):
+                            return f"根据图片识别结果:\n\n{vision_desc}"
+                    return f"这是图片识别内容:\n\n{vision_desc}"
+
             # 获取当前时间和星期
             now = datetime.now()
             current_datetime = now.strftime("%Y年%m月%d日 %H:%M")

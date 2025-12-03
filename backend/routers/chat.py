@@ -28,6 +28,15 @@ def get_qa():
     return get_proactive_qa()
 
 
+def _looks_like_time_reply(text: Optional[str]) -> bool:
+    if not text:
+        return False
+    time_keywords = ["现在是", "今天是", "当前时间", "目前是", "此刻是"]
+    date_keywords = ["日期", "星期", "周几"]
+    indicators = time_keywords + date_keywords
+    return any(keyword in text for keyword in indicators)
+
+
 @router.post("/chat")
 def chat(
     prompt: str,
@@ -106,8 +115,15 @@ def chat(
             if vision_result.get('success'):
                 vision_description = vision_result.get('description', '')
 
+                safety_instruction = (
+                    "【视觉回答要求】请严格基于 <vision_result> 中的内容作答。"
+                    "禁止输出与图片无关的回答，尤其禁止回复当前时间、日期或泛泛的寒暄。"
+                    "当用户提问“这是什么/这是谁/这张图是什么”等时，必须直接描述图像主体、文字和关键细节。"
+                )
+
                 if prompt:
                     combined_prompt = (
+                        f"{safety_instruction}\n"
                         f"<vision_result>\n"
                         f"我通过视觉能力识别到的图片内容：\n"
                         f"{vision_description}\n"
@@ -119,6 +135,7 @@ def chat(
                     )
                 else:
                     combined_prompt = (
+                        f"{safety_instruction}\n"
                         f"<vision_result>\n"
                         f"我通过视觉能力识别到的图片内容：\n"
                         f"{vision_description}\n"
@@ -156,11 +173,41 @@ def chat(
                         logger.error(f"⚠️ 保存图片记忆失败: {e}")
 
                 # 图片识别已完成,不再传递image_path避免重复处理
-                return agent.chat(
+                agent_result = agent.chat(
                     combined_prompt, session_id, user_id, response_style,
-                    image_path=None,  # 已完成识别,清空避免Agent再次尝试调用vision_tool
+                    image_path=None,
                     original_user_prompt=prompt
                 )
+
+                logger.info(
+                    "🔍 Agent返回结果类型: %s, 内容前100字: %s",
+                    type(agent_result).__name__,
+                    str(agent_result)[:100] if agent_result else "None"
+                )
+
+                fallback_reply = (
+                    "这是系统刚刚识别出的图片内容：\n"
+                    f"{vision_description.strip()}\n"
+                    "(由视觉识别直接生成)"
+                )
+
+                if isinstance(agent_result, dict):
+                    reply_text = agent_result.get('reply', '')
+                    logger.info("🔍 检测reply是否像时间: %s, 内容: %s",
+                                _looks_like_time_reply(reply_text),
+                                reply_text[:100])
+                    if _looks_like_time_reply(reply_text):
+                        logger.warning("⚠️ 触发fallback替换!")
+                        agent_result['reply'] = fallback_reply
+                elif isinstance(agent_result, str):
+                    logger.info("🔍 检测字符串是否像时间: %s, 内容: %s",
+                                _looks_like_time_reply(agent_result),
+                                agent_result[:100])
+                    if _looks_like_time_reply(agent_result):
+                        logger.warning("⚠️ 触发fallback替换!")
+                        agent_result = fallback_reply
+
+                return agent_result
             else:
                 error_msg = vision_result.get('error', '未知错误')
                 logger.error("❌ 图片识别失败: %s", error_msg)
@@ -273,13 +320,21 @@ def chat_stream(
 
                 if vision_result.get('success'):
                     desc = vision_result.get('description', '')
+                    safety_instruction = (
+                        "【视觉回答要求】请严格基于 <vision_result> 中的内容作答。"
+                        "禁止输出与图片无关的回答，尤其禁止回复当前时间、日期或泛泛的寒暄。"
+                        "当用户提问“这是什么/这是谁/这张图是什么”等时，必须直接描述图像主体、文字和关键细节。"
+                    )
+
                     if prompt:
                         combined_prompt = (
+                            f"{safety_instruction}\n"
                             f"<vision_result>\n{desc}\n</vision_result>\n\n"
                             f"用户问题：{prompt}\n\n请基于识别结果作答。"
                         )
                     else:
                         combined_prompt = (
+                            f"{safety_instruction}\n"
                             f"<vision_result>\n{desc}\n</vision_result>\n\n"
                             f"请分析并解释图片内容。"
                         )
@@ -298,6 +353,20 @@ def chat_stream(
                         response_style, image_path=image_path,
                         original_user_prompt=prompt
                     )
+
+                    fallback_reply = (
+                        "这是系统刚刚识别出的图片内容：\n"
+                        f"{desc.strip()}\n"
+                        "(由视觉识别直接生成)"
+                    )
+
+                    if isinstance(result, dict):
+                        reply_text = result.get('reply', '')
+                        if _looks_like_time_reply(reply_text):
+                            result['reply'] = fallback_reply
+                    elif isinstance(result, str):
+                        if _looks_like_time_reply(result):
+                            result = fallback_reply
                 else:
                     err = vision_result.get('error', '未知错误')
                     result = {
@@ -332,6 +401,33 @@ def chat_stream(
             result.get('reply') if isinstance(result, dict)
             else str(result)
         )
+
+        # 🔥 关键修复: 在流式输出前检测并替换时间回复
+        if image_path:
+            logger.info("🔍流式检测reply是否像时间: %s, 前100字: %s",
+                        _looks_like_time_reply(reply), reply[:100])
+            if _looks_like_time_reply(reply):
+                # 从vision_result中提取描述作为fallback
+                try:
+                    desc_start = reply.find('<vision_result>')
+                    desc_end = reply.find('</vision_result>')
+                    if desc_start != -1 and desc_end != -1:
+                        desc = reply[desc_start+15:desc_end].strip()
+                        if desc and "我通过视觉能力识别到的图片内容" in desc:
+                            desc = desc.split(
+                                "我通过视觉能力识别到的图片内容：", 1)[-1].strip()
+                        fallback_reply = (
+                            "这是系统刚刚识别出的图片内容：\n"
+                            f"{desc}\n"
+                            "(由视觉识别直接生成)"
+                        )
+                        logger.warning("⚠️ 流式接口触发fallback替换!")
+                        reply = fallback_reply
+                        if isinstance(result, dict):
+                            result['reply'] = fallback_reply
+                except Exception as e:
+                    logger.error(f"提取vision描述失败: {e}")
+
         # 切片流式输出
         chunk_size = 120
         idx = 0
