@@ -64,6 +64,11 @@ class FaceManager:
 
         db = self.get_db()
         try:
+            if np is None:
+                return {
+                    "success": False,
+                    "error": "numpy is not installed, cannot register face"
+                }
             import face_recognition
             # Load image
             image = face_recognition.load_image_file(image_path)
@@ -124,6 +129,9 @@ class FaceManager:
         Get known faces.
         Returns: (encodings, names)
         """
+        if np is None:
+            return [], []
+
         db = self.get_db()
         try:
             faces = db.query(FaceEncoding).filter(
@@ -150,9 +158,15 @@ class FaceManager:
                 "error": f"Image file not found: {image_path}"
             }
 
-        known_encodings, known_names = self.get_known_faces(user_id)
-
         try:
+            if np is None:
+                return {
+                    "success": False,
+                    "error": "numpy is not installed"
+                }
+
+            known_encodings, known_names = self.get_known_faces(user_id)
+
             import face_recognition
             image = face_recognition.load_image_file(image_path)
             face_locations = face_recognition.face_locations(image)
