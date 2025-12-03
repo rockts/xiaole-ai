@@ -75,6 +75,15 @@ def chat(
     # 如果有图片，先进行图片识别
     if effective_image_path:
         try:
+            # 修正：确保能正确导入 VisionTool
+            import sys
+            import os
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            backend_dir = os.path.dirname(current_dir)
+            project_root = os.path.dirname(backend_dir)
+            if project_root not in sys.path:
+                sys.path.append(project_root)
+
             from tools.vision_tool import VisionTool
             vision_tool = VisionTool()
 
@@ -281,96 +290,112 @@ def chat_stream(
             loading_msg = {'type': 'delta', 'data': '正在分析图片内容，请稍候...\n\n'}
             yield f"data: {json.dumps(loading_msg, ensure_ascii=False)}\n\n"
 
-            from tools.vision_tool import VisionTool
-            vision_tool = VisionTool()
             try:
-                important_kw = ['课程表', '课表', '时间表', '上课']
-                if prompt and any(kw in prompt for kw in important_kw):
-                    ocr_prompt = '这是一张课程表，请识别并按天/节次列出。'
-                else:
-                    ocr_prompt = '请详细描述这张图片的内容（主体/文字/颜色/品牌等）。'
+                # 修正：确保能正确导入 VisionTool
+                import sys
+                import os
+                current_dir = os.path.dirname(os.path.abspath(__file__))
+                backend_dir = os.path.dirname(current_dir)
+                project_root = os.path.dirname(backend_dir)
+                if project_root not in sys.path:
+                    sys.path.append(project_root)
 
-                # 使用线程池执行耗时操作，同时发送心跳包
-                import concurrent.futures
-                import time
-
-                vision_result = {}
-                heartbeat_count = 0
-                with concurrent.futures.ThreadPoolExecutor() as executor:
-                    future = executor.submit(
-                        vision_tool.analyze_image,
-                        image_path=image_path,
-                        prompt=ocr_prompt,
-                        prefer_model="auto"
-                    )
-
-                    # 等待结果，每5秒发送一次心跳
-                    while not future.done():
-                        time.sleep(5)
-                        heartbeat_count += 1
-                        # 发送进度提示，让用户知道还在处理
-                        progress_msg = {
-                            'type': 'delta',
-                            'data': '.' if heartbeat_count % 3 != 0 else ''
-                        }
-                        chunk = json.dumps(progress_msg, ensure_ascii=False)
-                        yield f"data: {chunk}\n\n"
-
-                    vision_result = future.result()
-
-                if vision_result.get('success'):
-                    desc = vision_result.get('description', '')
-                    safety_instruction = (
-                        "【视觉回答要求】请严格基于 <vision_result> 中的内容作答。"
-                        "禁止输出与图片无关的回答，尤其禁止回复当前时间、日期或泛泛的寒暄。"
-                        "当用户提问“这是什么/这是谁/这张图是什么”等时，必须直接描述图像主体、文字和关键细节。"
-                    )
-
-                    if prompt:
-                        combined_prompt = (
-                            f"{safety_instruction}\n"
-                            f"<vision_result>\n{desc}\n</vision_result>\n\n"
-                            f"用户问题：{prompt}\n\n请基于识别结果作答。"
-                        )
+                from tools.vision_tool import VisionTool
+                vision_tool = VisionTool()
+                try:
+                    important_kw = ['课程表', '课表', '时间表', '上课']
+                    if prompt and any(kw in prompt for kw in important_kw):
+                        ocr_prompt = '这是一张课程表，请识别并按天/节次列出。'
                     else:
-                        combined_prompt = (
-                            f"{safety_instruction}\n"
-                            f"<vision_result>\n{desc}\n</vision_result>\n\n"
-                            f"请分析并解释图片内容。"
+                        ocr_prompt = '请详细描述这张图片的内容（主体/文字/颜色/品牌等）。'
+
+                    # 使用线程池执行耗时操作，同时发送心跳包
+                    import concurrent.futures
+                    import time
+
+                    vision_result = {}
+                    heartbeat_count = 0
+                    with concurrent.futures.ThreadPoolExecutor() as executor:
+                        future = executor.submit(
+                            vision_tool.analyze_image,
+                            image_path=image_path,
+                            prompt=ocr_prompt,
+                            prefer_model="auto"
                         )
 
-                    try:
-                        if memorize:
-                            agent.memory.remember(
-                                content=desc,
-                                tag=f"image:{image_path.split('/')[-1]}"
+                        # 等待结果，每5秒发送一次心跳
+                        while not future.done():
+                            time.sleep(5)
+                            heartbeat_count += 1
+                            # 发送进度提示，让用户知道还在处理
+                            progress_msg = {
+                                'type': 'delta',
+                                'data': '.' if heartbeat_count % 3 != 0 else ''
+                            }
+                            chunk = json.dumps(progress_msg, ensure_ascii=False)
+                            yield f"data: {chunk}\n\n"
+
+                        vision_result = future.result()
+
+                    if vision_result.get('success'):
+                        desc = vision_result.get('description', '')
+                        safety_instruction = (
+                            "【视觉回答要求】请严格基于 <vision_result> 中的内容作答。"
+                            "禁止输出与图片无关的回答，尤其禁止回复当前时间、日期或泛泛的寒暄。"
+                            "当用户提问“这是什么/这是谁/这张图是什么”等时，必须直接描述图像主体、文字和关键细节。"
+                        )
+
+                        if prompt:
+                            combined_prompt = (
+                                f"{safety_instruction}\n"
+                                f"<vision_result>\n{desc}\n</vision_result>\n\n"
+                                f"用户问题：{prompt}\n\n请基于识别结果作答。"
                             )
-                    except Exception:
-                        pass
+                        else:
+                            combined_prompt = (
+                                f"{safety_instruction}\n"
+                                f"<vision_result>\n{desc}\n</vision_result>\n\n"
+                                f"请分析并解释图片内容。"
+                            )
 
-                    result = agent.chat(
-                        combined_prompt, session_id, user_id,
-                        response_style, image_path=image_path,
-                        original_user_prompt=prompt
-                    )
+                        try:
+                            if memorize:
+                                agent.memory.remember(
+                                    content=desc,
+                                    tag=f"image:{image_path.split('/')[-1]}"
+                                )
+                        except Exception:
+                            pass
 
-                    fallback_reply = (
-                        "这是系统刚刚识别出的图片内容：\n"
-                        f"{desc.strip()}\n"
-                        "(由视觉识别直接生成)"
-                    )
+                        result = agent.chat(
+                            combined_prompt, session_id, user_id,
+                            response_style, image_path=image_path,
+                            original_user_prompt=prompt
+                        )
 
-                    if isinstance(result, dict):
-                        reply_text = result.get('reply', '')
-                        if _looks_like_time_reply(reply_text):
-                            result['reply'] = fallback_reply
-                    elif isinstance(result, str):
-                        if _looks_like_time_reply(result):
-                            result = fallback_reply
-                else:
-                    err = vision_result.get('error', '未知错误')
+                        fallback_reply = (
+                            "这是系统刚刚识别出的图片内容：\n"
+                            f"{desc.strip()}\n"
+                            "(由视觉识别直接生成)"
+                        )
+
+                        if isinstance(result, dict):
+                            reply_text = result.get('reply', '')
+                            if _looks_like_time_reply(reply_text):
+                                result['reply'] = fallback_reply
+                        elif isinstance(result, str):
+                            if _looks_like_time_reply(result):
+                                result = fallback_reply
+                    else:
+                        err = vision_result.get('error', '未知错误')
+                        result = {
+                            'reply': f"❌ 图片识别失败: {err}",
+                            'session_id': session_id or 'error'
+                        }
+                except Exception as e:
+                    logger.error(f"❌ 图片处理出错: {str(e)}", exc_info=True)
                     result = {
-                        'reply': f"❌ 图片识别失败: {err}",
+                        'reply': f'❌ 图片处理出错: {str(e)}',
                         'session_id': session_id or 'error'
                     }
             except Exception as e:
