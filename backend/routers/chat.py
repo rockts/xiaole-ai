@@ -74,11 +74,11 @@ def chat(
 
     # 如果有图片，先进行图片识别
     if effective_image_path:
-        from tools.vision_tool import VisionTool
-        vision_tool = VisionTool()
-
-        logger.info("🔍 开始图片识别流程: %s", effective_image_path)
         try:
+            from tools.vision_tool import VisionTool
+            vision_tool = VisionTool()
+
+            logger.info("🔍 开始图片识别流程: %s", effective_image_path)
             # 智能选择识别prompt
             important_kw = ['课程表', '课表', '时间表', '上课']
             if prompt and any(kw in prompt for kw in important_kw):
@@ -211,16 +211,18 @@ def chat(
             else:
                 error_msg = vision_result.get('error', '未知错误')
                 logger.error("❌ 图片识别失败: %s", error_msg)
-                return {
-                    'reply': f'❌ 图片识别失败: {error_msg}',
-                    'session_id': session_id or 'error'
-                }
+                # 即使识别失败，也尝试用普通对话回复，而不是直接报错
+                return agent.chat(
+                    f"{prompt}\n[系统提示：用户上传了图片，但系统识别失败。错误信息：{error_msg}]",
+                    session_id, user_id, response_style
+                )
         except Exception as e:
-            logger.error("❌ 图片处理异常: %s", str(e), exc_info=True)
-            return {
-                'reply': f'❌ 图片处理出错: {str(e)}',
-                'session_id': session_id or 'error'
-            }
+            logger.error("❌ 图片处理流程严重异常: %s", str(e), exc_info=True)
+            # 发生严重错误时，降级为普通对话
+            return agent.chat(
+                f"{prompt}\n[系统提示：用户上传了图片，但系统处理时发生严重错误。请告知用户图片处理失败，并正常回答文本部分。]",
+                session_id, user_id, response_style
+            )
 
     result = agent.chat(prompt, session_id, user_id, response_style)
 
@@ -281,9 +283,10 @@ def chat_stream(
             loading_msg = {'type': 'delta', 'data': '正在分析图片内容，请稍候...\n\n'}
             yield f"data: {json.dumps(loading_msg, ensure_ascii=False)}\n\n"
 
-            from tools.vision_tool import VisionTool
-            vision_tool = VisionTool()
             try:
+                from tools.vision_tool import VisionTool
+                vision_tool = VisionTool()
+                
                 important_kw = ['课程表', '课表', '时间表', '上课']
                 if prompt and any(kw in prompt for kw in important_kw):
                     ocr_prompt = '这是一张课程表，请识别并按天/节次列出。'
@@ -369,15 +372,19 @@ def chat_stream(
                             result = fallback_reply
                 else:
                     err = vision_result.get('error', '未知错误')
-                    result = {
-                        'reply': f"❌ 图片识别失败: {err}",
-                        'session_id': session_id or 'error'
-                    }
+                    # 降级处理：图片识别失败，但继续对话
+                    logger.error(f"❌ 图片识别失败: {err}")
+                    result = agent.chat(
+                        f"{prompt}\n[系统提示：用户上传了图片，但系统识别失败。错误信息：{err}]",
+                        session_id, user_id, response_style
+                    )
             except Exception as e:
-                result = {
-                    'reply': f'❌ 图片处理出错: {str(e)}',
-                    'session_id': session_id or 'error'
-                }
+                logger.error(f"❌ 图片处理出错: {str(e)}", exc_info=True)
+                # 降级处理：发生异常，继续对话
+                result = agent.chat(
+                    f"{prompt}\n[系统提示：用户上传了图片，但系统处理时发生严重错误。请告知用户图片处理失败，并正常回答文本部分。]",
+                    session_id, user_id, response_style
+                )
         else:
             # 常规对话
             logger.info(f"🔄 调用agent.chat - session_id: {session_id}")
