@@ -32,7 +32,12 @@ RUN apt-get update && apt-get install -y \
     libopenblas-dev \
     libgtk-3-dev \
     git \
+    tzdata \
     && rm -rf /var/lib/apt/lists/*
+
+# 设置时区
+ENV TZ=Asia/Shanghai
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 # 工作目录
 WORKDIR /app
