@@ -599,17 +599,21 @@ class XiaoLeAgent:
             logger.warning(f"直答规则执行失败: {e}")
 
         # v0.9.4: 进一步的快速直达（时间/日期/简单计算等）
-        if precomputed_reply is None:
+        # 重要：当prompt包含视觉识别结果时，避免误触发时间/日期直答
+        contains_vision_result = isinstance(
+            prompt, str) and "<vision_result>" in prompt
+        if precomputed_reply is None and not contains_vision_result:
             try:
                 quick_reply = self._try_quick_direct_answer(prompt)
                 if quick_reply:
                     precomputed_reply = quick_reply
                     skip_tool_check = True
                     tool_result = None
-            except Exception as e:
+        contains_vision_result = isinstance(prompt, str) and "<vision_result>" in prompt
+        original_q = original_user_prompt if original_user_prompt else prompt
                 logger.warning(f"快速直达失败: {e}")
 
-        if not skip_tool_check and precomputed_reply is None:
+                quick_reply = self._try_quick_direct_answer(original_q)
             try:
                 # v0.6.0 Phase 3: 使用增强的意图识别
                 tool_calls = self.enhanced_selector.analyze_intent(
