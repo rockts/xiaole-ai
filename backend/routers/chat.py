@@ -155,9 +155,10 @@ def chat(
                     except Exception as e:
                         logger.error(f"⚠️ 保存图片记忆失败: {e}")
 
+                # 图片识别已完成,不再传递image_path避免重复处理
                 return agent.chat(
                     combined_prompt, session_id, user_id, response_style,
-                    image_path=effective_image_path,
+                    image_path=None,  # 已完成识别,清空避免Agent再次尝试调用vision_tool
                     original_user_prompt=prompt
                 )
             else:
