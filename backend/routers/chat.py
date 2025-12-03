@@ -35,6 +35,8 @@ def chat(
     user_id: str = "default_user",
     response_style: str = "balanced",
     memorize: bool = False,
+    # 允许从query/form中回退读取image_path，避免前端未传JSON body时失效
+    image_path: Optional[str] = None,
     current_user: str = Depends(get_current_user),
     agent: XiaoLeAgent = Depends(get_agent),
     qa: ProactiveQA = Depends(get_qa),
@@ -44,14 +46,29 @@ def chat(
     # 使用认证用户ID覆盖请求中的user_id
     user_id = current_user
 
-    # 从body中获取image_path
-    image_path = body.image_path if body else None
+    # 从body中获取image_path；若无，则回退使用query/form中的image_path
+    body_image_path = None
+    try:
+        body_image_path = body.image_path if body else None
+    except Exception:
+        body_image_path = None
+
+    effective_image_path = body_image_path or image_path
+
+    if effective_image_path:
+        logger.info(
+            "📷 收到图片路径: raw='%s' (body='%s', query='%s')",
+            effective_image_path,
+            body_image_path,
+            image_path,
+        )
 
     # 如果有图片，先进行图片识别
-    if image_path:
+    if effective_image_path:
         from tools.vision_tool import VisionTool
         vision_tool = VisionTool()
 
+        logger.info("🔍 开始图片识别流程: %s", effective_image_path)
         try:
             # 智能选择识别prompt
             important_kw = ['课程表', '课表', '时间表', '上课']
@@ -77,10 +94,14 @@ def chat(
                 )
 
             vision_result = vision_tool.analyze_image(
-                image_path=image_path,
+                image_path=effective_image_path,
                 prompt=ocr_prompt,
                 prefer_model="auto"
             )
+
+            logger.info("✅ 图片识别完成: success=%s, model=%s",
+                        vision_result.get('success'),
+                        vision_result.get('model', 'unknown'))
 
             if vision_result.get('success'):
                 vision_description = vision_result.get('description', '')
@@ -136,16 +157,18 @@ def chat(
 
                 return agent.chat(
                     combined_prompt, session_id, user_id, response_style,
-                    image_path=image_path,
+                    image_path=effective_image_path,
                     original_user_prompt=prompt
                 )
             else:
                 error_msg = vision_result.get('error', '未知错误')
+                logger.error("❌ 图片识别失败: %s", error_msg)
                 return {
                     'reply': f'❌ 图片识别失败: {error_msg}',
                     'session_id': session_id or 'error'
                 }
         except Exception as e:
+            logger.error("❌ 图片处理异常: %s", str(e), exc_info=True)
             return {
                 'reply': f'❌ 图片处理出错: {str(e)}',
                 'session_id': session_id or 'error'
@@ -240,9 +263,10 @@ def chat_stream(
                         # 发送进度提示，让用户知道还在处理
                         progress_msg = {
                             'type': 'delta',
-                            'data': f'.' if heartbeat_count % 3 != 0 else ''
+                            'data': '.' if heartbeat_count % 3 != 0 else ''
                         }
-                        yield f"data: {json.dumps(progress_msg, ensure_ascii=False)}\n\n"
+                        chunk = json.dumps(progress_msg, ensure_ascii=False)
+                        yield f"data: {chunk}\n\n"
 
                     vision_result = future.result()
 
@@ -332,7 +356,8 @@ def chat_stream(
                 if isinstance(result, dict) else None
             ),
             "image_path": (
-                body.image_path if body and hasattr(body, 'image_path') else None
+                body.image_path if body and hasattr(
+                    body, 'image_path') else None
             ),
         }
         yield f"data: {json.dumps(end_payload, ensure_ascii=False)}\n\n"
