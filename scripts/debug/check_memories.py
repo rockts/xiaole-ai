@@ -1,28 +1,36 @@
-
-from backend.db_setup import Memory, SessionLocal
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from db_setup import Memory
+from dotenv import load_dotenv
 import sys
 import os
-# Add the project root to sys.path
-sys.path.append(os.getcwd())
+sys.path.append(os.path.join(os.path.dirname(__file__), '../backend'))
 
 
-def check_memories():
-    session = SessionLocal()
-    try:
-        # Check for document memories
-        docs = session.query(Memory).filter(
-            Memory.tag.like('document:%')).all()
-        print(f"Found {len(docs)} document memories:")
-        for doc in docs:
-            print(f"  Tag: {doc.tag}")
-            print(f"  Content Preview: {doc.content[:50]}...")
-            print("-" * 20)
+load_dotenv()
 
-    except Exception as e:
-        print(f"Error: {e}")
-    finally:
-        session.close()
+if os.getenv('DATABASE_URL'):
+    DB_URL = os.getenv('DATABASE_URL')
+else:
+    DB_URL = (
+        f"postgresql://{os.getenv('DB_USER')}:{os.getenv('DB_PASS')}"
+        f"@{os.getenv('DB_HOST')}:{os.getenv('DB_PORT')}"
+        f"/{os.getenv('DB_NAME')}"
+    )
 
+engine = create_engine(
+    DB_URL,
+    connect_args={'check_same_thread': False} if DB_URL.startswith('sqlite')
+    else {'client_encoding': 'utf8'}
+)
+Session = sessionmaker(bind=engine)
+session = Session()
 
-if __name__ == "__main__":
-    check_memories()
+memories = session.query(Memory).order_by(
+    Memory.created_at.desc()).limit(20).all()
+
+print(f"Total memories: {session.query(Memory).count()}")
+print("-" * 50)
+for m in memories:
+    print(
+        f"ID: {m.id}, Tag: {m.tag}, Created: {m.created_at}, Content: {m.content[:50]}...")
