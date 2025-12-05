@@ -1542,38 +1542,76 @@ async function speakAndResumeMic(text) {
 
 const renderMarkdown = (content) => {
   if (!content) return "";
-  // 预处理 LaTeX 分隔符，兼容 \[ \] 和 \( \)
-  // 确保 block 公式 $$ 独占一行
-  let preprocessed = content
-    .replace(/\\\[([\s\S]*?)\\\]/g, (_, match) => `\n$$\n${match}\n$$\n`)
-    .replace(/\\\(([\s\S]*?)\\\)/g, (_, match) => `$${match}$`);
+  
+  let preprocessed = content;
+  
+  // ===== 第零步：修复被错误拆分的 LaTeX 命令 =====
+  // 修复 $\bet$a -> $\beta$, \gamm$a -> $\gamma$, 等
+  const greekLetters = ['alpha', 'beta', 'gamma', 'delta', 'epsilon', 'zeta', 'eta', 'theta', 
+    'iota', 'kappa', 'lambda', 'mu', 'nu', 'xi', 'pi', 'rho', 'sigma', 'tau', 
+    'upsilon', 'phi', 'chi', 'psi', 'omega'];
+  
+  greekLetters.forEach(letter => {
+    // 修复各种错误拆分模式
+    // $\bet$a -> $\beta$
+    const partialPatterns = [];
+    for (let i = 1; i < letter.length; i++) {
+      const part1 = letter.slice(0, i);
+      const part2 = letter.slice(i);
+      // \part1$part2 或 $\part1$part2
+      partialPatterns.push(new RegExp(`\\$?\\\\${part1}\\$${part2}`, 'g'));
+      // \part1$part2 (no leading $)  
+      partialPatterns.push(new RegExp(`\\\\${part1}\\$${part2}`, 'g'));
+    }
+    partialPatterns.forEach(pattern => {
+      preprocessed = preprocessed.replace(pattern, `$\\${letter}$`);
+    });
+  });
 
-  // 尝试修复常见的 LaTeX 格式问题
-  // 1. 修复 \begin{equation} 没有包裹在 $$ 中的情况
+  // ===== 第一步：标准化 LaTeX 分隔符 =====
+  preprocessed = preprocessed.replace(/\\\[([\s\S]*?)\\\]/g, (_, match) => `\n$$\n${match}\n$$\n`);
+  preprocessed = preprocessed.replace(/\\\(([\s\S]*?)\\\)/g, (_, match) => `$${match}$`);
+
+  // ===== 第二步：修复不完整的 $ 包裹 =====
+  const mathCommands = 'alpha|beta|gamma|delta|epsilon|zeta|eta|theta|iota|kappa|lambda|mu|nu|xi|pi|rho|sigma|tau|upsilon|phi|chi|psi|omega|Alpha|Beta|Gamma|Delta|Theta|Lambda|Xi|Pi|Sigma|Phi|Psi|Omega|infty|partial|nabla|sum|prod|int|sqrt|frac|vec|hat|bar|dot|tilde|pm|times|div|cdot|leq|geq|neq|approx|equiv|forall|exists|in|subset|cup|cap|rightarrow|leftarrow|Rightarrow|Leftarrow';
+  
+  // 2.1 修复 \alpha$ 缺少开头 $
+  preprocessed = preprocessed.replace(
+    new RegExp(`(?<!\\$)(\\\\(?:${mathCommands})(?:_\\{?[^}\\s]*\\}?)?)\\$`, 'g'),
+    '$$$1$$'
+  );
+  
+  // 2.2 修复 $\alpha 缺少结尾 $ (后跟中文、标点、空格)
+  preprocessed = preprocessed.replace(
+    new RegExp(`\\$(\\\\(?:${mathCommands})(?:_\\{?[^}\\s]*\\}?)?)(?=[\\u4e00-\\u9fa5，。、；：！？\\s\\n]|$)`, 'g'),
+    '$$$1$$'
+  );
+  
+  // 2.3 修复独立的希腊字母命令（没有任何 $ 包裹）
+  preprocessed = preprocessed.replace(
+    new RegExp(`(?<!\\$|\\\\)(\\\\(?:${mathCommands}))(?![a-zA-Z])(?!\\$)`, 'g'),
+    '$$$1$$'
+  );
+
+  // 2.4 修复 $a、$b 和 a$、b$ 等错误格式
+  preprocessed = preprocessed.replace(/\$([a-zA-Z])、\$([a-zA-Z])/g, '$$$1$、$$$2$$');
+  preprocessed = preprocessed.replace(/\$([a-zA-Z])和\$([a-zA-Z])/g, '$$$1$和$$$2$$');
+  preprocessed = preprocessed.replace(/(?<!\$)\$([a-zA-Z])(?!\$)(?=[\u4e00-\u9fa5，。、；：])/g, '$$$1$$');
+  preprocessed = preprocessed.replace(/(?<!\$)([a-zA-Z])\$(?!\$)/g, '$$$1$$');
+  
+  // 2.5 修复 a$、$b 格式
+  preprocessed = preprocessed.replace(/([a-zA-Z])\$、\$([a-zA-Z])/g, '$$$1$、$$$2$$');
+
+  // ===== 第三步：处理块级公式 =====
   preprocessed = preprocessed.replace(
     /(?<!\$)\n\\begin\{([a-z]+)\}([\s\S]*?)\\end\{\1\}(?!\$)/g,
     "\n$$\n\\begin{$1}$2\\end{$1}\n$$\n"
   );
 
-  // 2. 修复缺失开头 $ 的常见物理/数学公式 (针对 \mu_0 I$ 等情况)
-  // 匹配模式：非$字符 + (\命令 + 可选下标 + 可选空格 + 可选变量) + $
-  preprocessed = preprocessed.replace(
-    /(^|[^\$])(\\[a-zA-Z]+(?:_[a-zA-Z0-9]+)?(?:\s+[a-zA-Z](?:_[a-zA-Z0-9]+)?)?)\$/g,
-    "$1$$$2$$"
-  );
-
-  // 3. 修复缺失结尾 $ 的情况 (针对 $\varepsilon_0 后直接跟中文的情况)
-  preprocessed = preprocessed.replace(
-    /\$(\\[a-zA-Z]+(?:_[a-zA-Z0-9]+)?)(?=\s*[\u4e00-\u9fa5]|，|。|；)/g,
-    "$$$1$$"
-  );
-
-  // 4. 自动包裹独立的 LaTeX 公式块 (针对 \oiint, \begin{equation} 等未包裹的情况)
-  // 匹配行首的常见数学命令
+  // ===== 第四步：处理独立的 LaTeX 命令块 =====
   preprocessed = preprocessed.replace(
     /(^|\n)(\s*\\(oiint|iint|int|frac|sum|prod|lim|begin|mathbf|mathcal|partial)[\s\S]+?)(\n|$)/g,
     (match, p1, p2, p3, p4) => {
-      // 如果已经包含 $ 或 $$，则不处理
       if (p2.includes("$")) return match;
       return `${p1}$$\n${p2.trim()}\n$$${p4}`;
     }
