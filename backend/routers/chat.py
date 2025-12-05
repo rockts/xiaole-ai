@@ -220,16 +220,22 @@ def chat(
             else:
                 error_msg = vision_result.get('error', '未知错误')
                 logger.error("❌ 图片识别失败: %s", error_msg)
-                return {
-                    'reply': f'❌ 图片识别失败: {error_msg}',
-                    'session_id': session_id or 'error'
-                }
+                # 降级处理：调用 agent.chat 确保用户消息被保存
+                return agent.chat(
+                    f"{prompt}\n[系统提示：图片识别失败: {error_msg}]",
+                    session_id, user_id, response_style,
+                    image_path=effective_image_path,
+                    original_user_prompt=prompt
+                )
         except Exception as e:
             logger.error("❌ 图片处理异常: %s", str(e), exc_info=True)
-            return {
-                'reply': f'❌ 图片处理出错: {str(e)}',
-                'session_id': session_id or 'error'
-            }
+            # 降级处理：调用 agent.chat 确保用户消息被保存
+            return agent.chat(
+                f"{prompt}\n[系统提示：图片处理出错: {str(e)}]",
+                session_id, user_id, response_style,
+                image_path=effective_image_path,
+                original_user_prompt=prompt
+            )
 
     result = agent.chat(prompt, session_id, user_id, response_style)
 
@@ -389,21 +395,32 @@ def chat_stream(
                                 result = fallback_reply
                     else:
                         err = vision_result.get('error', '未知错误')
-                        result = {
-                            'reply': f"❌ 图片识别失败: {err}",
-                            'session_id': session_id or 'error'
-                        }
+                        logger.error(f"❌ 图片识别失败: {err}")
+                        # 降级处理：调用 agent.chat 确保用户消息被保存
+                        result = agent.chat(
+                            f"{prompt}\n[系统提示：用户上传了图片，但识别失败: {err}]",
+                            session_id, user_id, response_style,
+                            image_path=image_path,
+                            original_user_prompt=prompt
+                        )
                 except Exception as e:
                     logger.error(f"❌ 图片处理出错: {str(e)}", exc_info=True)
-                    result = {
-                        'reply': f'❌ 图片处理出错: {str(e)}',
-                        'session_id': session_id or 'error'
-                    }
+                    # 降级处理：调用 agent.chat 确保用户消息被保存
+                    result = agent.chat(
+                        f"{prompt}\n[系统提示：图片处理出错: {str(e)}]",
+                        session_id, user_id, response_style,
+                        image_path=image_path,
+                        original_user_prompt=prompt
+                    )
             except Exception as e:
-                result = {
-                    'reply': f'❌ 图片处理出错: {str(e)}',
-                    'session_id': session_id or 'error'
-                }
+                logger.error(f"❌ VisionTool导入或初始化失败: {str(e)}", exc_info=True)
+                # 降级处理：调用 agent.chat 确保用户消息被保存
+                result = agent.chat(
+                    f"{prompt}\n[系统提示：图片工具初始化失败: {str(e)}]",
+                    session_id, user_id, response_style,
+                    image_path=image_path,
+                    original_user_prompt=prompt
+                )
         else:
             # 常规对话
             logger.info(f"🔄 调用agent.chat - session_id: {session_id}")
