@@ -82,3 +82,8 @@ frontend/.vite/
 
 # PID files
 *.pid
+
+# Additional cleanup rules
+agent_instructions.md
+*.orig
+*.bak
