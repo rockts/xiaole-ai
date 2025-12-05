@@ -1,4 +1,4 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from typing import List
@@ -169,47 +169,6 @@ def think(prompt: str):
 def act(command: str):
     agent = get_xiaole_agent()
     return {"result": agent.act(command)}
-
-
-# 挂载前端静态文件(放在最后,避免覆盖API路由)
-FRONTEND_DIST = os.path.join(os.path.dirname(
-    os.path.dirname(__file__)), "frontend", "dist")
-if os.path.exists(FRONTEND_DIST):
-    from fastapi.responses import FileResponse, HTMLResponse
-
-    @app.get("/assets/{path:path}")
-    async def serve_assets(path: str):
-        """提供前端资源文件"""
-        asset_path = os.path.join(FRONTEND_DIST, "assets", path)
-        if os.path.isfile(asset_path):
-            return FileResponse(asset_path)
-        raise HTTPException(status_code=404, detail="Asset not found")
-
-    @app.get("/{full_path:path}", response_class=HTMLResponse)
-    async def serve_frontend(full_path: str):
-        """提供前端页面,所有未匹配的路由返回 index.html"""
-        # 如果是API路由或特殊路径,跳过(让其他路由处理)
-        if (full_path.startswith("api/") or
-            full_path.startswith("docs") or
-            full_path == "openapi.json" or
-                full_path == "health"):
-            raise HTTPException(status_code=404)
-
-        # 尝试返回具体文件
-        file_path = os.path.join(FRONTEND_DIST, full_path)
-        if os.path.isfile(file_path):
-            return FileResponse(file_path)
-
-        # SPA fallback: 返回 index.html
-        index_path = os.path.join(FRONTEND_DIST, "index.html")
-        if os.path.isfile(index_path):
-            return FileResponse(index_path)
-
-        raise HTTPException(status_code=404, detail="Frontend not found")
-
-    logger.info(f"✅ 前端静态文件已挂载: {FRONTEND_DIST}")
-else:
-    logger.warning(f"⚠️ 前端 dist 目录不存在: {FRONTEND_DIST}")
 
 
 if __name__ == "__main__":
