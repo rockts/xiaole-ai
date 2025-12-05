@@ -1,24 +1,5 @@
 # ============================================
-# Stage 1: 构建前端
-# ============================================
-FROM node:20-alpine AS frontend-builder
-
-WORKDIR /app/frontend
-
-# 复制前端依赖文件
-COPY frontend/package*.json ./
-
-# 安装依赖
-RUN npm ci
-
-# 复制前端源码
-COPY frontend/ ./
-
-# 构建前端
-RUN npm run build
-
-# ============================================
-# Stage 2: Python 后端 + 前端静态文件
+# Python 后端 (前端已迁移到 Cloudflare Pages)
 # ============================================
 FROM python:3.11-slim
 
@@ -48,9 +29,6 @@ COPY tools/ ./tools/
 COPY scripts/ ./scripts/
 COPY requirements.txt ./
 COPY start_services.sh ./
-
-# 复制前端构建产物(从 frontend-builder stage)
-COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 
 # 安装 Python 依赖
 RUN pip install -i https://pypi.tuna.tsinghua.edu.cn/simple --no-cache-dir -r requirements.txt
