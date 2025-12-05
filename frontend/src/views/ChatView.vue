@@ -1542,16 +1542,38 @@ async function speakAndResumeMic(text) {
 
 const renderMarkdown = (content) => {
   if (!content) return "";
-  
+
   let preprocessed = content;
-  
+
   // ===== 第零步：修复被错误拆分的 LaTeX 命令 =====
   // 修复 $\bet$a -> $\beta$, \gamm$a -> $\gamma$, 等
-  const greekLetters = ['alpha', 'beta', 'gamma', 'delta', 'epsilon', 'zeta', 'eta', 'theta', 
-    'iota', 'kappa', 'lambda', 'mu', 'nu', 'xi', 'pi', 'rho', 'sigma', 'tau', 
-    'upsilon', 'phi', 'chi', 'psi', 'omega'];
-  
-  greekLetters.forEach(letter => {
+  const greekLetters = [
+    "alpha",
+    "beta",
+    "gamma",
+    "delta",
+    "epsilon",
+    "zeta",
+    "eta",
+    "theta",
+    "iota",
+    "kappa",
+    "lambda",
+    "mu",
+    "nu",
+    "xi",
+    "pi",
+    "rho",
+    "sigma",
+    "tau",
+    "upsilon",
+    "phi",
+    "chi",
+    "psi",
+    "omega",
+  ];
+
+  greekLetters.forEach((letter) => {
     // 修复各种错误拆分模式
     // $\bet$a -> $\beta$
     const partialPatterns = [];
@@ -1559,48 +1581,76 @@ const renderMarkdown = (content) => {
       const part1 = letter.slice(0, i);
       const part2 = letter.slice(i);
       // \part1$part2 或 $\part1$part2
-      partialPatterns.push(new RegExp(`\\$?\\\\${part1}\\$${part2}`, 'g'));
-      // \part1$part2 (no leading $)  
-      partialPatterns.push(new RegExp(`\\\\${part1}\\$${part2}`, 'g'));
+      partialPatterns.push(new RegExp(`\\$?\\\\${part1}\\$${part2}`, "g"));
+      // \part1$part2 (no leading $)
+      partialPatterns.push(new RegExp(`\\\\${part1}\\$${part2}`, "g"));
     }
-    partialPatterns.forEach(pattern => {
+    partialPatterns.forEach((pattern) => {
       preprocessed = preprocessed.replace(pattern, `$\\${letter}$`);
     });
   });
 
   // ===== 第一步：标准化 LaTeX 分隔符 =====
-  preprocessed = preprocessed.replace(/\\\[([\s\S]*?)\\\]/g, (_, match) => `\n$$\n${match}\n$$\n`);
-  preprocessed = preprocessed.replace(/\\\(([\s\S]*?)\\\)/g, (_, match) => `$${match}$`);
+  preprocessed = preprocessed.replace(
+    /\\\[([\s\S]*?)\\\]/g,
+    (_, match) => `\n$$\n${match}\n$$\n`
+  );
+  preprocessed = preprocessed.replace(
+    /\\\(([\s\S]*?)\\\)/g,
+    (_, match) => `$${match}$`
+  );
 
   // ===== 第二步：修复不完整的 $ 包裹 =====
-  const mathCommands = 'alpha|beta|gamma|delta|epsilon|zeta|eta|theta|iota|kappa|lambda|mu|nu|xi|pi|rho|sigma|tau|upsilon|phi|chi|psi|omega|Alpha|Beta|Gamma|Delta|Theta|Lambda|Xi|Pi|Sigma|Phi|Psi|Omega|infty|partial|nabla|sum|prod|int|sqrt|frac|vec|hat|bar|dot|tilde|pm|times|div|cdot|leq|geq|neq|approx|equiv|forall|exists|in|subset|cup|cap|rightarrow|leftarrow|Rightarrow|Leftarrow';
-  
+  const mathCommands =
+    "alpha|beta|gamma|delta|epsilon|zeta|eta|theta|iota|kappa|lambda|mu|nu|xi|pi|rho|sigma|tau|upsilon|phi|chi|psi|omega|Alpha|Beta|Gamma|Delta|Theta|Lambda|Xi|Pi|Sigma|Phi|Psi|Omega|infty|partial|nabla|sum|prod|int|sqrt|frac|vec|hat|bar|dot|tilde|pm|times|div|cdot|leq|geq|neq|approx|equiv|forall|exists|in|subset|cup|cap|rightarrow|leftarrow|Rightarrow|Leftarrow";
+
   // 2.1 修复 \alpha$ 缺少开头 $
   preprocessed = preprocessed.replace(
-    new RegExp(`(?<!\\$)(\\\\(?:${mathCommands})(?:_\\{?[^}\\s]*\\}?)?)\\$`, 'g'),
-    '$$$1$$'
+    new RegExp(
+      `(?<!\\$)(\\\\(?:${mathCommands})(?:_\\{?[^}\\s]*\\}?)?)\\$`,
+      "g"
+    ),
+    "$$$1$$"
   );
-  
+
   // 2.2 修复 $\alpha 缺少结尾 $ (后跟中文、标点、空格)
   preprocessed = preprocessed.replace(
-    new RegExp(`\\$(\\\\(?:${mathCommands})(?:_\\{?[^}\\s]*\\}?)?)(?=[\\u4e00-\\u9fa5，。、；：！？\\s\\n]|$)`, 'g'),
-    '$$$1$$'
+    new RegExp(
+      `\\$(\\\\(?:${mathCommands})(?:_\\{?[^}\\s]*\\}?)?)(?=[\\u4e00-\\u9fa5，。、；：！？\\s\\n]|$)`,
+      "g"
+    ),
+    "$$$1$$"
   );
-  
+
   // 2.3 修复独立的希腊字母命令（没有任何 $ 包裹）
   preprocessed = preprocessed.replace(
-    new RegExp(`(?<!\\$|\\\\)(\\\\(?:${mathCommands}))(?![a-zA-Z])(?!\\$)`, 'g'),
-    '$$$1$$'
+    new RegExp(
+      `(?<!\\$|\\\\)(\\\\(?:${mathCommands}))(?![a-zA-Z])(?!\\$)`,
+      "g"
+    ),
+    "$$$1$$"
   );
 
   // 2.4 修复 $a、$b 和 a$、b$ 等错误格式
-  preprocessed = preprocessed.replace(/\$([a-zA-Z])、\$([a-zA-Z])/g, '$$$1$、$$$2$$');
-  preprocessed = preprocessed.replace(/\$([a-zA-Z])和\$([a-zA-Z])/g, '$$$1$和$$$2$$');
-  preprocessed = preprocessed.replace(/(?<!\$)\$([a-zA-Z])(?!\$)(?=[\u4e00-\u9fa5，。、；：])/g, '$$$1$$');
-  preprocessed = preprocessed.replace(/(?<!\$)([a-zA-Z])\$(?!\$)/g, '$$$1$$');
-  
+  preprocessed = preprocessed.replace(
+    /\$([a-zA-Z])、\$([a-zA-Z])/g,
+    "$$$1$、$$$2$$"
+  );
+  preprocessed = preprocessed.replace(
+    /\$([a-zA-Z])和\$([a-zA-Z])/g,
+    "$$$1$和$$$2$$"
+  );
+  preprocessed = preprocessed.replace(
+    /(?<!\$)\$([a-zA-Z])(?!\$)(?=[\u4e00-\u9fa5，。、；：])/g,
+    "$$$1$$"
+  );
+  preprocessed = preprocessed.replace(/(?<!\$)([a-zA-Z])\$(?!\$)/g, "$$$1$$");
+
   // 2.5 修复 a$、$b 格式
-  preprocessed = preprocessed.replace(/([a-zA-Z])\$、\$([a-zA-Z])/g, '$$$1$、$$$2$$');
+  preprocessed = preprocessed.replace(
+    /([a-zA-Z])\$、\$([a-zA-Z])/g,
+    "$$$1$、$$$2$$"
+  );
 
   // ===== 第三步：处理块级公式 =====
   preprocessed = preprocessed.replace(
