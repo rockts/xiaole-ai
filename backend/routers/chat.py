@@ -332,7 +332,8 @@ def chat_stream(
                                 'type': 'delta',
                                 'data': '.' if heartbeat_count % 3 != 0 else ''
                             }
-                            chunk = json.dumps(progress_msg, ensure_ascii=False)
+                            chunk = json.dumps(
+                                progress_msg, ensure_ascii=False)
                             yield f"data: {chunk}\n\n"
 
                         vision_result = future.result()
