@@ -136,36 +136,36 @@ async def websocket_endpoint(websocket: WebSocket):
         logger.error(f"WebSocket错误: {e}")
         websocket_manager.disconnect(websocket)
 
-# 注册路由
+# 注册路由 - 所有 API 路由都使用 /api 前缀
 app.include_router(auth.router, prefix="/api")
-app.include_router(chat.router)
-app.include_router(memories.router)
-app.include_router(reminders.router)
-app.include_router(tasks.router)
-app.include_router(tools.router)
-app.include_router(analytics.router)
-app.include_router(documents.router)
-app.include_router(voice.router)
-app.include_router(schedule.router)
-app.include_router(feedback.router)
-app.include_router(faces.router)
-app.include_router(dashboard.router)
-app.include_router(vision.router)
+app.include_router(chat.router, prefix="/api")
+app.include_router(memories.router, prefix="/api")
+app.include_router(reminders.router, prefix="/api")
+app.include_router(tasks.router, prefix="/api")
+app.include_router(tools.router, prefix="/api")
+app.include_router(analytics.router, prefix="/api")
+app.include_router(documents.router, prefix="/api")
+app.include_router(voice.router, prefix="/api")
+app.include_router(schedule.router, prefix="/api")
+app.include_router(feedback.router, prefix="/api")
+app.include_router(faces.router, prefix="/api")
+app.include_router(dashboard.router, prefix="/api")
+app.include_router(vision.router, prefix="/api")
 
 
-@app.get("/health")
+@app.get("/api/health")
 def health():
     """健康检查端点"""
     return {"status": "ok"}
 
 
-@app.post("/think")
+@app.post("/api/think")
 def think(prompt: str):
     agent = get_xiaole_agent()
     return {"result": agent.think(prompt)}
 
 
-@app.post("/act")
+@app.post("/api/act")
 def act(command: str):
     agent = get_xiaole_agent()
     return {"result": agent.act(command)}
