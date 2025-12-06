@@ -1,238 +1,105 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>小乐开发者文档</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-        }
-        
-        .container {
-            max-width: 1200px;
-            width: 100%;
-        }
-        
-        .header {
-            text-align: center;
-            color: white;
-            margin-bottom: 60px;
-        }
-        
-        .header h1 {
-            font-size: 3.5rem;
-            margin-bottom: 10px;
-            font-weight: 700;
-            letter-spacing: -1px;
-        }
-        
-        .header p {
-            font-size: 1.2rem;
-            opacity: 0.9;
-            font-weight: 300;
-        }
-        
-        .docs-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 24px;
-            margin-bottom: 40px;
-        }
-        
-        .doc-card {
-            background: white;
-            border-radius: 12px;
-            padding: 28px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-            cursor: pointer;
-            text-decoration: none;
-            color: inherit;
-            display: flex;
-            flex-direction: column;
-        }
-        
-        .doc-card:hover {
-            transform: translateY(-8px);
-            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2);
-        }
-        
-        .doc-icon {
-            font-size: 2.5rem;
-            margin-bottom: 12px;
-            display: inline-block;
-            width: 50px;
-            height: 50px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-        }
-        
-        .doc-card h3 {
-            font-size: 1.3rem;
-            margin-bottom: 10px;
-            color: #333;
-        }
-        
-        .doc-card p {
-            color: #666;
-            font-size: 0.95rem;
-            line-height: 1.5;
-            flex-grow: 1;
-        }
-        
-        .doc-links {
-            margin-top: 16px;
-            padding-top: 16px;
-            border-top: 1px solid #eee;
-        }
-        
-        .doc-links a {
-            display: inline-block;
-            font-size: 0.85rem;
-            color: #667eea;
-            text-decoration: none;
-            margin-right: 12px;
-            margin-top: 8px;
-            padding: 4px 8px;
-            background: #f0f0f0;
-            border-radius: 4px;
-            transition: background 0.2s ease;
-        }
-        
-        .doc-links a:hover {
-            background: #667eea;
-            color: white;
-        }
-        
-        .footer {
-            text-align: center;
-            color: white;
-            padding-top: 40px;
-            border-top: 1px solid rgba(255, 255, 255, 0.2);
-            font-size: 0.95rem;
-            opacity: 0.8;
-        }
-        
-        .footer a {
-            color: white;
-            text-decoration: underline;
-        }
-        
-        @media (max-width: 768px) {
-            .header h1 {
-                font-size: 2rem;
-            }
-            
-            .docs-grid {
-                grid-template-columns: 1fr;
-                gap: 16px;
-            }
-        }
-    </style>
+  <meta charset="UTF-8">
+  <title>小乐开发者文档</title>
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+  <meta name="description" content="小乐 AI 开发者文档中心">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/docsify@4/lib/themes/vue.css">
+  <style>
+    :root {
+      --theme-color: #667eea;
+      --theme-color-dark: #5568d3;
+    }
+    
+    .sidebar {
+      border-right: 1px solid rgba(0,0,0,.07);
+    }
+    
+    .sidebar-nav li {
+      margin: 4px 0;
+    }
+    
+    .app-name {
+      font-size: 1.5rem;
+      font-weight: 700;
+    }
+    
+    .markdown-section {
+      max-width: 900px;
+      padding: 30px 30px 40px;
+    }
+    
+    .markdown-section h1 {
+      font-size: 2.5rem;
+      margin: 0 0 1rem;
+    }
+    
+    .markdown-section h2 {
+      font-size: 1.8rem;
+      margin: 2rem 0 1rem;
+      padding-bottom: 0.3rem;
+      border-bottom: 1px solid #eee;
+    }
+    
+    .search input {
+      border-radius: 20px;
+    }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>🚀 小乐开发者文档</h1>
-            <p>全面的开发与部署指南</p>
-        </div>
-        
-        <div class="docs-grid">
-            <!-- Backend -->
-            <a href="backend/" class="doc-card">
-                <div class="doc-icon">🔧</div>
-                <h3>后端开发</h3>
-                <p>AI 模型集成、工具配置、数据库设置等后端技术文档</p>
-                <div class="doc-links">
-                    <a href="backend/BAIDU_VOICE_SETUP.md">百度语音</a>
-                    <a href="backend/DEEPSEEK_SETUP.md">DeepSeek</a>
-                    <a href="backend/QWEN_VISION_SETUP.md">Qwen 视觉</a>
-                    <a href="backend/CLAUDE_INTEGRATION.md">Claude</a>
-                </div>
-            </a>
-            
-            <!-- Frontend -->
-            <a href="frontend/" class="doc-card">
-                <div class="doc-icon">🎨</div>
-                <h3>前端开发</h3>
-                <p>UI 优化、组件开发、快捷键等前端相关文档</p>
-                <div class="doc-links">
-                    <a href="frontend/FRONTEND_MODULARIZATION.md">模块化</a>
-                    <a href="frontend/FRONTEND_OPTIMIZATION.md">性能优化</a>
-                    <a href="frontend/AUTO_RELOAD_GUIDE.md">自动重载</a>
-                </div>
-            </a>
-            
-            <!-- Architecture -->
-            <a href="architecture/" class="doc-card">
-                <div class="doc-icon">🏗️</div>
-                <h3>系统架构</h3>
-                <p>部署设计、系统迁移、集成方案等架构文档</p>
-                <div class="doc-links">
-                    <a href="architecture/CLOUDFLARE_TUNNEL.md">Cloudflare</a>
-                    <a href="architecture/WEBHOOK_DEPLOY.md">Webhook</a>
-                    <a href="architecture/MIGRATION_GUIDE.md">迁移指南</a>
-                </div>
-            </a>
-            
-            <!-- Product -->
-            <a href="product/" class="doc-card">
-                <div class="doc-icon">📱</div>
-                <h3>产品文档</h3>
-                <p>用户指南、测试用例、功能介绍等产品相关文档</p>
-                <div class="doc-links">
-                    <a href="product/VOICE_USER_GUIDE.md">语音指南</a>
-                    <a href="product/VISION_TEST_GUIDE.md">视觉测试</a>
-                    <a href="product/TEST_GUIDE.md">测试指南</a>
-                </div>
-            </a>
-            
-            <!-- Development -->
-            <a href="dev/" class="doc-card">
-                <div class="doc-icon">🛠️</div>
-                <h3>开发运维</h3>
-                <p>环境配置、故障排除、已知问题等运维文档</p>
-                <div class="doc-links">
-                    <a href="dev/PRODUCTION_DEPLOYMENT.md">部署</a>
-                    <a href="dev/TROUBLESHOOTING.md">故障排除</a>
-                    <a href="dev/issues/">已知问题</a>
-                </div>
-            </a>
-            
-            <!-- Roadmap -->
-            <a href="roadmap/" class="doc-card">
-                <div class="doc-icon">🗺️</div>
-                <h3>规划与发布</h3>
-                <p>版本更新、功能规划、历史存档等相关文档</p>
-                <div class="doc-links">
-                    <a href="roadmap/PROGRESS.md">开发进度</a>
-                    <a href="roadmap/PROJECT_STATUS.md">项目状态</a>
-                    <a href="roadmap/archived/">历史存档</a>
-                </div>
-            </a>
-        </div>
-        
-        <div class="footer">
-            <p>📚 更多文档：<a href="INDEX.md">完整索引</a> | <a href="QUICK_REFERENCE.md">快速参考</a> | <a href="DOCS_README.md">项目说明</a></p>
-            <p style="margin-top: 16px;">© 2025 小乐开发者文档 | 部署于 <a href="https://pages.cloudflare.com/">Cloudflare Pages</a></p>
-        </div>
-    </div>
+  <div id="app">加载中...</div>
+  <script>
+    window.$docsify = {
+      name: '小乐开发者文档',
+      repo: 'rockts/xiaole-ai',
+      loadSidebar: true,
+      subMaxLevel: 3,
+      auto2top: true,
+      homepage: 'README.md',
+      coverpage: false,
+      
+      search: {
+        maxAge: 86400000,
+        paths: 'auto',
+        placeholder: '搜索文档...',
+        noData: '未找到结果',
+        depth: 3
+      },
+      
+      pagination: {
+        previousText: '上一页',
+        nextText: '下一页',
+        crossChapter: true,
+        crossChapterText: true,
+      },
+      
+      count: {
+        countable: true,
+        fontsize: '0.9em',
+        color: 'rgb(90,90,90)',
+        language: 'chinese'
+      },
+      
+      alias: {
+        '/.*/_sidebar.md': '/_sidebar.md'
+      }
+    }
+  </script>
+  
+  <!-- Docsify core -->
+  <script src="//cdn.jsdelivr.net/npm/docsify@4"></script>
+  
+  <!-- Plugins -->
+  <script src="//cdn.jsdelivr.net/npm/docsify/lib/plugins/search.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/docsify-pagination/dist/docsify-pagination.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/docsify-copy-code@2"></script>
+  <script src="//cdn.jsdelivr.net/npm/prismjs@1/components/prism-bash.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/prismjs@1/components/prism-python.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/prismjs@1/components/prism-javascript.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/prismjs@1/components/prism-sql.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/prismjs@1/components/prism-yaml.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/prismjs@1/components/prism-json.min.js"></script>
 </body>
 </html>
