@@ -18,6 +18,8 @@
   * **开发相关**
     * [优化计划](backend/development/optimization-plan.md)
     * [测试结果](backend/development/test-results.md)
+    * [项目结构](backend/development/project-structure.md)
+    * [重组计划](backend/development/reorganize-plan.md)
   * **环境配置**
     * [对话上下文](backend/setup/conversation-context.md)
     * [iCloud 同步设置](backend/setup/icloud-sync-setup.md)
