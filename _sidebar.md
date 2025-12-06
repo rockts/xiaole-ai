@@ -5,6 +5,7 @@
 * [📋 完整索引](INDEX.md)
 
 * **🔧 后端开发**
+  * [后端概览](backend/README.md)
   * [百度语音配置](backend/BAIDU_VOICE_SETUP.md)
   * [DeepSeek 配置](backend/DEEPSEEK_SETUP.md)
   * [Qwen 视觉配置](backend/QWEN_VISION_SETUP.md)
@@ -13,6 +14,15 @@
   * [PostgreSQL 设置](backend/NAS_POSTGRESQL_SETUP.md)
   * [PostgreSQL 重启](backend/NAS_POSTGRESQL_RESTART.md)
   * [语义搜索报告](backend/SEMANTIC_SEARCH_REPORT.md)
+  * [文档管理](backend/docs-management.md)
+  * **开发相关**
+    * [优化计划](backend/development/optimization-plan.md)
+    * [测试结果](backend/development/test-results.md)
+  * **环境配置**
+    * [对话上下文](backend/setup/conversation-context.md)
+    * [iCloud 同步设置](backend/setup/icloud-sync-setup.md)
+    * [多仓库配置](backend/setup/multi-repo-setup.md)
+    * [使用说明](backend/setup/usage.md)
 
 * **🎨 前端开发**
   * [前端模块化](frontend/FRONTEND_MODULARIZATION.md)
