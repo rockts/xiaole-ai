@@ -29,6 +29,15 @@
   * [前端优化](frontend/FRONTEND_OPTIMIZATION.md)
   * [自动重载指南](frontend/AUTO_RELOAD_GUIDE.md)
   * [快捷键说明](frontend/KEYBOARD_SHORTCUTS.md)
+  * **环境配置**
+    * [前端设置](frontend/setup/frontend-setup.md)
+  * **开发指南**
+    * [组件指南](frontend/development/component-guide.md)
+    * [Markdown 规则](frontend/development/MARKDOWN_RULES.md)
+  * **组件文档**
+    * [Button 组件](frontend/components/button-component.md)
+  * **API 文档**
+    * [User API](frontend/api/user-api.md)
 
 * **🏗️ 系统架构**
   * [Cloudflare Tunnel](architecture/CLOUDFLARE_TUNNEL.md)
