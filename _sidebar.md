@@ -65,6 +65,7 @@
   * [v0.7.1 完成](roadmap/v0.7.1_COMPLETED.md)
   * [v0.8.1 提醒修复](roadmap/v0.8.1_REMINDER_FIX.md)
   * **历史存档**
+    * [仓库拆分说明](roadmap/archived/REPO_SPLIT_INSTRUCTIONS.md)
     * [Claude 完成](roadmap/archived/CLAUDE_DONE.md)
     * [当前状态](roadmap/archived/CURRENT_STATUS.md)
     * [修复报告 20251126](roadmap/archived/FIX_REPORT_20251126.md)
